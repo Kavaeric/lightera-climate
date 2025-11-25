@@ -1,0 +1,32 @@
+/* Basic focus styling for accessibility */
+.action {
+  padding: 0;
+  margin: 0;
+
+  /* Disabled state - prevent interaction but maintain focus visibility */
+  &[aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
+/* Inset focus ring variant */
+.focus-inside {
+  &:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset-inside);
+  }
+}
+
+.focus-inset {
+  &:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset-inset);
+  }
+}
+
+.focus-outside {
+  &:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset-outside);
+  }
+}

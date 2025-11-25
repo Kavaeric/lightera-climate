@@ -1,0 +1,129 @@
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+
+  /* This helps when the icon is inline with text */
+
+  /* Material Symbols recommendation is to move icon down 11.5% of the font size */
+  vertical-align: -0.115em;
+  pointer-events: none;
+  user-select: none;
+
+  /* Size variants using design tokens - only change font-size */
+  &.icon--size-xs {
+    inline-size: var(--icon-size-xs);
+    block-size: var(--icon-size-xs);
+    font-size: var(--icon-size-xs);
+  }
+
+  &.icon--size-sm {
+    inline-size: var(--icon-size-sm);
+    block-size: var(--icon-size-sm);
+    font-size: var(--icon-size-sm);
+  }
+
+  &.icon--size-md {
+    inline-size: var(--icon-size-md);
+    block-size: var(--icon-size-md);
+    font-size: var(--icon-size-md);
+  }
+
+  &.icon--size-lg {
+    inline-size: var(--icon-size-lg);
+    block-size: var(--icon-size-lg);
+    font-size: var(--icon-size-lg);
+  }
+
+  &.icon--size-xl {
+    inline-size: var(--icon-size-xl);
+    block-size: var(--icon-size-xl);
+    font-size: var(--icon-size-xl);
+  }
+
+  &.icon--size-2xl {
+    inline-size: var(--icon-size-2xl);
+    block-size: var(--icon-size-2xl);
+    font-size: var(--icon-size-2xl);
+  }
+
+  &.icon--size-3xl {
+    inline-size: var(--icon-size-3xl);
+    block-size: var(--icon-size-3xl);
+    font-size: var(--icon-size-3xl);
+  }
+
+  /* Color variants using design system semantic colour tokens */
+  &.icon--neutral {
+    color: var(--color-icon);
+  }
+
+  &.icon--bold {
+    color: var(--color-icon-bold);
+  }
+
+  &.icon--subtle {
+    color: var(--color-icon-subtle);
+  }
+
+  &.icon--brand {
+    color: var(--color-icon-brand);
+  }
+
+  &.icon--brand-bold {
+    color: var(--color-icon-brand-bold);
+  }
+
+  &.icon--brand-inverse {
+    color: var(--color-icon-brand-inverse);
+  }
+
+  &.icon--danger {
+    color: var(--color-icon-danger);
+  }
+
+  &.icon--danger-bold {
+    color: var(--color-icon-danger-bold);
+  }
+
+  &.icon--caution {
+    color: var(--color-icon-caution);
+  }
+
+  &.icon--caution-bold {
+    color: var(--color-icon-caution-bold);
+  }
+
+  &.icon--success {
+    color: var(--color-icon-success);
+  }
+
+  &.icon--success-bold {
+    color: var(--color-icon-success-bold);
+  }
+
+  &.icon--info {
+    color: var(--color-icon-info);
+  }
+
+  &.icon--info-bold {
+    color: var(--color-icon-info-bold);
+  }
+}
+
+.icon--weight-normal {
+  font-weight: var(--font-weight-normal);
+}
+
+.icon--weight-medium {
+  font-weight: var(--font-weight-medium);
+}
+
+.icon--weight-semibold {
+  font-weight: var(--font-weight-semibold);
+}
+
+.icon--weight-bold {
+  font-weight: var(--font-weight-bold);
+}
