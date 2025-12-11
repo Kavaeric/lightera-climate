@@ -228,6 +228,7 @@ export class GridCell {
   isPole: boolean
   id: string
   centerVertex: THREE.Vector3
+  latLon: { lat: number; lon: number }
   isPentagon: boolean
   isAlongIcosahedronEdge: boolean
   vertices: THREE.Vector3[] | null = null
@@ -241,6 +242,15 @@ export class GridCell {
     this.isPole = this.isNorthPole || this.isSouthPole
     this.id = `${quadId}-${N}-${x}-${y}`
     this.centerVertex = center
+
+    // Pre-calculate latitude and longitude from 3D position
+    // Latitude: angle from equatorial plane (-90° to +90°)
+    // Longitude: angle in equatorial plane from prime meridian (-180° to +180°)
+    this.latLon = {
+      lat: Math.asin(center.y) * 180 / Math.PI,
+      lon: Math.atan2(center.x, center.z) * 180 / Math.PI
+    }
+
     this.isPentagon = this.isPole || (x === N - 1 && y === 0)
     this.isAlongIcosahedronEdge = this.isPentagon || (x === N - 1) || (y === 0) || (x + y === N - 1)
   }

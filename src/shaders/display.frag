@@ -7,6 +7,9 @@ uniform sampler2D stateTex;
 uniform float valueMin;
 uniform float valueMax;
 uniform vec3 morelandColors[5];
+uniform float hoveredCellIndex;
+uniform float textureWidth;
+uniform float textureHeight;
 
 varying vec2 vUv;
 varying vec3 vNormal;
@@ -42,6 +45,22 @@ void main() {
   } else {
     // Normal range: use Moreland colormap
     color = moreland(normalized);
+  }
+
+  // Check if this is the hovered cell
+  if (hoveredCellIndex >= 0.0) {
+    // Calculate expected UV for hovered cell
+    float x = mod(hoveredCellIndex, textureWidth);
+    float y = floor(hoveredCellIndex / textureWidth);
+    float expectedU = (x + 0.5) / textureWidth;
+    float expectedV = (y + 0.5) / textureHeight;
+
+    // Check if current UV matches (with small epsilon for floating point comparison)
+    float uvDist = abs(vUv.x - expectedU) + abs(vUv.y - expectedV);
+    if (uvDist < 0.001) {
+      // Brighten and add white outline
+      color = mix(color, vec3(1.0, 1.0, 1.0), 0.5);
+    }
   }
 
   gl_FragColor = vec4(color, 1.0);

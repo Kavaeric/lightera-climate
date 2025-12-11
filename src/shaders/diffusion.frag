@@ -8,14 +8,20 @@ uniform sampler2D neighbourIndices1; // RGB = neighbours 0,1,2
 uniform sampler2D neighbourIndices2; // RGB = neighbours 3,4,5
 uniform sampler2D neighbourCounts;   // R = count (5 or 6)
 uniform float textureWidth;
+uniform float textureHeight;
 uniform float diffusionRate;
 
 varying vec2 vUv;
 
-// Convert cell index to UV coordinate
+// Convert cell index to UV coordinate (2D layout)
 vec2 indexToUV(float index) {
-  float u = (index + 0.5) / textureWidth;
-  return vec2(u, 0.5);
+  float width = textureWidth;
+  float height = textureHeight;
+  float x = mod(index, width);
+  float y = floor(index / width);
+  float u = (x + 0.5) / width;
+  float v = (y + 0.5) / height;
+  return vec2(u, v);
 }
 
 void main() {

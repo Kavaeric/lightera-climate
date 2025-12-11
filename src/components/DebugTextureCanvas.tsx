@@ -26,7 +26,7 @@ export function DebugTextureCanvas({
     const style: React.CSSProperties = {
       position: 'absolute',
       width: `${size}px`,
-      height: `${8}px`,
+      height: `${size}px`,
       pointerEvents: 'none',
       imageRendering: 'pixelated', // Crisp pixels for the texture
     }
@@ -64,33 +64,38 @@ export function DebugTextureCanvas({
     // Read pixels from the current render target
     const renderTarget = simulation.getCurrentRenderTarget()
     const textureWidth = simulation.getTextureWidth()
-    const buffer = new Float32Array(textureWidth * 4)
+    const textureHeight = simulation.getTextureHeight()
+    const buffer = new Float32Array(textureWidth * textureHeight * 4)
 
-    gl.readRenderTargetPixels(renderTarget, 0, 0, textureWidth, 1, buffer)
+    gl.readRenderTargetPixels(renderTarget, 0, 0, textureWidth, textureHeight, buffer)
 
     // Create ImageData for the canvas
-    const imageData = ctx.createImageData(textureWidth, 1)
+    const imageData = ctx.createImageData(textureWidth, textureHeight)
 
     // Convert temperature values to grayscale (normalize -40 to 30 -> 0 to 255)
     for (let i = 0; i < simulation.getCellCount(); i++) {
-      const temp = buffer[i * 4] // R channel = temperature
+      const row = Math.floor(i / textureWidth)
+      const col = i % textureWidth
+      const bufferIndex = (row * textureWidth + col) * 4
+      const temp = buffer[bufferIndex] // R channel = temperature
       const normalized = (temp + 40) / 70 // -40 to 30 -> 0 to 1
       const gray = Math.floor(normalized * 255)
 
-      imageData.data[i * 4 + 0] = gray // R
-      imageData.data[i * 4 + 1] = gray // G
-      imageData.data[i * 4 + 2] = gray // B
-      imageData.data[i * 4 + 3] = 255  // A
+      const imageIndex = (row * textureWidth + col) * 4
+      imageData.data[imageIndex + 0] = gray // R
+      imageData.data[imageIndex + 1] = gray // G
+      imageData.data[imageIndex + 2] = gray // B
+      imageData.data[imageIndex + 3] = 255  // A
     }
 
-    // Draw the 1-pixel-high texture data
+    // Draw the 2D texture data
     ctx.putImageData(imageData, 0, 0)
 
     // Scale it up to fill the canvas
     ctx.imageSmoothingEnabled = false
     const tempCanvas = document.createElement('canvas')
     tempCanvas.width = textureWidth
-    tempCanvas.height = 1
+    tempCanvas.height = textureHeight
     const tempCtx = tempCanvas.getContext('2d')
     if (tempCtx) {
       tempCtx.putImageData(imageData, 0, 0)
@@ -104,7 +109,7 @@ export function DebugTextureCanvas({
       <canvas
         ref={canvasRef}
         width={simulation.getTextureWidth()}
-        height={simulation.getTextureWidth()}
+        height={simulation.getTextureHeight()}
         style={getPositionStyle()}
       />
     </Html>

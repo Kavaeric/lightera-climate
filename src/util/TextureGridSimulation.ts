@@ -10,6 +10,7 @@ export class TextureGridSimulation {
   private cells: GridCell[]
   private cellCount: number
   private textureWidth: number
+  private textureHeight: number
 
   // State textures (ping-pong buffers)
   public stateTexture: THREE.DataTexture
@@ -30,11 +31,17 @@ export class TextureGridSimulation {
     this.cells = Array.from(this.grid)
     this.cellCount = this.cells.length
 
-    // Calculate texture width (next power of 2)
-    this.textureWidth = Math.pow(2, Math.ceil(Math.log2(this.cellCount)))
+    // Calculate 2D texture dimensions (square or near-square, power-of-2)
+    // Find dimensions that can fit all cells
+    const sqrtCells = Math.sqrt(this.cellCount)
+    const baseWidth = Math.ceil(sqrtCells)
+    this.textureWidth = Math.pow(2, Math.ceil(Math.log2(baseWidth)))
+    this.textureHeight = Math.ceil(this.cellCount / this.textureWidth)
+    // Round height to next power of 2 for better GPU performance
+    this.textureHeight = Math.pow(2, Math.ceil(Math.log2(this.textureHeight)))
 
     console.log(
-      `TextureGridSimulation: ${this.cellCount} cells, texture width: ${this.textureWidth}`
+      `TextureGridSimulation: ${this.cellCount} cells, texture size: ${this.textureWidth}x${this.textureHeight}`
     )
 
     // Create textures
@@ -53,15 +60,32 @@ export class TextureGridSimulation {
   }
 
   /**
-   * Create a state texture (RGBA32F, 1D layout)
+   * Convert cell index to 2D texture coordinates
+   */
+  private indexTo2D(index: number): { x: number; y: number } {
+    return {
+      x: index % this.textureWidth,
+      y: Math.floor(index / this.textureWidth),
+    }
+  }
+
+  /**
+   * Convert 2D coordinates to linear data array index
+   */
+  private coordsToDataIndex(x: number, y: number, channels: number): number {
+    return (y * this.textureWidth + x) * channels
+  }
+
+  /**
+   * Create a state texture (RGBA32F, 2D layout)
    * R = temperature, G/B/A reserved for future properties
    */
   private createStateTexture(): THREE.DataTexture {
-    const data = new Float32Array(this.textureWidth * 4) // RGBA
+    const data = new Float32Array(this.textureWidth * this.textureHeight * 4) // RGBA
     const texture = new THREE.DataTexture(
       data,
       this.textureWidth,
-      1,
+      this.textureHeight,
       THREE.RGBAFormat,
       THREE.FloatType
     )
@@ -77,7 +101,7 @@ export class TextureGridSimulation {
    * Create neighbour indices texture 1 (stores neighbours 0, 1, 2)
    */
   private createneighbourTexture1(): THREE.DataTexture {
-    const data = new Float32Array(this.textureWidth * 3) // RGB
+    const data = new Float32Array(this.textureWidth * this.textureHeight * 3) // RGB
 
     // Build lookup map for O(1) cell index lookups
     const cellToIndex = new Map<GridCell, number>()
@@ -94,16 +118,20 @@ export class TextureGridSimulation {
         cellToIndex.get(neighbourCell) ?? -1
       )
 
+      // Convert cell index to 2D coordinates
+      const coords = this.indexTo2D(i)
+      const dataIndex = this.coordsToDataIndex(coords.x, coords.y, 3)
+
       // Store first 3 neighbours as RGB
-      data[i * 3 + 0] = neighbourIndices[0] ?? -1 // R = neighbour 0
-      data[i * 3 + 1] = neighbourIndices[1] ?? -1 // G = neighbour 1
-      data[i * 3 + 2] = neighbourIndices[2] ?? -1 // B = neighbour 2
+      data[dataIndex + 0] = neighbourIndices[0] ?? -1 // R = neighbour 0
+      data[dataIndex + 1] = neighbourIndices[1] ?? -1 // G = neighbour 1
+      data[dataIndex + 2] = neighbourIndices[2] ?? -1 // B = neighbour 2
     }
 
     const texture = new THREE.DataTexture(
       data,
       this.textureWidth,
-      1,
+      this.textureHeight,
       THREE.RGBFormat,
       THREE.FloatType
     )
@@ -119,7 +147,7 @@ export class TextureGridSimulation {
    * Create neighbour indices texture 2 (stores neighbours 3, 4, 5)
    */
   private createneighbourTexture2(): THREE.DataTexture {
-    const data = new Float32Array(this.textureWidth * 3) // RGB
+    const data = new Float32Array(this.textureWidth * this.textureHeight * 3) // RGB
 
     // Build lookup map for O(1) cell index lookups
     const cellToIndex = new Map<GridCell, number>()
@@ -136,16 +164,20 @@ export class TextureGridSimulation {
         cellToIndex.get(neighbourCell) ?? -1
       )
 
+      // Convert cell index to 2D coordinates
+      const coords = this.indexTo2D(i)
+      const dataIndex = this.coordsToDataIndex(coords.x, coords.y, 3)
+
       // Store next 3 neighbours as RGB
-      data[i * 3 + 0] = neighbourIndices[3] ?? -1 // R = neighbour 3
-      data[i * 3 + 1] = neighbourIndices[4] ?? -1 // G = neighbour 4
-      data[i * 3 + 2] = neighbourIndices[5] ?? -1 // B = neighbour 5
+      data[dataIndex + 0] = neighbourIndices[3] ?? -1 // R = neighbour 3
+      data[dataIndex + 1] = neighbourIndices[4] ?? -1 // G = neighbour 4
+      data[dataIndex + 2] = neighbourIndices[5] ?? -1 // B = neighbour 5
     }
 
     const texture = new THREE.DataTexture(
       data,
       this.textureWidth,
-      1,
+      this.textureHeight,
       THREE.RGBFormat,
       THREE.FloatType
     )
@@ -161,18 +193,20 @@ export class TextureGridSimulation {
    * Create neighbour count texture (stores how many neighbours each cell has)
    */
   private createNeighbourCountTexture(): THREE.DataTexture {
-    const data = new Float32Array(this.textureWidth) // Single channel
+    const data = new Float32Array(this.textureWidth * this.textureHeight) // Single channel
 
     for (let i = 0; i < this.cellCount; i++) {
       const cell = this.cells[i]
       const neighbourCells = cell.neighbours(this.grid)
-      data[i] = neighbourCells.length
+      const coords = this.indexTo2D(i)
+      const dataIndex = this.coordsToDataIndex(coords.x, coords.y, 1)
+      data[dataIndex] = neighbourCells.length
     }
 
     const texture = new THREE.DataTexture(
       data,
       this.textureWidth,
-      1,
+      this.textureHeight,
       THREE.RedFormat,
       THREE.FloatType
     )
@@ -188,7 +222,7 @@ export class TextureGridSimulation {
    * Create a render target for GPU computation
    */
   private createRenderTarget(): THREE.WebGLRenderTarget {
-    return new THREE.WebGLRenderTarget(this.textureWidth, 1, {
+    return new THREE.WebGLRenderTarget(this.textureWidth, this.textureHeight, {
       minFilter: THREE.NearestFilter,
       magFilter: THREE.NearestFilter,
       format: THREE.RGBAFormat,
@@ -209,10 +243,13 @@ export class TextureGridSimulation {
       // Random temperature between -40 and +30
       const temp = -40 + Math.random() * 70
 
-      data[i * 4 + 0] = temp // R = temperature
-      data[i * 4 + 1] = 0 // G = unused
-      data[i * 4 + 2] = 0 // B = unused
-      data[i * 4 + 3] = 0 // A = unused
+      const coords = this.indexTo2D(i)
+      const dataIndex = this.coordsToDataIndex(coords.x, coords.y, 4)
+
+      data[dataIndex + 0] = temp // R = temperature
+      data[dataIndex + 1] = 0 // G = unused
+      data[dataIndex + 2] = 0 // B = unused
+      data[dataIndex + 3] = 0 // A = unused
     }
 
     this.stateTexture.needsUpdate = true
@@ -259,6 +296,13 @@ export class TextureGridSimulation {
   }
 
   /**
+   * Get texture height
+   */
+  getTextureHeight(): number {
+    return this.textureHeight
+  }
+
+  /**
    * Get cell count
    */
   getCellCount(): number {
@@ -266,10 +310,14 @@ export class TextureGridSimulation {
   }
 
   /**
-   * Get UV coordinate for a given cell index
+   * Get UV coordinates for a given cell index (returns [u, v])
    */
-  getCellUV(cellIndex: number): number {
-    return (cellIndex + 0.5) / this.textureWidth
+  getCellUV(cellIndex: number): [number, number] {
+    const coords = this.indexTo2D(cellIndex)
+    return [
+      (coords.x + 0.5) / this.textureWidth,
+      (coords.y + 0.5) / this.textureHeight,
+    ]
   }
 
   /**
@@ -278,9 +326,10 @@ export class TextureGridSimulation {
   async getTemperature(cellIndex: number, renderer: THREE.WebGLRenderer): Promise<number> {
     const buffer = new Float32Array(4)
     const target = this.getCurrentRenderTarget()
+    const coords = this.indexTo2D(cellIndex)
 
     // Read a single pixel
-    renderer.readRenderTargetPixels(target, cellIndex, 0, 1, 1, buffer)
+    renderer.readRenderTargetPixels(target, coords.x, coords.y, 1, 1, buffer)
 
     return buffer[0] // R channel = temperature
   }
@@ -289,16 +338,18 @@ export class TextureGridSimulation {
    * Read back min/max temperature from GPU (slow, for stats only)
    */
   async getMinMaxTemperature(renderer: THREE.WebGLRenderer): Promise<{ min: number; max: number }> {
-    const buffer = new Float32Array(this.textureWidth * 4)
+    const buffer = new Float32Array(this.textureWidth * this.textureHeight * 4)
     const target = this.getCurrentRenderTarget()
 
-    renderer.readRenderTargetPixels(target, 0, 0, this.textureWidth, 1, buffer)
+    renderer.readRenderTargetPixels(target, 0, 0, this.textureWidth, this.textureHeight, buffer)
 
     let min = Infinity
     let max = -Infinity
 
     for (let i = 0; i < this.cellCount; i++) {
-      const temp = buffer[i * 4] // R channel
+      const coords = this.indexTo2D(i)
+      const dataIndex = this.coordsToDataIndex(coords.x, coords.y, 4)
+      const temp = buffer[dataIndex] // R channel
       min = Math.min(min, temp)
       max = Math.max(max, temp)
     }

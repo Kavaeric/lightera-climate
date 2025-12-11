@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useMemo, forwardRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Grid } from '../util/geodesic'
@@ -13,22 +13,23 @@ interface TextureGeodesicPolyhedronProps {
   radius: number
   simulation: TextureGridSimulation
   valueRange?: { min: number; max: number }
+  hoveredCellIndex?: number | null
 }
 
 /**
  * Geodesic polyhedron that reads colors from a GPU texture
  * Each vertex has a UV coordinate pointing to its cell's pixel in the state texture
  */
-export function TextureGeodesicPolyhedron({
-  subdivisions,
-  radius,
-  simulation,
-  valueRange = { min: -40, max: 30 },
-}: TextureGeodesicPolyhedronProps) {
-  const meshRef = useRef<THREE.Mesh>(null)
-
-  // Generate geometry with UV coordinates mapped to texture
-  const geometry = useMemo(() => {
+export const TextureGeodesicPolyhedron = forwardRef<THREE.Mesh, TextureGeodesicPolyhedronProps>(
+  function TextureGeodesicPolyhedron({
+    subdivisions,
+    radius,
+    simulation,
+    valueRange = { min: -40, max: 30 },
+    hoveredCellIndex = null,
+  }, ref) {
+    // Generate geometry with UV coordinates mapped to texture
+    const geometry = useMemo(() => {
     const grid = new Grid(subdivisions)
     const vertices: number[] = []
     const normals: number[] = []
@@ -39,8 +40,8 @@ export function TextureGeodesicPolyhedron({
     cells.forEach((cell, cellIndex) => {
       if (!cell.vertices || !cell.faceTriangles) return
 
-      // Get UV coordinate for this cell (maps to pixel in texture)
-      const cellUV = simulation.getCellUV(cellIndex)
+      // Get UV coordinates for this cell (maps to pixel in texture)
+      const [cellU, cellV] = simulation.getCellUV(cellIndex)
 
       // Add triangles for this cell - NO SHARED VERTICES
       // Each triangle gets its own 3 vertices for per-face coloring
@@ -49,19 +50,19 @@ export function TextureGeodesicPolyhedron({
         const scaledA = triangle.a.clone().multiplyScalar(radius)
         vertices.push(scaledA.x, scaledA.y, scaledA.z)
         normals.push(triangle.a.x, triangle.a.y, triangle.a.z)
-        uvs.push(cellUV, 0.5) // U = cell index, V = 0.5 (center of 1-pixel-high texture)
+        uvs.push(cellU, cellV) // 2D UV coordinates
 
         // Vertex B
         const scaledB = triangle.b.clone().multiplyScalar(radius)
         vertices.push(scaledB.x, scaledB.y, scaledB.z)
         normals.push(triangle.b.x, triangle.b.y, triangle.b.z)
-        uvs.push(cellUV, 0.5)
+        uvs.push(cellU, cellV)
 
         // Vertex C
         const scaledC = triangle.c.clone().multiplyScalar(radius)
         vertices.push(scaledC.x, scaledC.y, scaledC.z)
         normals.push(triangle.c.x, triangle.c.y, triangle.c.z)
-        uvs.push(cellUV, 0.5)
+        uvs.push(cellU, cellV)
       }
     })
 
@@ -90,6 +91,9 @@ export function TextureGeodesicPolyhedron({
         valueMin: { value: valueRange.min },
         valueMax: { value: valueRange.max },
         morelandColors: { value: morelandColors },
+        hoveredCellIndex: { value: -1 },
+        textureWidth: { value: simulation.getTextureWidth() },
+        textureHeight: { value: simulation.getTextureHeight() },
       },
       vertexShader: displayVertexShader,
       fragmentShader: displayFragmentShader,
@@ -98,18 +102,21 @@ export function TextureGeodesicPolyhedron({
     return shaderMaterial
   }, [simulation, valueRange])
 
-  // Update the material's texture reference each frame
-  // (needed because simulation swaps between render targets)
-  useFrame(() => {
-    if (meshRef.current?.material && (meshRef.current.material as THREE.ShaderMaterial).uniforms) {
-      const mat = meshRef.current.material as THREE.ShaderMaterial
-      mat.uniforms.stateTex.value = simulation.getCurrentTexture()
-    }
-  })
+    // Update the material's texture reference each frame
+    // (needed because simulation swaps between render targets)
+    useFrame(() => {
+      const mesh = (ref as React.RefObject<THREE.Mesh>)?.current
+      if (mesh?.material && (mesh.material as THREE.ShaderMaterial).uniforms) {
+        const mat = mesh.material as THREE.ShaderMaterial
+        mat.uniforms.stateTex.value = simulation.getCurrentTexture()
+        mat.uniforms.hoveredCellIndex.value = hoveredCellIndex ?? -1
+      }
+    })
 
-  return (
-    <mesh ref={meshRef} geometry={geometry} material={material}>
-      {/* Material is already set via shader */}
-    </mesh>
-  )
-}
+    return (
+      <mesh ref={ref} geometry={geometry} material={material}>
+        {/* Material is already set via shader */}
+      </mesh>
+    )
+  }
+)

@@ -46,6 +46,7 @@ export function TextureSimulationRenderer({
         neighbourIndices2: { value: simulation.neighbourIndices2 },
         neighbourCounts: { value: simulation.neighbourCounts },
         textureWidth: { value: simulation.getTextureWidth() },
+        textureHeight: { value: simulation.getTextureHeight() },
         diffusionRate: { value: 0.05 },
       },
     })

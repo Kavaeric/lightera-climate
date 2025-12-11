@@ -1,15 +1,19 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls, GizmoHelper, GizmoViewport } from '@react-three/drei'
 import { useRef, useMemo, useState } from 'react'
+import * as THREE from 'three'
 import { TextureGridSimulation } from './util/TextureGridSimulation'
 import { TextureGeodesicPolyhedron } from './components/TextureGeodesicPolyhedron'
 import { TextureSimulationRenderer } from './components/TextureSimulationRenderer'
+import { CellPicker } from './components/CellPicker'
 
-const SIMULATION_RESOLUTION = 32;
+const SIMULATION_RESOLUTION = 32; // 128 seems to be the max until it crashes
 
 function Scene({ simulation, onStatsUpdate }: { simulation: TextureGridSimulation; onStatsUpdate: (stats: { min: number; max: number }) => void }) {
   const { gl } = useThree()
   const frameCountRef = useRef(0)
+  const meshRef = useRef<THREE.Mesh>(null)
+  const [hoveredCell, setHoveredCell] = useState<number | null>(null)
 
   useFrame(async () => {
     // Update stats every 60 frames for performance (GPU readback is slow)
@@ -27,11 +31,16 @@ function Scene({ simulation, onStatsUpdate }: { simulation: TextureGridSimulatio
 
       {/* Visible geometry that reads from simulation texture */}
       <TextureGeodesicPolyhedron
+        ref={meshRef}
         subdivisions={SIMULATION_RESOLUTION}
         radius={1}
         simulation={simulation}
         valueRange={{ min: -40, max: 30 }}
+        hoveredCellIndex={hoveredCell}
       />
+
+      {/* Cell picker for debugging */}
+      <CellPicker simulation={simulation} meshRef={meshRef} onHoverCell={setHoveredCell} />
     </>
   )
 }
