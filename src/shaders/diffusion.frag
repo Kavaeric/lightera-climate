@@ -26,48 +26,27 @@ void main() {
   // Read neighbour indices
   vec3 neighbours1 = texture2D(neighbourIndices1, vUv).rgb;
   vec3 neighbours2 = texture2D(neighbourIndices2, vUv).rgb;
-  float neighbourCount = texture2D(neighbourCounts, vUv).r;
 
-  // Sum neighbour temperatures
+  // Branchless neighbour sampling using step()
+  // step(a, b) returns 1.0 if b >= a, else 0.0
+
   float neighbourSum = 0.0;
-  int validneighbours = 0;
+  float validCount = 0.0;
 
-  // Process first 3 neighbours
-  if (neighbours1.r >= 0.0) {
-    vec2 uv = indexToUV(neighbours1.r);
-    neighbourSum += texture2D(stateTex, uv).r;
-    validneighbours++;
-  }
-  if (neighbours1.g >= 0.0) {
-    vec2 uv = indexToUV(neighbours1.g);
-    neighbourSum += texture2D(stateTex, uv).r;
-    validneighbours++;
-  }
-  if (neighbours1.b >= 0.0) {
-    vec2 uv = indexToUV(neighbours1.b);
-    neighbourSum += texture2D(stateTex, uv).r;
-    validneighbours++;
-  }
+  // Process all 6 neighbours without branching
+  vec3 valid1 = step(0.0, neighbours1); // 1.0 if >= 0, else 0.0
+  vec3 valid2 = step(0.0, neighbours2);
 
-  // Process next 3 neighbours
-  if (neighbours2.r >= 0.0) {
-    vec2 uv = indexToUV(neighbours2.r);
-    neighbourSum += texture2D(stateTex, uv).r;
-    validneighbours++;
-  }
-  if (neighbours2.g >= 0.0) {
-    vec2 uv = indexToUV(neighbours2.g);
-    neighbourSum += texture2D(stateTex, uv).r;
-    validneighbours++;
-  }
-  if (neighbours2.b >= 0.0) {
-    vec2 uv = indexToUV(neighbours2.b);
-    neighbourSum += texture2D(stateTex, uv).r;
-    validneighbours++;
-  }
+  neighbourSum += texture2D(stateTex, indexToUV(neighbours1.r)).r * valid1.r;
+  neighbourSum += texture2D(stateTex, indexToUV(neighbours1.g)).r * valid1.g;
+  neighbourSum += texture2D(stateTex, indexToUV(neighbours1.b)).r * valid1.b;
+  neighbourSum += texture2D(stateTex, indexToUV(neighbours2.r)).r * valid2.r;
+  neighbourSum += texture2D(stateTex, indexToUV(neighbours2.g)).r * valid2.g;
+  neighbourSum += texture2D(stateTex, indexToUV(neighbours2.b)).r * valid2.b;
 
-  // Calculate average neighbour temperature
-  float neighbourAvg = neighbourSum / float(validneighbours);
+  validCount = valid1.r + valid1.g + valid1.b + valid2.r + valid2.g + valid2.b;
+
+  float neighbourAvg = neighbourSum / validCount;
 
   // Apply diffusion: move toward neighbour average
   float newTemp = currentTemp + (neighbourAvg - currentTemp) * diffusionRate;
