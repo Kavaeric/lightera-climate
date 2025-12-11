@@ -42,9 +42,9 @@ export function TextureSimulationRenderer({
       fragmentShader: diffusionFragmentShader,
       uniforms: {
         stateTex: { value: simulation.stateTexture },
-        neighborIndices1: { value: simulation.neighborIndices1 },
-        neighborIndices2: { value: simulation.neighborIndices2 },
-        neighborCounts: { value: simulation.neighborCounts },
+        neighbourIndices1: { value: simulation.neighbourIndices1 },
+        neighbourIndices2: { value: simulation.neighbourIndices2 },
+        neighbourCounts: { value: simulation.neighbourCounts },
         textureWidth: { value: simulation.getTextureWidth() },
         diffusionRate: { value: 0.05 },
       },

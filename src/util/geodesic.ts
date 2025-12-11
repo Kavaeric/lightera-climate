@@ -246,12 +246,12 @@ export class GridCell {
   }
 
   calculateVertices(grid: Grid) {
-    const neighborCells = this.neighbors(grid)
-    this.vertices = new Array(neighborCells.length)
-    for (let i = 0; i < neighborCells.length; i++) {
-      const neighborA = neighborCells[i]
-      const neighborB = neighborCells[(i + 1) % neighborCells.length]
-      const vertex = circumcenter(this.centerVertex, neighborA.centerVertex, neighborB.centerVertex)
+    const neighbourCells = this.neighbours(grid)
+    this.vertices = new Array(neighbourCells.length)
+    for (let i = 0; i < neighbourCells.length; i++) {
+      const neighbourA = neighbourCells[i]
+      const neighbourB = neighbourCells[(i + 1) % neighbourCells.length]
+      const vertex = circumcenter(this.centerVertex, neighbourA.centerVertex, neighbourB.centerVertex)
       this.vertices[i] = vertex
     }
     this.calculateFaceTriangles()
@@ -282,12 +282,12 @@ export class GridCell {
     }
   }
 
-  neighbors(grid: Grid): GridCell[] {
+  neighbours(grid: Grid): GridCell[] {
     const { quadCells, northPole, southPole } = grid
     const [quadId, N, x, y] = this.coords
 
     if (typeof quadId === 'number' && quadId >= 0 && (0 < x && x < N - 1) && (0 < y && y < N - 1)) {
-      // Common case: all neighbors are on the same quad
+      // Common case: all neighbours are on the same quad
       const quad = quadCells[quadId]
       return [
         quad[N * (x - 1) + y],

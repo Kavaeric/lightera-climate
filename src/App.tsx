@@ -5,6 +5,8 @@ import { TextureGridSimulation } from './util/TextureGridSimulation'
 import { TextureGeodesicPolyhedron } from './components/TextureGeodesicPolyhedron'
 import { TextureSimulationRenderer } from './components/TextureSimulationRenderer'
 
+const SIMULATION_RESOLUTION = 32;
+
 function Scene({ simulation, onStatsUpdate }: { simulation: TextureGridSimulation; onStatsUpdate: (stats: { min: number; max: number }) => void }) {
   const { gl } = useThree()
   const frameCountRef = useRef(0)
@@ -25,7 +27,7 @@ function Scene({ simulation, onStatsUpdate }: { simulation: TextureGridSimulatio
 
       {/* Visible geometry that reads from simulation texture */}
       <TextureGeodesicPolyhedron
-        subdivisions={4}
+        subdivisions={SIMULATION_RESOLUTION}
         radius={1}
         simulation={simulation}
         valueRange={{ min: -40, max: 30 }}
@@ -37,13 +39,13 @@ function Scene({ simulation, onStatsUpdate }: { simulation: TextureGridSimulatio
 function App() {
   // Create texture-based simulation once at App level
   const simulation = useMemo(() => {
-    return new TextureGridSimulation(4)
+    return new TextureGridSimulation(SIMULATION_RESOLUTION)
   }, [])
 
   const [stats, setStats] = useState({ min: -40, max: 30 })
 
   return (
-    <main style={{ width: '100vw', height: '100vh' }}>
+    <main style={{ width: '100vw', height: '100vh', background: 'black' }}>
       <Canvas camera={{ position: [2, 1, 2], fov: 60 }} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
         <OrbitControls enablePan={false} />
 

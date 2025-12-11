@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { Grid } from './geodesic'
+import { Grid, GridCell } from './geodesic'
 
 /**
  * GPU-based grid simulation using textures for state storage
@@ -7,7 +7,7 @@ import { Grid } from './geodesic'
  */
 export class TextureGridSimulation {
   private grid: Grid
-  private cells: any[]
+  private cells: GridCell[]
   private cellCount: number
   private textureWidth: number
 
@@ -15,10 +15,10 @@ export class TextureGridSimulation {
   public stateTexture: THREE.DataTexture
   public nextStateTexture: THREE.DataTexture
 
-  // Neighbor lookup textures
-  public neighborIndices1: THREE.DataTexture // stores neighbors 0,1,2
-  public neighborIndices2: THREE.DataTexture // stores neighbors 3,4,5
-  public neighborCounts: THREE.DataTexture // stores how many neighbors (5 or 6)
+  // Neighbour lookup textures
+  public neighbourIndices1: THREE.DataTexture // stores neighbours 0,1,2
+  public neighbourIndices2: THREE.DataTexture // stores neighbours 3,4,5
+  public neighbourCounts: THREE.DataTexture // stores how many neighbours (5 or 6)
 
   // Render targets for ping-pong rendering
   public renderTarget1: THREE.WebGLRenderTarget
@@ -40,9 +40,9 @@ export class TextureGridSimulation {
     // Create textures
     this.stateTexture = this.createStateTexture()
     this.nextStateTexture = this.createStateTexture()
-    this.neighborIndices1 = this.createNeighborTexture1()
-    this.neighborIndices2 = this.createNeighborTexture2()
-    this.neighborCounts = this.createNeighborCountTexture()
+    this.neighbourIndices1 = this.createneighbourTexture1()
+    this.neighbourIndices2 = this.createneighbourTexture2()
+    this.neighbourCounts = this.createNeighbourCountTexture()
 
     // Create render targets for GPU computation
     this.renderTarget1 = this.createRenderTarget()
@@ -74,24 +74,30 @@ export class TextureGridSimulation {
   }
 
   /**
-   * Create neighbor indices texture 1 (stores neighbors 0, 1, 2)
+   * Create neighbour indices texture 1 (stores neighbours 0, 1, 2)
    */
-  private createNeighborTexture1(): THREE.DataTexture {
+  private createneighbourTexture1(): THREE.DataTexture {
     const data = new Float32Array(this.textureWidth * 3) // RGB
+
+    // Build lookup map for O(1) cell index lookups
+    const cellToIndex = new Map<GridCell, number>()
+    for (let i = 0; i < this.cellCount; i++) {
+      cellToIndex.set(this.cells[i], i)
+    }
 
     for (let i = 0; i < this.cellCount; i++) {
       const cell = this.cells[i]
-      const neighborCells = cell.neighbors(this.grid)
+      const neighbourCells = cell.neighbours(this.grid)
 
-      // Find indices of neighbors in the cells array
-      const neighborIndices = neighborCells.map((neighborCell: any) =>
-        this.cells.indexOf(neighborCell)
+      // Find indices of neighbours in the cells array
+      const neighbourIndices = neighbourCells.map((neighbourCell: GridCell) =>
+        cellToIndex.get(neighbourCell) ?? -1
       )
 
-      // Store first 3 neighbors as RGB
-      data[i * 3 + 0] = neighborIndices[0] ?? -1 // R = neighbor 0
-      data[i * 3 + 1] = neighborIndices[1] ?? -1 // G = neighbor 1
-      data[i * 3 + 2] = neighborIndices[2] ?? -1 // B = neighbor 2
+      // Store first 3 neighbours as RGB
+      data[i * 3 + 0] = neighbourIndices[0] ?? -1 // R = neighbour 0
+      data[i * 3 + 1] = neighbourIndices[1] ?? -1 // G = neighbour 1
+      data[i * 3 + 2] = neighbourIndices[2] ?? -1 // B = neighbour 2
     }
 
     const texture = new THREE.DataTexture(
@@ -110,24 +116,30 @@ export class TextureGridSimulation {
   }
 
   /**
-   * Create neighbor indices texture 2 (stores neighbors 3, 4, 5)
+   * Create neighbour indices texture 2 (stores neighbours 3, 4, 5)
    */
-  private createNeighborTexture2(): THREE.DataTexture {
+  private createneighbourTexture2(): THREE.DataTexture {
     const data = new Float32Array(this.textureWidth * 3) // RGB
+
+    // Build lookup map for O(1) cell index lookups
+    const cellToIndex = new Map<GridCell, number>()
+    for (let i = 0; i < this.cellCount; i++) {
+      cellToIndex.set(this.cells[i], i)
+    }
 
     for (let i = 0; i < this.cellCount; i++) {
       const cell = this.cells[i]
-      const neighborCells = cell.neighbors(this.grid)
+      const neighbourCells = cell.neighbours(this.grid)
 
-      // Find indices of neighbors in the cells array
-      const neighborIndices = neighborCells.map((neighborCell: any) =>
-        this.cells.indexOf(neighborCell)
+      // Find indices of neighbours in the cells array
+      const neighbourIndices = neighbourCells.map((neighbourCell: GridCell) =>
+        cellToIndex.get(neighbourCell) ?? -1
       )
 
-      // Store next 3 neighbors as RGB
-      data[i * 3 + 0] = neighborIndices[3] ?? -1 // R = neighbor 3
-      data[i * 3 + 1] = neighborIndices[4] ?? -1 // G = neighbor 4
-      data[i * 3 + 2] = neighborIndices[5] ?? -1 // B = neighbor 5
+      // Store next 3 neighbours as RGB
+      data[i * 3 + 0] = neighbourIndices[3] ?? -1 // R = neighbour 3
+      data[i * 3 + 1] = neighbourIndices[4] ?? -1 // G = neighbour 4
+      data[i * 3 + 2] = neighbourIndices[5] ?? -1 // B = neighbour 5
     }
 
     const texture = new THREE.DataTexture(
@@ -146,15 +158,15 @@ export class TextureGridSimulation {
   }
 
   /**
-   * Create neighbor count texture (stores how many neighbors each cell has)
+   * Create neighbour count texture (stores how many neighbours each cell has)
    */
-  private createNeighborCountTexture(): THREE.DataTexture {
+  private createNeighbourCountTexture(): THREE.DataTexture {
     const data = new Float32Array(this.textureWidth) // Single channel
 
     for (let i = 0; i < this.cellCount; i++) {
       const cell = this.cells[i]
-      const neighborCells = cell.neighbors(this.grid)
-      data[i] = neighborCells.length
+      const neighbourCells = cell.neighbours(this.grid)
+      data[i] = neighbourCells.length
     }
 
     const texture = new THREE.DataTexture(
@@ -297,9 +309,9 @@ export class TextureGridSimulation {
   dispose() {
     this.stateTexture.dispose()
     this.nextStateTexture.dispose()
-    this.neighborIndices1.dispose()
-    this.neighborIndices2.dispose()
-    this.neighborCounts.dispose()
+    this.neighbourIndices1.dispose()
+    this.neighbourIndices2.dispose()
+    this.neighbourCounts.dispose()
     this.renderTarget1.dispose()
     this.renderTarget2.dispose()
   }

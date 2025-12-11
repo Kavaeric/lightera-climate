@@ -2,7 +2,7 @@ import { Grid, GridCell } from './geodesic'
 
 /**
  * Simulation state for a geodesic grid
- * Stores values for each cell and handles neighbor-based updates
+ * Stores values for each cell and handles neighbour-based updates
  */
 export class GridSimulation {
   grid: Grid
@@ -12,9 +12,9 @@ export class GridSimulation {
   values: Float32Array
   nextValues: Float32Array
 
-  // Precomputed neighbor indices for fast lookup
-  neighborIndices: Int32Array
-  neighborCounts: Uint8Array
+  // Precomputed neighbour indices for fast lookup
+  neighbourIndices: Int32Array
+  neighbourCounts: Uint8Array
 
   constructor(grid: Grid) {
     this.grid = grid
@@ -27,19 +27,19 @@ export class GridSimulation {
     this.values = new Float32Array(cellCount)
     this.nextValues = new Float32Array(cellCount)
 
-    // Precompute neighbor indices
-    // Max 6 neighbors per cell, store as flat array
-    this.neighborIndices = new Int32Array(cellCount * 6)
-    this.neighborCounts = new Uint8Array(cellCount)
+    // Precompute neighbour indices
+    // Max 6 neighbours per cell, store as flat array
+    this.neighbourIndices = new Int32Array(cellCount * 6)
+    this.neighbourCounts = new Uint8Array(cellCount)
 
-    this.buildNeighborIndices()
+    this.buildneighbourIndices()
     this.initializeValues()
   }
 
   /**
-   * Build a lookup table of neighbor indices
+   * Build a lookup table of neighbour indices
    */
-  private buildNeighborIndices() {
+  private buildneighbourIndices() {
     const cellMap = new Map<string, number>()
 
     // Map cell IDs to indices
@@ -47,18 +47,18 @@ export class GridSimulation {
       cellMap.set(cell.id, index)
     })
 
-    // For each cell, store its neighbor indices
+    // For each cell, store its neighbour indices
     this.cells.forEach((cell, cellIndex) => {
-      const neighbors = cell.neighbors(this.grid)
-      this.neighborCounts[cellIndex] = neighbors.length
+      const neighbours = cell.neighbours(this.grid)
+      this.neighbourCounts[cellIndex] = neighbours.length
 
-      for (let i = 0; i < neighbors.length; i++) {
-        const neighborIndex = cellMap.get(neighbors[i].id)
-        if (neighborIndex === undefined) {
-          console.error(`Neighbor ${neighbors[i].id} not found for cell ${cell.id}`)
+      for (let i = 0; i < neighbours.length; i++) {
+        const neighbourIndex = cellMap.get(neighbours[i].id)
+        if (neighbourIndex === undefined) {
+          console.error(`Neighbour ${neighbours[i].id} not found for cell ${cell.id}`)
           continue
         }
-        this.neighborIndices[cellIndex * 6 + i] = neighborIndex
+        this.neighbourIndices[cellIndex * 6 + i] = neighbourIndex
       }
     })
   }
@@ -80,39 +80,39 @@ export class GridSimulation {
   }
 
   /**
-   * Get neighbors for a cell by index
+   * Get neighbours for a cell by index
    */
-  getNeighborIndices(cellIndex: number): number[] {
-    const count = this.neighborCounts[cellIndex]
-    const neighbors = []
+  getneighbourIndices(cellIndex: number): number[] {
+    const count = this.neighbourCounts[cellIndex]
+    const neighbours = []
     for (let i = 0; i < count; i++) {
-      neighbors.push(this.neighborIndices[cellIndex * 6 + i])
+      neighbours.push(this.neighbourIndices[cellIndex * 6 + i])
     }
-    return neighbors
+    return neighbours
   }
 
   /**
    * Update simulation - simple diffusion
-   * Each cell averages with its neighbors
+   * Each cell averages with its neighbours
    */
   step(diffusionRate: number = 0.1) {
     // Compute next values based on current state
     for (let i = 0; i < this.cells.length; i++) {
       const currentValue = this.values[i]
 
-      // Average neighbor values
-      let neighborSum = 0
-      const neighborCount = this.neighborCounts[i]
+      // Average neighbour values
+      let neighbourSum = 0
+      const neighbourCount = this.neighbourCounts[i]
 
-      for (let j = 0; j < neighborCount; j++) {
-        const neighborIndex = this.neighborIndices[i * 6 + j]
-        neighborSum += this.values[neighborIndex]
+      for (let j = 0; j < neighbourCount; j++) {
+        const neighbourIndex = this.neighbourIndices[i * 6 + j]
+        neighbourSum += this.values[neighbourIndex]
       }
 
-      const neighborAvg = neighborSum / neighborCount
+      const neighbourAvg = neighbourSum / neighbourCount
 
-      // Diffusion: blend current value with neighbor average
-      const newValue = currentValue + (neighborAvg - currentValue) * diffusionRate
+      // Diffusion: blend current value with neighbour average
+      const newValue = currentValue + (neighbourAvg - currentValue) * diffusionRate
 
       // Don't clamp - let values overflow to see where simulation breaks
       this.nextValues[i] = newValue
