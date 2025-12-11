@@ -1,35 +1,70 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { OrbitControls, GizmoHelper, GizmoViewport } from '@react-three/drei'
+import { useRef, useMemo, useState } from 'react'
+import { TextureGridSimulation } from './util/TextureGridSimulation'
+import { TextureGeodesicPolyhedron } from './components/TextureGeodesicPolyhedron'
+import { TextureSimulationRenderer } from './components/TextureSimulationRenderer'
 
-function App() {
-  const [count, setCount] = useState(0)
+function Scene({ simulation, onStatsUpdate }: { simulation: TextureGridSimulation; onStatsUpdate: (stats: { min: number; max: number }) => void }) {
+  const { gl } = useThree()
+  const frameCountRef = useRef(0)
+
+  useFrame(async () => {
+    // Update stats every 60 frames for performance (GPU readback is slow)
+    frameCountRef.current++
+    if (frameCountRef.current % 60 === 0) {
+      const stats = await simulation.getMinMaxTemperature(gl)
+      onStatsUpdate(stats)
+    }
+  })
 
   return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      {/* Invisible component that runs GPU simulation via render-to-texture */}
+      <TextureSimulationRenderer simulation={simulation} />
+
+      {/* Visible geometry that reads from simulation texture */}
+      <TextureGeodesicPolyhedron
+        subdivisions={4}
+        radius={1}
+        simulation={simulation}
+        valueRange={{ min: -40, max: 30 }}
+      />
     </>
   )
 }
 
-export default App
+function App() {
+  // Create texture-based simulation once at App level
+  const simulation = useMemo(() => {
+    return new TextureGridSimulation(4)
+  }, [])
+
+  const [stats, setStats] = useState({ min: -40, max: 30 })
+
+  return (
+    <main style={{ width: '100vw', height: '100vh' }}>
+      <Canvas camera={{ position: [2, 1, 2], fov: 60 }} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
+        <OrbitControls enablePan={false} />
+
+        <GizmoHelper alignment="top-right" margin={[60, 60]}>
+          <GizmoViewport />
+        </GizmoHelper>
+
+        {/* GPU-based simulation and rendering */}
+        <Scene simulation={simulation} onStatsUpdate={setStats} />
+      </Canvas>
+
+      <div style={{ position: 'absolute', top: 10, left: 10, color: 'white', background: 'rgba(0,0,0,0.5)', padding: '8px', fontFamily: 'monospace' }}>
+        <dl style={{ margin: 0 }}>
+          <dt>Maximum temperature</dt>
+          <dd>{stats.max.toFixed(1)}</dd>
+          <dt>Minimum temperature</dt>
+          <dd>{stats.min.toFixed(1)}</dd>
+        </dl>
+      </div>
+    </main>
+  );
+}
+
+export default App;

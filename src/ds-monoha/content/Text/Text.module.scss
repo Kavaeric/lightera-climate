@@ -1,0 +1,80 @@
+// Base text styles
+.text {
+	padding: 0;
+	margin: 0;
+  font-family: var(--font-family-body);
+}
+
+// Size variants using design system body text tokens
+.text-sm {
+	font: var(--font-body-sm);
+}
+
+.text-md {
+	font: var(--font-body-md);
+}
+
+.text-lg {
+	font: var(--font-body-lg);
+}
+
+.text-xl {
+	font: var(--font-body-xl);
+}
+
+// Color variants using design system text color tokens
+.text-neutral {
+	color: var(--color-text);
+}
+
+.text-bold {
+	color: var(--color-text-bold);
+}
+
+.text-subtle {
+	color: var(--color-text-subtle);
+}
+
+.text-brand {
+	color: var(--color-text-brand);
+}
+
+.text-brand-bold {
+	color: var(--color-text-brand-bold);
+}
+
+.text-brand-inverse {
+	color: var(--color-text-brand-inverse);
+}
+
+.text-danger {
+	color: var(--color-text-danger);
+}
+
+.text-danger-bold {
+	color: var(--color-text-danger-bold);
+}
+
+.text-caution {
+	color: var(--color-text-caution);
+}
+
+.text-caution-bold {
+	color: var(--color-text-caution-bold);
+}
+
+.text-success {
+	color: var(--color-text-success);
+}
+
+.text-success-bold {
+	color: var(--color-text-success-bold);
+}
+
+.text-info {
+	color: var(--color-text-info);
+}
+
+.text-info-bold {
+	color: var(--color-text-info-bold);
+}

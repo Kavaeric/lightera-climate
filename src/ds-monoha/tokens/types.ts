@@ -24,12 +24,6 @@ export type SpacingTokens =
   | 1000;
 
 /**
- * Valid border radius token values used throughout the design system.
- * These correspond to the --border-radius-* CSS custom properties.
- */
-export type BorderRadiusTokens = 'none' | 'xxs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'full';
-
-/**
  * Valid body text size token values used throughout the design system.
  * These correspond to the --font-body-* CSS custom properties.
  */

@@ -1,0 +1,56 @@
+.stack {
+	display: flex;
+	flex-direction: column;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.stack--hug {
+  flex-grow: 0;
+}
+
+/* Fill functionality */
+.stack--fill {
+	flex-grow: 1;
+	inline-size: 100%;
+}
+
+/* Wrap functionality */
+.stack--wrap {
+	flex-wrap: wrap;
+}
+
+/* Across alignment (cross-axis) */
+.stack--align-block-start {
+	justify-content: flex-start;
+}
+
+.stack--align-block-center {
+	justify-content: center;
+}
+
+.stack--align-block-end {
+	justify-content: flex-end;
+}
+
+.stack--align-block-stretch {
+	justify-content: stretch;
+}
+
+/* Inline alignment (main-axis) */
+.stack--align-inline-start {
+	align-items: flex-start;
+}
+
+.stack--align-inline-center {
+	align-items: center;
+}
+
+.stack--align-inline-end {
+	align-items: flex-end;
+}
+
+.stack--align-inline-spread {
+	align-items: space-between;
+}

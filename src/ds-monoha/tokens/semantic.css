@@ -60,9 +60,9 @@
 
 	/* === Light === */
 	/* Light background for UI elements like buttons */
-	--colour-bg-neutral-light: light-dark(rgb(from var(--colour-neutral-0) r g b / 40%), rgb(from var(--colour-neutral-0) r g b / 5%));
-	--colour-bg-neutral-light-hover: light-dark(rgb(from var(--colour-neutral-100) r g b / 40%), rgb(from var(--colour-neutral-0) r g b / 10%));
-	--colour-bg-neutral-light-active: light-dark(rgb(from var(--colour-neutral-100) r g b / 80%), rgb(from var(--colour-neutral-0) r g b / 15%));
+	--colour-bg-neutral-light: light-dark(rgb(from var(--colour-neutral-0) r g b / 70%), rgb(from var(--colour-neutral-0) r g b / 5%));
+	--colour-bg-neutral-light-hover: light-dark(rgb(from var(--colour-neutral-100) r g b / 70%), rgb(from var(--colour-neutral-0) r g b / 10%));
+	--colour-bg-neutral-light-active: light-dark(rgb(from var(--colour-neutral-200) r g b / 80%), rgb(from var(--colour-neutral-0) r g b / 15%));
 
 	/* ====== Content ====== */
 	/* === Bold === */
@@ -133,7 +133,7 @@
   --surface-sunken: light-dark(var(--colour-neutral-75), var(--colour-neutral-925));
 
 	/* ========= Focus ring ========= */
-	--focus-ring-color: light-dark(var(--colour-primary-600), var(--colour-primary-400));
+	--focus-ring-colour: light-dark(var(--colour-primary-600), var(--colour-primary-400));
 	--focus-ring-width: var(--size-3);
 	--focus-ring-offset-outside: var(--size-2);
 	--focus-ring-offset-inside: calc(-1 * var(--size-3));
@@ -175,6 +175,24 @@
 	--font-heading-xl: var(--font-weight-medium) var(--text-size-500) / 2.25rem var(--font-family-heading);
 	--font-heading-2xl: var(--font-weight-medium) var(--text-size-600) / 2.75rem var(--font-family-heading);
 	--font-heading-3xl: var(--font-weight-medium) var(--text-size-700) / 3.25rem var(--font-family-heading);
+
+	--font-heading-2xs-tracking: var(--text-tracking-800);
+	--font-heading-xs-tracking: var(--text-tracking-800);
+	--font-heading-sm-tracking: var(--text-tracking-800);
+	--font-heading-md-tracking: var(--text-tracking-800);
+	--font-heading-lg-tracking: var(--text-tracking-800);
+	--font-heading-xl-tracking: var(--text-tracking-800);
+	--font-heading-2xl-tracking: var(--text-tracking-800);
+	--font-heading-3xl-tracking: var(--text-tracking-800);
+
+	--font-heading-2xs-text-transform: uppercase;
+	--font-heading-xs-text-transform: uppercase;
+	--font-heading-sm-text-transform: uppercase;
+	--font-heading-md-text-transform: uppercase;
+	--font-heading-lg-text-transform: uppercase;
+	--font-heading-xl-text-transform: uppercase;
+	--font-heading-2xl-text-transform: uppercase;
+	--font-heading-3xl-text-transform: uppercase;
 
   /* Label text, for UI elements like forms and buttons */
   --font-label-sm: var(--font-weight-semibold) var(--text-size-50) / 1.25rem var(--font-family-label);

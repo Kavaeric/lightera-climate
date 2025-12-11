@@ -1,0 +1,129 @@
+/* Grid column styles */
+.button-start {
+  display: flex;
+  grid-column: 1;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1;
+}
+
+.button-end {
+  display: flex;
+  grid-column: 3;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1;
+}
+
+.button-middle {
+  display: flex;
+  grid-column: 2;
+  align-items: center;
+
+  .button-middle-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+    white-space: nowrap;
+  }
+}
+
+/* Button Sizes */
+.button-sm {
+  gap: var(--button-gap-sm);
+	min-inline-size: var(--button-size-sm);
+	min-block-size: var(--button-size-sm);
+	padding-block: var(--button-padding-block-sm);
+	padding-inline: var(--button-padding-inline-sm);
+}
+
+.button-md {
+  gap: var(--button-gap-md);
+	min-inline-size: var(--button-size-md);
+	min-block-size: var(--button-size-md);
+	padding-block: var(--button-padding-block-md);
+	padding-inline: var(--button-padding-inline-md);
+}
+
+.button-lg {
+  gap: var(--button-gap-lg);
+	min-inline-size: var(--button-size-lg);
+	min-block-size: var(--button-size-lg);
+	padding-block: var(--button-padding-block-lg);
+	padding-inline: var(--button-padding-inline-lg);
+}
+
+/* Mobile collapse behavior */
+.button-mobile-collapse {
+  /* Mobile: collapsed layout */
+  grid-template-columns: auto 0fr auto;
+  gap: var(--spacing-0);
+  min-inline-size: var(--button-size-md);
+
+  /* Desktop: expanded layout */
+  @media (width >= 600px) {
+    grid-template-columns: auto 1fr auto;
+    gap: var(--button-gap-md);
+  }
+}
+
+.button-middle-mobile-collapse {
+  /* Mobile: screen reader only */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  white-space: nowrap;
+  border: 0;
+  clip: rect(0, 0, 0, 0);
+
+  /* Desktop: visible */
+  @media (width >= 600px) {
+    position: revert-layer;
+    width: revert-layer;
+    height: revert-layer;
+    padding: revert-layer;
+    margin: revert-layer;
+    overflow: revert-layer;
+    white-space: revert-layer;
+    border: revert-layer;
+    clip: revert-layer;
+  }
+}
+
+/* Icon and spinner layer controls */
+.icon-mobile {
+  display: block;
+
+  @media (width >= 600px) {
+    display: none;
+  }
+}
+
+.icon-desktop {
+  display: none;
+
+  @media (width >= 600px) {
+    display: block;
+  }
+}
+
+.spinner-mobile {
+  position: absolute;
+  display: inline-flex;
+
+  @media (width >= 600px) {
+    display: none;
+  }
+}
+
+.spinner-desktop {
+  position: absolute;
+  display: none;
+
+  @media (width >= 600px) {
+    display: inline-flex;
+  }
+}

@@ -1,5 +1,6 @@
 @import 'primitive.css';
 @import 'semantic.css';
+@import 'component.css';
 
 /* You'd want to do this in index.ejs, not here.
    You'd also want to _not_ load the entire font for production */
@@ -32,6 +33,7 @@ html, body {
   color: var(--colour-text);
   background-color: var(--surface-base);
   -webkit-font-smoothing: antialiased;
+  color-scheme: light dark;
 }
 
 p,

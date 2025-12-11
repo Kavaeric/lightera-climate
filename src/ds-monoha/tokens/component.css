@@ -1,0 +1,94 @@
+/* Component-level design tokens */
+
+/* ==== Button component tokens ==== */
+:root {
+  /* ===== Common button properties ===== */
+  --button-transition: all var(--transition-ui) ease-in-out;
+  --button-font: var(--font-label-md);
+  --button-group-gap: var(--spacing-50);
+	
+  /* Small */
+  --button-size-sm: var(--size-interactive-small);
+  --button-padding-block-sm: var(--spacing-25);
+  --button-padding-inline-sm: var(--spacing-100);
+  --button-gap-sm: var(--spacing-50);
+
+  /* Medium/default */
+  --button-size-md: var(--size-interactive-medium);
+  --button-padding-block-md: var(--spacing-50);
+  --button-padding-inline-md: var(--spacing-100);
+  --button-gap-md: var(--spacing-50);
+
+  /* Large */
+  --button-size-lg: var(--size-interactive-large);
+  --button-padding-block-lg: var(--spacing-50);
+  --button-padding-inline-lg: var(--spacing-100);
+  --button-gap-lg: var(--spacing-50);
+
+  /* ===== Primary Button (main brand styling) ===== */
+  --button-primary-content: var(--colour-text-brand-bold-inverse);
+  --button-primary-icon: var(--colour-icon-brand-bold-inverse);
+  --button-primary-bg: var(--colour-bg-brand-bold);
+
+  /* Hover */
+  --button-primary-hover-content: var(--colour-text-brand-bold-inverse);
+  --button-primary-hover-icon: var(--colour-icon-brand-bold-inverse);
+  --button-primary-hover-bg: var(--colour-bg-brand-bold-hover);
+
+  /* Active */
+  --button-primary-active-content: var(--colour-text-brand-bold-inverse);
+  --button-primary-active-icon: var(--colour-icon-brand-bold-inverse);
+  --button-primary-active-bg: var(--colour-bg-brand-bold-active);
+
+  /* Selected */
+  --button-primary-selected-content: var(--colour-text-brand-bold-inverse);
+  --button-primary-selected-icon: var(--colour-icon-brand-bold-inverse);
+  --button-primary-selected-bg: var(--colour-bg-selected-bold);
+  --button-primary-selected-hover-bg: var(--colour-bg-selected-bold-hover);
+  --button-primary-selected-active-bg: var(--colour-bg-selected-bold-active);
+
+  /* ===== Secondary Button ===== */
+  --button-secondary-content: var(--colour-text-bold);
+  --button-secondary-icon: var(--colour-icon-bold);
+  --button-secondary-bg: var(--colour-bg-neutral-light);
+
+  /* Hover */
+  --button-secondary-hover-content: var(--colour-text-bold);
+  --button-secondary-hover-icon: var(--colour-icon-bold);
+  --button-secondary-hover-bg: var(--colour-bg-neutral-light-hover);
+
+  /* Active */
+  --button-secondary-active-content: var(--colour-text-bold);
+  --button-secondary-active-icon: var(--colour-icon-bold);
+  --button-secondary-active-bg: var(--colour-bg-neutral-light-active);
+
+  /* Selected */
+  --button-secondary-selected-content: var(--colour-text-bold);
+  --button-secondary-selected-icon: var(--colour-icon-bold);
+  --button-secondary-selected-bg: var(--colour-bg-selected);
+  --button-secondary-selected-hover-bg: var(--colour-bg-selected-hover);
+  --button-secondary-selected-active-bg: var(--colour-bg-selected-active);
+
+  /* ===== Ghost Button ===== */
+  --button-ghost-content: var(--colour-text);
+  --button-ghost-icon: var(--colour-icon);
+  --button-ghost-bg: transparent;
+  --button-ghost-font: var(--font-body-md);
+
+  /* Hover */
+  --button-ghost-hover-content: var(--colour-text-bold);
+  --button-ghost-hover-icon: var(--colour-icon-bold);
+  --button-ghost-hover-bg: var(--colour-bg-neutral-subtle-hover);
+
+  /* Active */
+  --button-ghost-active-content: var(--colour-text-bold);
+  --button-ghost-active-icon: var(--colour-icon-bold);
+  --button-ghost-active-bg: var(--colour-bg-neutral-subtle-active);
+
+  /* Selected */
+  --button-ghost-selected-content: var(--colour-text-brand-bold);
+  --button-ghost-selected-icon: var(--colour-icon-brand-bold);
+  --button-ghost-selected-bg: var(--colour-bg-selected-subtle);
+  --button-ghost-selected-hover-bg: var(--colour-bg-selected-subtle-hover);
+  --button-ghost-selected-active-bg: var(--colour-bg-selected-subtle-active);
+}

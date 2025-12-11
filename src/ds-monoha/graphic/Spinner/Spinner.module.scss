@@ -1,0 +1,104 @@
+/* This is a custom spinner that is styled to Material Symbols spec.
+ * https://m3.material.io/styles/icons/designing-icons
+ * Material Symbols uses a 24px (or "dp" as Google calls it) grid, with a 2dp around the perimeter of the "live area"
+ *
+ * Common keylines:
+ * 18dp x 18dp: Square
+ * 20dp x 20dp: Circle
+ * 20dp x 16dp: Vertical (tall) rectangle
+ * 16dp x 20dp: Horizontal (wide) rectangle
+ *
+ * This spinner is a square, so I'm using the 18dp x 18dp keyline.
+ */
+
+.spinner {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  aspect-ratio: 1 / 1;
+  padding: 0.1666em; /* Creates 18dp box within 24dp grid */
+  color: inherit;
+
+  /* Size variants using design tokens */
+  &.spinner--size-xs {
+    inline-size: var(--icon-size-xs);
+    block-size: var(--icon-size-xs);
+  }
+
+  &.spinner--size-sm {
+    inline-size: var(--icon-size-sm);
+    block-size: var(--icon-size-sm);
+  }
+
+  &.spinner--size-md {
+    inline-size: var(--icon-size-md);
+    block-size: var(--icon-size-md);
+  }
+
+  &.spinner--size-lg {
+    inline-size: var(--icon-size-lg);
+    block-size: var(--icon-size-lg);
+  }
+
+  &.spinner--size-xl {
+    inline-size: var(--icon-size-xl);
+    block-size: var(--icon-size-xl);
+  }
+
+  &.spinner--size-2xl {
+    inline-size: var(--icon-size-2xl);
+    block-size: var(--icon-size-2xl);
+  }
+
+  &.spinner--size-3xl {
+    inline-size: var(--icon-size-3xl);
+    block-size: var(--icon-size-3xl);
+  }
+}
+
+.spinner-bar {
+  height: 100%;
+  background-color: currentcolor;
+  animation: wave-spinner var(--animation-duration-loading) infinite ease-in-out;
+}
+
+.spinner-bar:nth-child(1) {
+  animation-delay: calc(var(--animation-duration-loading) * -0.3);
+}
+
+.spinner-bar:nth-child(2) {
+  animation-delay: calc(var(--animation-duration-loading) * -0.2);
+}
+
+.spinner-bar:nth-child(3) {
+  animation-delay: calc(var(--animation-duration-loading) * -0.1);
+}
+
+@keyframes wave-spinner {
+  0% {
+    opacity: 0.5;
+    transform: scaleY(0.2);
+  }
+
+  15% {
+    opacity: 1;
+    transform: scaleY(0.8);
+  }
+
+  30% {
+    opacity: 0.7;
+    transform: scaleY(0.4);
+  }
+
+  45% {
+    opacity: 1;
+    transform: scaleY(0.8);
+  }
+
+  90%,
+  100% {
+    opacity: 0.5;
+    transform: scaleY(0.2);
+  }
+}
