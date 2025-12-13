@@ -6,10 +6,11 @@ import { TextureGridSimulation } from './util/TextureGridSimulation'
 import { TextureGeodesicPolyhedron } from './components/TextureGeodesicPolyhedron'
 import { TextureSimulationRenderer } from './components/TextureSimulationRenderer'
 import { CellPicker } from './components/CellPicker'
+import { LatLonGrid } from './components/LatLonGrid'
 
-const SIMULATION_RESOLUTION = 32; // 128 seems to be the max until it crashes
+const SIMULATION_RESOLUTION = 64; // 128 seems to be the max until it crashes
 
-function Scene({ simulation, onStatsUpdate }: { simulation: TextureGridSimulation; onStatsUpdate: (stats: { min: number; max: number }) => void }) {
+function Scene({ simulation, onStatsUpdate, showLatLonGrid }: { simulation: TextureGridSimulation; onStatsUpdate: (stats: { min: number; max: number }) => void; showLatLonGrid: boolean }) {
   const { gl } = useThree()
   const frameCountRef = useRef(0)
   const meshRef = useRef<THREE.Mesh>(null)
@@ -41,6 +42,9 @@ function Scene({ simulation, onStatsUpdate }: { simulation: TextureGridSimulatio
 
       {/* Cell picker for debugging */}
       <CellPicker simulation={simulation} meshRef={meshRef} onHoverCell={setHoveredCell} />
+
+      {/* Lat/Lon grid overlay */}
+      <LatLonGrid segments={64} visible={showLatLonGrid} />
     </>
   )
 }
@@ -52,6 +56,7 @@ function App() {
   }, [])
 
   const [stats, setStats] = useState({ min: -40, max: 30 })
+  const [showLatLonGrid, setShowLatLonGrid] = useState(true)
 
   return (
     <main style={{ width: '100vw', height: '100vh', background: 'black' }}>
@@ -63,7 +68,7 @@ function App() {
         </GizmoHelper>
 
         {/* GPU-based simulation and rendering */}
-        <Scene simulation={simulation} onStatsUpdate={setStats} />
+        <Scene simulation={simulation} onStatsUpdate={setStats} showLatLonGrid={showLatLonGrid} />
       </Canvas>
 
       <div style={{ position: 'absolute', top: 10, left: 10, color: 'white', background: 'rgba(0,0,0,0.5)', padding: '8px', fontFamily: 'monospace' }}>
@@ -73,6 +78,16 @@ function App() {
           <dt>Minimum temperature</dt>
           <dd>{stats.min.toFixed(1)}</dd>
         </dl>
+        <hr style={{ margin: '8px 0', border: 'none', borderTop: '1px solid rgba(255,255,255,0.3)' }} />
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}>
+          <input
+            type="checkbox"
+            checked={showLatLonGrid}
+            onChange={(e) => setShowLatLonGrid(e.target.checked)}
+            style={{ cursor: 'pointer' }}
+          />
+          <span>Show Lat/Lon Grid</span>
+        </label>
       </div>
     </main>
   );
