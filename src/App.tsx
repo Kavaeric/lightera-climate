@@ -86,7 +86,7 @@ function App() {
             onChange={(e) => setShowLatLonGrid(e.target.checked)}
             style={{ cursor: 'pointer' }}
           />
-          <span>Show Lat/Lon Grid</span>
+          <span>Show latitude and longitude grid</span>
         </label>
       </div>
     </main>

@@ -8,7 +8,6 @@ interface LatLonGridProps {
   latitudeLines?: number  // Number of latitude lines (excluding equator)
   longitudeLines?: number // Number of longitude lines
   color?: string
-  lineWidth?: number
   visible?: boolean
   segments?: number
   frontOpacity?: number
@@ -24,7 +23,6 @@ export function LatLonGrid({
   latitudeLines = 8, // Every 10 degrees
   longitudeLines = 23, // Every 15 degrees
   color = '#ffffff',
-  lineWidth = 2,
   visible = true,
   segments = 32,
   frontOpacity = 0.5,
@@ -124,9 +122,10 @@ export function LatLonGrid({
       transparent: true,
       depthWrite: false,
       depthTest: false,
-      linewidth: lineWidth,
+      // Note: linewidth is not supported by ShaderMaterial (WebGL limitation)
+      // Line width control would require geometry-based approach (expanding lines to quads)
     })
-  }, [color, lineWidth, frontOpacity, backOpacity])
+  }, [color, frontOpacity, backOpacity])
 
   if (!visible) return null
 
