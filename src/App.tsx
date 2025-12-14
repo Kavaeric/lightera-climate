@@ -8,17 +8,13 @@ import { CellPicker } from './components/CellPicker'
 import { LatLonGrid } from './components/LatLonGrid'
 import { ClimateSolver } from './components/ClimateSolver'
 import { ClimateGraph } from './components/ClimateGraph'
+import { DEFAULT_PLANET_CONFIG, type PlanetConfig } from './config/planetConfig'
 
 const SIMULATION_RESOLUTION = 64; // 128 seems to be the max until it crashes
 
 interface SceneProps {
   simulation: TextureGridSimulation
-  showLatLonGrid: boolean
-  onCellClick: (cellIndex: number) => void
-}
-
-interface SceneProps {
-  simulation: TextureGridSimulation
+  planetConfig: PlanetConfig
   showLatLonGrid: boolean
   hoveredCell: number | null
   selectedCell: number | null
@@ -26,7 +22,7 @@ interface SceneProps {
   onCellClick: (cellIndex: number) => void
 }
 
-function Scene({ simulation, showLatLonGrid, hoveredCell, selectedCell, onHoverCell, onCellClick }: SceneProps) {
+function Scene({ simulation, planetConfig, showLatLonGrid, hoveredCell, selectedCell, onHoverCell, onCellClick }: SceneProps) {
   const meshRef = useRef<THREE.Mesh>(null)
 
   return (
@@ -34,9 +30,14 @@ function Scene({ simulation, showLatLonGrid, hoveredCell, selectedCell, onHoverC
       {/* Climate solver - computes temperature for all time samples */}
       <ClimateSolver
         simulation={simulation}
-        solarConstant={1361}
-        albedo={0.3}
-        subsolarPoint={{ lat: 0, lon: 0 }}
+        solarConstant={planetConfig.solarConstant}
+        albedo={planetConfig.albedo}
+        subsolarPoint={planetConfig.subsolarPoint}
+        rotationsPerYear={planetConfig.rotationsPerYear}
+        cosmicBackgroundTemp={planetConfig.cosmicBackgroundTemp}
+        yearLength={planetConfig.yearLength}
+        surfaceHeatCapacity={planetConfig.surfaceHeatCapacity}
+        thermalConductivity={planetConfig.thermalDiffusivity}
       />
 
       {/* Visible geometry - reads from climate data */}
@@ -45,7 +46,7 @@ function Scene({ simulation, showLatLonGrid, hoveredCell, selectedCell, onHoverC
         subdivisions={SIMULATION_RESOLUTION}
         radius={1}
         simulation={simulation}
-        valueRange={{ min: 0, max: 400 }}
+        valueRange={planetConfig.displayRange}
         hoveredCellIndex={hoveredCell}
         selectedCellIndex={selectedCell}
       />
@@ -103,17 +104,23 @@ function App() {
     return new TextureGridSimulation(SIMULATION_RESOLUTION)
   }, [])
 
+  // Planet configuration
+  const [planetConfig] = useState<PlanetConfig>(DEFAULT_PLANET_CONFIG)
+
   const [showLatLonGrid, setShowLatLonGrid] = useState(true)
   const [hoveredCell, setHoveredCell] = useState<number | null>(null)
   const [selectedCell, setSelectedCell] = useState<number | null>(null)
+  const [selectedCellLatLon, setSelectedCellLatLon] = useState<{ lat: number; lon: number } | null>(null)
   const [climateData, setClimateData] = useState<Array<{ day: number; temperature: number; humidity: number; pressure: number }>>([])
 
   const handleCellClick = useCallback((cellIndex: number) => {
     setSelectedCell(cellIndex)
-  }, [])
+    setSelectedCellLatLon(simulation.getCellLatLon(cellIndex))
+  }, [simulation])
 
   const handleCloseGraph = useCallback(() => {
     setSelectedCell(null)
+    setSelectedCellLatLon(null)
     setClimateData([])
   }, [])
 
@@ -133,6 +140,7 @@ function App() {
         {/* Climate simulation */}
         <Scene
           simulation={simulation}
+          planetConfig={planetConfig}
           showLatLonGrid={showLatLonGrid}
           hoveredCell={hoveredCell}
           selectedCell={selectedCell}
@@ -165,8 +173,13 @@ function App() {
       </div>
 
       {/* Climate graph - rendered outside Canvas */}
-      {selectedCell !== null && climateData.length > 0 && (
-        <ClimateGraph data={climateData} cellIndex={selectedCell} onClose={handleCloseGraph} />
+      {selectedCell !== null && climateData.length > 0 && selectedCellLatLon && (
+        <ClimateGraph
+          data={climateData}
+          cellIndex={selectedCell}
+          cellLatLon={selectedCellLatLon}
+          onClose={handleCloseGraph}
+        />
       )}
     </main>
   );

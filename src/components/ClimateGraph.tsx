@@ -11,10 +11,11 @@ interface ClimateDataPoint {
 interface ClimateGraphProps {
   data: ClimateDataPoint[]
   cellIndex: number | null
+  cellLatLon: { lat: number; lon: number }
   onClose: () => void
 }
 
-export function ClimateGraph({ data, cellIndex, onClose }: ClimateGraphProps) {
+export function ClimateGraph({ data, cellIndex, cellLatLon, onClose }: ClimateGraphProps) {
   const accessors = useMemo(
     () => ({
       xAccessor: (d: ClimateDataPoint) => d.day,
@@ -70,6 +71,15 @@ export function ClimateGraph({ data, cellIndex, onClose }: ClimateGraphProps) {
         </button>
       </div>
 
+      <div style={{ display: 'flex', gap: 16, marginBottom: 8, fontSize: 14 }}>
+        <div>
+          Lat: <strong>{cellLatLon.lat.toFixed(2)}°</strong>
+        </div>
+        <div>
+          Lon: <strong>{cellLatLon.lon.toFixed(2)}°</strong>
+        </div>
+      </div>
+
       {/* Stats */}
       <div style={{ display: 'flex', gap: 16, fontSize: 16 }}>
         <div>
@@ -87,7 +97,7 @@ export function ClimateGraph({ data, cellIndex, onClose }: ClimateGraphProps) {
       <XYChart
         height={240}
         xScale={{ type: 'linear' }}
-        yScale={{ type: 'linear' }}
+        yScale={{ type: 'linear', domain: [0, 400] }}
       >
         <Grid columns={false} numTicks={4} />
         <Axis orientation="bottom" label="Sample index" numTicks={6} />

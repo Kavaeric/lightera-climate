@@ -27,7 +27,7 @@ export class TextureGridSimulation {
   // Each render target RGBA = [temperature, humidity, pressure, unused]
   public climateDataTargets: THREE.WebGLRenderTarget[]
 
-  constructor(subdivision: number, timeSamples: number = 365) {
+  constructor(subdivision: number, timeSamples: number = 60) {
     this.grid = new Grid(subdivision)
     this.cells = Array.from(this.grid)
     this.cellCount = this.cells.length
@@ -290,6 +290,17 @@ export class TextureGridSimulation {
       (coords.x + 0.5) / this.textureWidth,
       (coords.y + 0.5) / this.textureHeight,
     ]
+  }
+
+  /**
+   * Get latitude and longitude for a specific cell
+   */
+  getCellLatLon(cellIndex: number): { lat: number; lon: number } {
+    if (cellIndex < 0 || cellIndex >= this.cellCount) {
+      return { lat: 0, lon: 0 }
+    }
+    const cell = this.cells[cellIndex]
+    return { lat: cell.latLon.lat, lon: cell.latLon.lon }
   }
 
   /**
