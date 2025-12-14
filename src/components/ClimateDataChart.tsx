@@ -8,14 +8,14 @@ interface ClimateDataPoint {
   pressure: number
 }
 
-interface ClimateGraphProps {
+interface ClimateDataChartProps {
   data: ClimateDataPoint[]
   cellIndex: number | null
   cellLatLon: { lat: number; lon: number }
   onClose: () => void
 }
 
-export function ClimateGraph({ data, cellIndex, cellLatLon, onClose }: ClimateGraphProps) {
+export function ClimateDataChart({ data, cellIndex, cellLatLon, onClose }: ClimateDataChartProps) {
   const accessors = useMemo(
     () => ({
       xAccessor: (d: ClimateDataPoint) => d.day,

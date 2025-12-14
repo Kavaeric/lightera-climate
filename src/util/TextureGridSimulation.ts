@@ -1,5 +1,6 @@
 import * as THREE from 'three'
-import { Grid, GridCell } from './geodesic'
+import { Grid, GridCell } from '../simulation/geometry/geodesic'
+import type { SimulationConfig } from '../config/simulationConfig'
 
 /**
  * Climate simulation for a geodesic grid sphere
@@ -27,11 +28,11 @@ export class TextureGridSimulation {
   // Each render target RGBA = [temperature, humidity, pressure, unused]
   public climateDataTargets: THREE.WebGLRenderTarget[]
 
-  constructor(subdivision: number, timeSamples: number = 60) {
-    this.grid = new Grid(subdivision)
+  constructor(config: SimulationConfig) {
+    this.grid = new Grid(config.resolution)
     this.cells = Array.from(this.grid)
     this.cellCount = this.cells.length
-    this.timeSamples = timeSamples
+    this.timeSamples = config.timeSamples
 
     // Calculate 2D texture dimensions (square or near-square, power-of-2)
     const sqrtCells = Math.sqrt(this.cellCount)
@@ -40,9 +41,9 @@ export class TextureGridSimulation {
     this.textureHeight = Math.ceil(this.cellCount / this.textureWidth)
     this.textureHeight = Math.pow(2, Math.ceil(Math.log2(this.textureHeight)))
 
-    const totalMemoryMB = (this.textureWidth * this.textureHeight * timeSamples * 4 * 4) / (1024 * 1024)
+    const totalMemoryMB = (this.textureWidth * this.textureHeight * this.timeSamples * 4 * 4) / (1024 * 1024)
     console.log(
-      `TextureGridSimulation: ${this.cellCount} cells, ${timeSamples} time samples`
+      `TextureGridSimulation: ${this.cellCount} cells, ${this.timeSamples} time samples`
     )
     console.log(
       `Texture size: ${this.textureWidth}x${this.textureHeight}, Total memory: ${totalMemoryMB.toFixed(1)}MB`
@@ -58,7 +59,7 @@ export class TextureGridSimulation {
 
     // Create climate data storage (one render target per time sample)
     this.climateDataTargets = []
-    for (let i = 0; i < timeSamples; i++) {
+    for (let i = 0; i < this.timeSamples; i++) {
       this.climateDataTargets.push(this.createRenderTarget())
     }
   }

@@ -1,14 +1,14 @@
 import { useMemo, forwardRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { Grid } from '../util/geodesic'
+import { Grid } from '../simulation/geometry/geodesic'
 import { TextureGridSimulation } from '../util/TextureGridSimulation'
 
 // Import shaders
 import displayVertexShader from '../shaders/display.vert?raw'
 import displayFragmentShader from '../shaders/display.frag?raw'
 
-interface TextureGeodesicPolyhedronProps {
+interface PlanetRendererProps {
   subdivisions: number
   radius: number
   simulation: TextureGridSimulation
@@ -18,11 +18,11 @@ interface TextureGeodesicPolyhedronProps {
 }
 
 /**
- * Geodesic polyhedron that reads colors from a GPU texture
+ * Renders the 3D planet visualization with temperature data from GPU texture
  * Each vertex has a UV coordinate pointing to its cell's pixel in the state texture
  */
-export const TextureGeodesicPolyhedron = forwardRef<THREE.Mesh, TextureGeodesicPolyhedronProps>(
-  function TextureGeodesicPolyhedron({
+export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
+  function PlanetRenderer({
     subdivisions,
     radius,
     simulation,
@@ -125,6 +125,9 @@ export const TextureGeodesicPolyhedron = forwardRef<THREE.Mesh, TextureGeodesicP
         valueMin: { value: valueRange.min },
         valueMax: { value: valueRange.max },
         fastColors: { value: fastColors },
+        underflowColor: { value: new THREE.Vector3(0.0, 0.0, 0.2) },
+        overflowColor: { value: new THREE.Vector3(1.0, 0.0, 1.0) },
+        highlightThreshold: { value: 0.01 },
         hoveredCellIndex: { value: -1 },
         selectedCellIndex: { value: -1 },
         textureWidth: { value: simulation.getTextureWidth() },
@@ -132,6 +135,10 @@ export const TextureGeodesicPolyhedron = forwardRef<THREE.Mesh, TextureGeodesicP
       },
       vertexShader: displayVertexShader,
       fragmentShader: displayFragmentShader,
+      // Enable polygon offset to prevent z-fighting between coplanar faces at cell boundaries
+      polygonOffset: true,
+      polygonOffsetFactor: 1.0,
+      polygonOffsetUnits: 1.0,
     })
 
     return shaderMaterial

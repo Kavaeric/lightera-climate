@@ -56,7 +56,7 @@ function circumcenter(a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3): THR
   const ca = tmp2.copy(c).sub(a)
   const n = tmp3.copy(ba).cross(ca)
   const denom = 2 * n.lengthSq()
-  
+
   if (denom === 0) {
     // Degenerate: fall back to centroid
     return a.clone().add(b).add(c).multiplyScalar(1 / 3)
@@ -272,7 +272,7 @@ export class GridCell {
       this.faceTriangles = []
       return
     }
-    
+
     this.faceTriangles = new Array(this.vertices.length - 2)
     let tri = 0
     this.faceTriangles[tri++] = new THREE.Triangle(

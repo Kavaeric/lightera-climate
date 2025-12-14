@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import latlonVertexShader from '../shaders/latlon.vert?raw'
 import latlonFragmentShader from '../shaders/latlon.frag?raw'
 
-interface LatLonGridProps {
+interface ReferenceGridOverlayProps {
   radius?: number
   latitudeLines?: number  // Number of latitude lines (excluding equator)
   longitudeLines?: number // Number of longitude lines
@@ -15,10 +15,10 @@ interface LatLonGridProps {
 }
 
 /**
- * Component that renders latitude and longitude grid lines on a sphere
- * Can be toggled on/off for debugging or geographic reference
+ * Renders latitude and longitude reference grid overlay on the planet
+ * Can be toggled on/off for geographic reference
  */
-export function LatLonGrid({
+export function ReferenceGridOverlay({
   radius = 1.0, // Same radius as sphere
   latitudeLines = 8, // Every 10 degrees
   longitudeLines = 24, // Every 15 degrees
@@ -27,7 +27,7 @@ export function LatLonGrid({
   segments = 32,
   frontOpacity = 0.5,
   backOpacity = 0.2,
-}: LatLonGridProps) {
+}: ReferenceGridOverlayProps) {
   const geometry = useMemo(() => {
     const positions: number[] = []
 

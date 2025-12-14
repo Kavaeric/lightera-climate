@@ -88,11 +88,11 @@ export function TextureSimulationRenderer({
   }, [gl, simulation])
 
   // Fixed timestep simulation
-  const SIMULATION_RATE = 1 / 60 // 30 steps per second
+  const SIMULATION_RATE = 1 / 60 // 60 steps per second
   const accumulatorRef = useRef(0)
 
   // Run simulation step with fixed timestep
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
     if (!initializedRef.current || !materialRef.current) return
 
     const material = materialRef.current

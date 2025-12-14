@@ -1,2 +1,0 @@
-export { blackbodyToRgb } from './blackbodyToRgb';
-

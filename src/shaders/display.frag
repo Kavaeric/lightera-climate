@@ -7,6 +7,9 @@ uniform sampler2D stateTex;
 uniform float valueMin;
 uniform float valueMax;
 uniform vec3 fastColors[32];
+uniform vec3 underflowColor;    // Color for values below range
+uniform vec3 overflowColor;     // Color for values above range
+uniform float highlightThreshold; // Distance threshold for cell highlighting
 uniform float hoveredCellIndex;
 uniform float selectedCellIndex;
 uniform float textureWidth;
@@ -40,8 +43,6 @@ void main() {
   float normalized = (temperature - valueMin) / (valueMax - valueMin);
 
   // Branchless color selection using step() and mix()
-  vec3 underflowColor = vec3(0.0, 0.0, 0.2); // Deep navy blue
-  vec3 overflowColor = vec3(1.0, 0.0, 1.0);  // Bright magenta
   vec3 normalColor = fast(clamp(normalized, 0.0, 1.0));
 
   // Use step() to create masks (returns 0.0 or 1.0)
@@ -54,18 +55,19 @@ void main() {
                normalColor * isNormal;
 
   // Check if this is the selected cell
-  // Calculate expected UV for selected cell
+  // Calculate expected UV for selected cell with sub-pixel accuracy
   float selectedX = mod(selectedCellIndex, textureWidth);
   float selectedY = floor(selectedCellIndex / textureWidth);
   float selectedU = (selectedX + 0.5) / textureWidth;
   float selectedV = (selectedY + 0.5) / textureHeight;
 
-  // Calculate distance (branchless)
-  float selectedDist = abs(vUv.x - selectedU) + abs(vUv.y - selectedV);
-  float isSelected = step(selectedDist, 0.001) * step(0.0, selectedCellIndex);
+  // Use Chebyshev distance (max of absolute differences) for tighter bounds
+  // More precise than Manhattan distance for cell detection
+  float selectedDist = max(abs(vUv.x - selectedU), abs(vUv.y - selectedV));
+  float isSelected = step(selectedDist, highlightThreshold) * step(0.0, selectedCellIndex);
 
-  // Apply selected highlight
-  color = mix(color, vec3(1.0, 1.0, 1.0), isSelected * 0.6);
+  // Apply selected highlight with stronger intensity to overcome z-fighting
+  color = mix(color, vec3(1.0, 1.0, 1.0), isSelected * 0.8);
 
   // Check if this is the hovered cell
   float hoveredX = mod(hoveredCellIndex, textureWidth);
@@ -73,11 +75,11 @@ void main() {
   float hoveredU = (hoveredX + 0.5) / textureWidth;
   float hoveredV = (hoveredY + 0.5) / textureHeight;
 
-  float hoveredDist = abs(vUv.x - hoveredU) + abs(vUv.y - hoveredV);
-  float isHovered = step(hoveredDist, 0.001) * step(0.0, hoveredCellIndex) * (1.0 - isSelected);
+  float hoveredDist = max(abs(vUv.x - hoveredU), abs(vUv.y - hoveredV));
+  float isHovered = step(hoveredDist, highlightThreshold) * step(0.0, hoveredCellIndex) * (1.0 - isSelected);
 
   // Apply hover highlight (white) only if not selected
-  color = mix(color, vec3(1.0, 1.0, 1.0), isHovered * 0.2);
+  color = mix(color, vec3(1.0, 1.0, 1.0), isHovered * 0.3);
 
   gl_FragColor = vec4(color, 1.0);
 }

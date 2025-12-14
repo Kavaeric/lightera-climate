@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { TextureGridSimulation } from '../util/TextureGridSimulation'
 
-interface CellPickerProps {
+interface PlanetInteractionProps {
   simulation: TextureGridSimulation
   meshRef: React.RefObject<THREE.Mesh | null>
   onHoverCell?: (cellIndex: number | null) => void
@@ -11,10 +11,10 @@ interface CellPickerProps {
 }
 
 /**
- * Component that handles mouse interaction for picking grid cells
- * Uses raycasting to detect which cell was clicked
+ * Handles mouse interaction with the planet
+ * Uses raycasting to detect which cell was clicked or hovered
  */
-export function CellPicker({ simulation, meshRef, onHoverCell, onCellClick }: CellPickerProps) {
+export function PlanetInteraction({ simulation, meshRef, onHoverCell, onCellClick }: PlanetInteractionProps) {
   const { camera, gl, raycaster } = useThree()
   const pointerRef = useRef(new THREE.Vector2())
   const hoveredCellRef = useRef<number | null>(null)

@@ -3,18 +3,20 @@ import { OrbitControls, GizmoHelper, GizmoViewport } from '@react-three/drei'
 import { useRef, useMemo, useState, useCallback, useEffect } from 'react'
 import * as THREE from 'three'
 import { TextureGridSimulation } from './util/TextureGridSimulation'
-import { TextureGeodesicPolyhedron } from './components/TextureGeodesicPolyhedron'
-import { CellPicker } from './components/CellPicker'
-import { LatLonGrid } from './components/LatLonGrid'
-import { ClimateSolver } from './components/ClimateSolver'
-import { ClimateGraph } from './components/ClimateGraph'
+import { PlanetRenderer } from './components/PlanetRenderer'
+import { PlanetInteraction } from './components/PlanetInteraction'
+import { ReferenceGridOverlay } from './components/ReferenceGridOverlay'
+import { ClimateSimulationEngine } from './components/ClimateSimulationEngine'
+import { ClimateDataChart } from './components/ClimateDataChart'
 import { DEFAULT_PLANET_CONFIG, type PlanetConfig } from './config/planetConfig'
-
-const SIMULATION_RESOLUTION = 16; // 128 seems to be the max until it crashes
+import { DEFAULT_SIMULATION_CONFIG, type SimulationConfig } from './config/simulationConfig'
+import { DEFAULT_DISPLAY_CONFIG, type DisplayConfig } from './config/displayConfig'
 
 interface SceneProps {
   simulation: TextureGridSimulation
   planetConfig: PlanetConfig
+  simulationConfig: SimulationConfig
+  displayConfig: DisplayConfig
   showLatLonGrid: boolean
   hoveredCell: number | null
   selectedCell: number | null
@@ -22,13 +24,13 @@ interface SceneProps {
   onCellClick: (cellIndex: number) => void
 }
 
-function Scene({ simulation, planetConfig, showLatLonGrid, hoveredCell, selectedCell, onHoverCell, onCellClick }: SceneProps) {
+function Scene({ simulation, planetConfig, simulationConfig, displayConfig, showLatLonGrid, hoveredCell, selectedCell, onHoverCell, onCellClick }: SceneProps) {
   const meshRef = useRef<THREE.Mesh>(null)
 
   return (
     <>
       {/* Climate solver - computes temperature for all time samples */}
-      <ClimateSolver
+      <ClimateSimulationEngine
         simulation={simulation}
         solarFlux={planetConfig.solarFlux}
         albedo={planetConfig.albedo}
@@ -37,24 +39,24 @@ function Scene({ simulation, planetConfig, showLatLonGrid, hoveredCell, selected
         rotationsPerYear={planetConfig.rotationsPerYear}
         cosmicBackgroundTemp={planetConfig.cosmicBackgroundTemp}
         yearLength={planetConfig.yearLength}
-        spinupOrbits={planetConfig.iterations}
+        iterations={simulationConfig.iterations}
         surfaceHeatCapacity={planetConfig.surfaceHeatCapacity}
-        thermalConductivity={planetConfig.groundDiffusion}
+        thermalConductivity={simulationConfig.groundDiffusion}
       />
 
       {/* Visible geometry - reads from climate data */}
-      <TextureGeodesicPolyhedron
+      <PlanetRenderer
         ref={meshRef}
-        subdivisions={SIMULATION_RESOLUTION}
+        subdivisions={simulationConfig.resolution}
         radius={1}
         simulation={simulation}
-        valueRange={planetConfig.displayRange}
+        valueRange={displayConfig.temperatureRange}
         hoveredCellIndex={hoveredCell}
         selectedCellIndex={selectedCell}
       />
 
       {/* Cell picker */}
-      <CellPicker
+      <PlanetInteraction
         simulation={simulation}
         meshRef={meshRef}
         onHoverCell={onHoverCell}
@@ -62,7 +64,12 @@ function Scene({ simulation, planetConfig, showLatLonGrid, hoveredCell, selected
       />
 
       {/* Lat/Lon grid overlay */}
-      <LatLonGrid segments={64} visible={showLatLonGrid} />
+      <ReferenceGridOverlay
+        segments={displayConfig.gridSegments}
+        visible={showLatLonGrid}
+        latitudeLines={displayConfig.latitudeLines}
+        longitudeLines={displayConfig.longitudeLines}
+      />
     </>
   )
 }
@@ -103,11 +110,13 @@ function ClimateDataFetcher({
 function App() {
   // Create climate simulation once at App level
   const simulation = useMemo(() => {
-    return new TextureGridSimulation(SIMULATION_RESOLUTION)
+    return new TextureGridSimulation(DEFAULT_SIMULATION_CONFIG)
   }, [])
 
-  // Planet configuration
+  // Configuration objects
   const [planetConfig] = useState<PlanetConfig>(DEFAULT_PLANET_CONFIG)
+  const [simulationConfig] = useState<SimulationConfig>(DEFAULT_SIMULATION_CONFIG)
+  const [displayConfig] = useState<DisplayConfig>(DEFAULT_DISPLAY_CONFIG)
 
   const [showLatLonGrid, setShowLatLonGrid] = useState(true)
   const [hoveredCell, setHoveredCell] = useState<number | null>(null)
@@ -143,6 +152,8 @@ function App() {
         <Scene
           simulation={simulation}
           planetConfig={planetConfig}
+          simulationConfig={simulationConfig}
+          displayConfig={displayConfig}
           showLatLonGrid={showLatLonGrid}
           hoveredCell={hoveredCell}
           selectedCell={selectedCell}
@@ -176,7 +187,7 @@ function App() {
 
       {/* Climate graph - rendered outside Canvas */}
       {selectedCell !== null && climateData.length > 0 && selectedCellLatLon && (
-        <ClimateGraph
+        <ClimateDataChart
           data={climateData}
           cellIndex={selectedCell}
           cellLatLon={selectedCellLatLon}

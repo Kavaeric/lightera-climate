@@ -7,7 +7,7 @@ import { TextureGridSimulation } from '../util/TextureGridSimulation'
 import fullscreenVertexShader from '../shaders/fullscreen.vert?raw'
 import thermalEvolutionFragmentShader from '../shaders/thermalEvolution.frag?raw'
 
-interface ClimateSolverProps {
+interface ClimateSimulationEngineProps {
   simulation: TextureGridSimulation
   // Planet parameters
   solarFlux?: number // W/m² - solar flux at planet's orbital distance (default: 1361 for Earth)
@@ -17,7 +17,7 @@ interface ClimateSolverProps {
   rotationsPerYear?: number // number of rotations per orbital period (default: 1 = tidally locked)
   cosmicBackgroundTemp?: number // K (default: 2.7)
   yearLength?: number // seconds (default: Earth's 31557600s)
-  spinupOrbits?: number // number of orbits to simulate (default: 1)
+  iterations?: number // number of orbits to simulate (default: 1) - renamed from spinupOrbits for consistency
   surfaceHeatCapacity?: number // J/(m²·K) (default: 1e5 for rock)
   thermalConductivity?: number // W/(m·K) - lateral heat conduction (default: 0.1)
   onSolveComplete?: () => void
@@ -27,7 +27,7 @@ interface ClimateSolverProps {
  * Component that solves the climate simulation using GPU shaders
  * Uses physics-based time-stepping to evolve temperatures with proper thermal inertia
  */
-export function ClimateSolver({
+export function ClimateSimulationEngine({
   simulation,
   solarFlux = 1361,
   albedo = 0.3,
@@ -36,11 +36,11 @@ export function ClimateSolver({
   rotationsPerYear = 1,
   cosmicBackgroundTemp = 2.7,
   yearLength = 31557600,
-  spinupOrbits = 1,
+  iterations = 1,
   surfaceHeatCapacity = 1e5,
   thermalConductivity = 0.1,
   onSolveComplete,
-}: ClimateSolverProps) {
+}: ClimateSimulationEngineProps) {
   const { gl } = useThree()
   const solvedRef = useRef(false)
 
@@ -54,7 +54,7 @@ export function ClimateSolver({
     console.log(`  Initial subsolar point: ${subsolarPoint.lat}°, ${subsolarPoint.lon}°`)
     console.log(`  Rotations per year: ${rotationsPerYear}`)
     console.log(`  Year length: ${yearLength}s (${(yearLength / 86400).toFixed(1)} days)`)
-    console.log(`  Spin-up orbits: ${spinupOrbits}`)
+    console.log(`  Iterations: ${iterations}`)
     console.log(`  Surface heat capacity: ${surfaceHeatCapacity} J/(m²·K)`)
     console.log(`  Thermal conductivity: ${thermalConductivity} W/(m·K)`)
 
@@ -142,7 +142,7 @@ export function ClimateSolver({
     mesh.material = thermalMaterial
 
     console.log('ClimateSolver: Time-stepping through climate evolution...')
-    console.log(`  Total simulation time: ${(spinupOrbits * yearLength / 86400).toFixed(1)} days`)
+    console.log(`  Total simulation time: ${(iterations * yearLength / 86400).toFixed(1)} days`)
 
     // Additional temp target for simulation stepping ping-pong
     const tempTarget2 = new THREE.WebGLRenderTarget(
@@ -163,9 +163,9 @@ export function ClimateSolver({
 
     // Run for multiple orbits to reach thermal equilibrium
     // Only the final orbit's samples are saved
-    for (let orbitIdx = 0; orbitIdx < spinupOrbits; orbitIdx++) {
-      const isLastOrbit = orbitIdx === spinupOrbits - 1
-      console.log(`  Orbit ${orbitIdx + 1}/${spinupOrbits}...`)
+    for (let orbitIdx = 0; orbitIdx < iterations; orbitIdx++) {
+      const isLastOrbit = orbitIdx === iterations - 1
+      console.log(`  Orbit ${orbitIdx + 1}/${iterations}...`)
 
       // Track the previous sample's end state within this orbit
       let previousSampleState = orbitEndState
@@ -278,7 +278,7 @@ export function ClimateSolver({
     console.log('ClimateSolver: Climate calculation complete!')
 
     onSolveComplete?.()
-  }, [gl, simulation, solarFlux, albedo, emissivity, subsolarPoint, rotationsPerYear, cosmicBackgroundTemp, yearLength, spinupOrbits, surfaceHeatCapacity, thermalConductivity, onSolveComplete])
+  }, [gl, simulation, solarFlux, albedo, emissivity, subsolarPoint, rotationsPerYear, cosmicBackgroundTemp, yearLength, iterations, surfaceHeatCapacity, thermalConductivity, onSolveComplete])
 
   // This component doesn't render anything visible
   return null
