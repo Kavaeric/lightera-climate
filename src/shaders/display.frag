@@ -39,51 +39,45 @@ void main() {
   // Normalize to [0, 1]
   float normalized = (temperature - valueMin) / (valueMax - valueMin);
 
-  vec3 color;
-  if (normalized < 0.0) {
-    // Underflow: deep navy blue
-    color = vec3(0.0, 0.0, 0.2);
-  } else if (normalized > 1.0) {
-    // Overflow: bright magenta
-    color = vec3(1.0, 0.0, 1.0);
-  } else {
-    // Normal range: use Fast colormap
-    color = fast(normalized);
-  }
+  // Branchless color selection using step() and mix()
+  vec3 underflowColor = vec3(0.0, 0.0, 0.2); // Deep navy blue
+  vec3 overflowColor = vec3(1.0, 0.0, 1.0);  // Bright magenta
+  vec3 normalColor = fast(clamp(normalized, 0.0, 1.0));
 
-  // Check if this is the selected cell (higher priority than hover)
-  bool isSelected = false;
-  if (selectedCellIndex >= 0.0) {
-    // Calculate expected UV for selected cell
-    float x = mod(selectedCellIndex, textureWidth);
-    float y = floor(selectedCellIndex / textureWidth);
-    float expectedU = (x + 0.5) / textureWidth;
-    float expectedV = (y + 0.5) / textureHeight;
+  // Use step() to create masks (returns 0.0 or 1.0)
+  float isUnderflow = step(normalized, 0.0);
+  float isOverflow = step(1.0, normalized);
+  float isNormal = (1.0 - isUnderflow) * (1.0 - isOverflow);
 
-    // Check if current UV matches (with small epsilon for floating point comparison)
-    float uvDist = abs(vUv.x - expectedU) + abs(vUv.y - expectedV);
-    if (uvDist < 0.001) {
-      // Strong yellow highlight for selected cell
-      color = mix(color, vec3(1.0, 1.0, 0.0), 0.6);
-      isSelected = true;
-    }
-  }
+  vec3 color = underflowColor * isUnderflow +
+               overflowColor * isOverflow +
+               normalColor * isNormal;
 
-  // Check if this is the hovered cell (only if not selected)
-  if (!isSelected && hoveredCellIndex >= 0.0) {
-    // Calculate expected UV for hovered cell
-    float x = mod(hoveredCellIndex, textureWidth);
-    float y = floor(hoveredCellIndex / textureWidth);
-    float expectedU = (x + 0.5) / textureWidth;
-    float expectedV = (y + 0.5) / textureHeight;
+  // Check if this is the selected cell
+  // Calculate expected UV for selected cell
+  float selectedX = mod(selectedCellIndex, textureWidth);
+  float selectedY = floor(selectedCellIndex / textureWidth);
+  float selectedU = (selectedX + 0.5) / textureWidth;
+  float selectedV = (selectedY + 0.5) / textureHeight;
 
-    // Check if current UV matches (with small epsilon for floating point comparison)
-    float uvDist = abs(vUv.x - expectedU) + abs(vUv.y - expectedV);
-    if (uvDist < 0.001) {
-      // Subtle white highlight for hover
-      color = mix(color, vec3(1.0, 1.0, 1.0), 0.4);
-    }
-  }
+  // Calculate distance (branchless)
+  float selectedDist = abs(vUv.x - selectedU) + abs(vUv.y - selectedV);
+  float isSelected = step(selectedDist, 0.001) * step(0.0, selectedCellIndex);
+
+  // Apply selected highlight
+  color = mix(color, vec3(1.0, 1.0, 1.0), isSelected * 0.6);
+
+  // Check if this is the hovered cell
+  float hoveredX = mod(hoveredCellIndex, textureWidth);
+  float hoveredY = floor(hoveredCellIndex / textureWidth);
+  float hoveredU = (hoveredX + 0.5) / textureWidth;
+  float hoveredV = (hoveredY + 0.5) / textureHeight;
+
+  float hoveredDist = abs(vUv.x - hoveredU) + abs(vUv.y - hoveredV);
+  float isHovered = step(hoveredDist, 0.001) * step(0.0, hoveredCellIndex) * (1.0 - isSelected);
+
+  // Apply hover highlight (white) only if not selected
+  color = mix(color, vec3(1.0, 1.0, 1.0), isHovered * 0.2);
 
   gl_FragColor = vec4(color, 1.0);
 }
