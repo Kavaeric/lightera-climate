@@ -1,47 +1,62 @@
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls, GizmoHelper, GizmoViewport } from '@react-three/drei'
-import { useRef, useMemo, useState } from 'react'
+import { useRef, useMemo, useState, useCallback, useEffect } from 'react'
 import * as THREE from 'three'
 import { TextureGridSimulation } from './util/TextureGridSimulation'
 import { TextureGeodesicPolyhedron } from './components/TextureGeodesicPolyhedron'
-import { TextureSimulationRenderer } from './components/TextureSimulationRenderer'
 import { CellPicker } from './components/CellPicker'
 import { LatLonGrid } from './components/LatLonGrid'
+import { ClimateSolver } from './components/ClimateSolver'
+import { ClimateGraph } from './components/ClimateGraph'
 
 const SIMULATION_RESOLUTION = 64; // 128 seems to be the max until it crashes
 
-function Scene({ simulation, onStatsUpdate, showLatLonGrid }: { simulation: TextureGridSimulation; onStatsUpdate: (stats: { min: number; max: number }) => void; showLatLonGrid: boolean }) {
-  const { gl } = useThree()
-  const frameCountRef = useRef(0)
-  const meshRef = useRef<THREE.Mesh>(null)
-  const [hoveredCell, setHoveredCell] = useState<number | null>(null)
+interface SceneProps {
+  simulation: TextureGridSimulation
+  showLatLonGrid: boolean
+  onCellClick: (cellIndex: number) => void
+}
 
-  useFrame(async () => {
-    // Update stats every 60 frames for performance (GPU readback is slow)
-    frameCountRef.current++
-    if (frameCountRef.current % 60 === 0) {
-      const stats = await simulation.getMinMaxTemperature(gl)
-      onStatsUpdate(stats)
-    }
-  })
+interface SceneProps {
+  simulation: TextureGridSimulation
+  showLatLonGrid: boolean
+  hoveredCell: number | null
+  selectedCell: number | null
+  onHoverCell: (cellIndex: number | null) => void
+  onCellClick: (cellIndex: number) => void
+}
+
+function Scene({ simulation, showLatLonGrid, hoveredCell, selectedCell, onHoverCell, onCellClick }: SceneProps) {
+  const meshRef = useRef<THREE.Mesh>(null)
 
   return (
     <>
-      {/* Invisible component that runs GPU simulation via render-to-texture */}
-      <TextureSimulationRenderer simulation={simulation} />
+      {/* Climate solver - computes temperature for all time samples */}
+      <ClimateSolver
+        simulation={simulation}
+        solarConstant={1361}
+        albedo={0.3}
+        subsolarPoint={{ lat: 0, lon: 0 }}
+      />
 
-      {/* Visible geometry that reads from simulation texture */}
+      {/* Visible geometry - reads from climate data */}
       <TextureGeodesicPolyhedron
         ref={meshRef}
         subdivisions={SIMULATION_RESOLUTION}
         radius={1}
         simulation={simulation}
-        valueRange={{ min: -40, max: 30 }}
+        valueRange={{ min: 0, max: 400 }}
         hoveredCellIndex={hoveredCell}
+        selectedCellIndex={selectedCell}
       />
 
-      {/* Cell picker for debugging */}
-      <CellPicker simulation={simulation} meshRef={meshRef} onHoverCell={setHoveredCell} />
+      {/* Cell picker */}
+      <CellPicker
+        simulation={simulation}
+        meshRef={meshRef}
+        onHoverCell={onHoverCell}
+        onCellClick={onCellClick}
+      />
 
       {/* Lat/Lon grid overlay */}
       <LatLonGrid segments={64} visible={showLatLonGrid} />
@@ -49,14 +64,62 @@ function Scene({ simulation, onStatsUpdate, showLatLonGrid }: { simulation: Text
   )
 }
 
+// Helper component to fetch climate data (stays inside Canvas for gl access)
+function ClimateDataFetcher({
+  simulation,
+  cellIndex,
+  onDataFetched,
+}: {
+  simulation: TextureGridSimulation
+  cellIndex: number | null
+  onDataFetched: (data: Array<{ day: number; temperature: number; humidity: number; pressure: number }>) => void
+}) {
+  const { gl } = useThree()
+
+  useEffect(() => {
+    if (cellIndex === null) {
+      onDataFetched([])
+      return
+    }
+
+    const fetchData = async () => {
+      const climateData = await simulation.getClimateDataForCell(cellIndex, gl)
+      const formattedData = climateData.map((d, i) => ({
+        day: i,
+        ...d,
+      }))
+      onDataFetched(formattedData)
+    }
+
+    fetchData()
+  }, [cellIndex, simulation, gl, onDataFetched])
+
+  return null // Don't render anything in the Canvas
+}
+
 function App() {
-  // Create texture-based simulation once at App level
+  // Create climate simulation once at App level
   const simulation = useMemo(() => {
     return new TextureGridSimulation(SIMULATION_RESOLUTION)
   }, [])
 
-  const [stats, setStats] = useState({ min: -40, max: 30 })
   const [showLatLonGrid, setShowLatLonGrid] = useState(true)
+  const [hoveredCell, setHoveredCell] = useState<number | null>(null)
+  const [selectedCell, setSelectedCell] = useState<number | null>(null)
+  const [climateData, setClimateData] = useState<Array<{ day: number; temperature: number; humidity: number; pressure: number }>>([])
+
+  const handleCellClick = useCallback((cellIndex: number) => {
+    setSelectedCell(cellIndex)
+  }, [])
+
+  const handleCloseGraph = useCallback(() => {
+    setSelectedCell(null)
+    setClimateData([])
+  }, [])
+
+  const handleDataFetched = useCallback((data: Array<{ day: number; temperature: number; humidity: number; pressure: number }>) => {
+    setClimateData(data)
+  }, [])
 
   return (
     <main style={{ width: '100vw', height: '100vh', background: 'black' }}>
@@ -67,16 +130,27 @@ function App() {
           <GizmoViewport />
         </GizmoHelper>
 
-        {/* GPU-based simulation and rendering */}
-        <Scene simulation={simulation} onStatsUpdate={setStats} showLatLonGrid={showLatLonGrid} />
+        {/* Climate simulation */}
+        <Scene
+          simulation={simulation}
+          showLatLonGrid={showLatLonGrid}
+          hoveredCell={hoveredCell}
+          selectedCell={selectedCell}
+          onHoverCell={setHoveredCell}
+          onCellClick={handleCellClick}
+        />
+
+        {/* Climate data fetcher - needs to be inside Canvas to access gl context */}
+        <ClimateDataFetcher simulation={simulation} cellIndex={selectedCell} onDataFetched={handleDataFetched} />
       </Canvas>
 
+      {/* Info panel */}
       <div style={{ position: 'absolute', top: 10, left: 10, color: 'white', background: 'rgba(0,0,0,0.5)', padding: '8px', fontFamily: 'monospace' }}>
         <dl style={{ margin: 0 }}>
-          <dt>Maximum temperature</dt>
-          <dd>{stats.max.toFixed(1)}</dd>
-          <dt>Minimum temperature</dt>
-          <dd>{stats.min.toFixed(1)}</dd>
+          <dt>Cells</dt>
+          <dd>{simulation.getCellCount()}</dd>
+          <dt>Time samples</dt>
+          <dd>{simulation.getTimeSamples()}</dd>
         </dl>
         <hr style={{ margin: '8px 0', border: 'none', borderTop: '1px solid rgba(255,255,255,0.3)' }} />
         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}>
@@ -89,6 +163,11 @@ function App() {
           <span>Show latitude and longitude grid</span>
         </label>
       </div>
+
+      {/* Climate graph - rendered outside Canvas */}
+      {selectedCell !== null && climateData.length > 0 && (
+        <ClimateGraph data={climateData} cellIndex={selectedCell} onClose={handleCloseGraph} />
+      )}
     </main>
   );
 }

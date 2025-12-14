@@ -7,13 +7,14 @@ interface CellPickerProps {
   simulation: TextureGridSimulation
   meshRef: React.RefObject<THREE.Mesh | null>
   onHoverCell?: (cellIndex: number | null) => void
+  onCellClick?: (cellIndex: number) => void
 }
 
 /**
  * Component that handles mouse interaction for picking grid cells
  * Uses raycasting to detect which cell was clicked
  */
-export function CellPicker({ simulation, meshRef, onHoverCell }: CellPickerProps) {
+export function CellPicker({ simulation, meshRef, onHoverCell, onCellClick }: CellPickerProps) {
   const { camera, gl, raycaster } = useThree()
   const pointerRef = useRef(new THREE.Vector2())
   const hoveredCellRef = useRef<number | null>(null)
@@ -36,7 +37,7 @@ export function CellPicker({ simulation, meshRef, onHoverCell }: CellPickerProps
       if (intersects.length > 0) {
         const intersection = intersects[0]
         const faceIndex = intersection.faceIndex
-        if (faceIndex === undefined) return
+        if (faceIndex === undefined || faceIndex === null) return
 
         const geometry = meshRef.current.geometry
         const uvAttribute = geometry.getAttribute('uv')
@@ -45,7 +46,6 @@ export function CellPicker({ simulation, meshRef, onHoverCell }: CellPickerProps
         const v = uvAttribute.getY(vertexIndex)
 
         // Find which cell has this UV coordinate
-        const cells = simulation['cells']
         let cellIndex = -1
         let minDist = Infinity
 
@@ -70,7 +70,7 @@ export function CellPicker({ simulation, meshRef, onHoverCell }: CellPickerProps
       }
     }
 
-    const handleClick = async (event: PointerEvent) => {
+    const handleClick = async () => {
       if (!meshRef.current) return
 
       // Update raycaster
@@ -84,7 +84,7 @@ export function CellPicker({ simulation, meshRef, onHoverCell }: CellPickerProps
 
         // Get the face that was clicked
         const faceIndex = intersection.faceIndex
-        if (faceIndex === undefined) return
+        if (faceIndex === undefined || faceIndex === null) return
 
         // Each cell is rendered as multiple triangles (no shared vertices)
         // We need to figure out which cell this face belongs to
@@ -98,7 +98,6 @@ export function CellPicker({ simulation, meshRef, onHoverCell }: CellPickerProps
         const v = uvAttribute.getY(vertexIndex)
 
         // Find which cell has this UV coordinate
-        const cells = simulation['cells'] // Access private field for debugging
         let clickedCellIndex = -1
         let minDist = Infinity
 
@@ -112,26 +111,11 @@ export function CellPicker({ simulation, meshRef, onHoverCell }: CellPickerProps
         }
 
         if (clickedCellIndex >= 0) {
-          const cell = cells[clickedCellIndex]
-          const temperature = await simulation.getTemperature(clickedCellIndex, gl)
+          // Log to console for debugging
+          console.log(`Cell index: ${clickedCellIndex}`)
 
-          const pos = cell.centerVertex
-
-          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-          console.log('Cell Info:')
-          console.log(`  Index: ${clickedCellIndex}`)
-          console.log(`  ISEA Coords: [${cell.coords.join(', ')}]`)
-          console.log(`  Latitude: ${cell.latLon.lat.toFixed(2)}°`)
-          console.log(`  Longitude: ${cell.latLon.lon.toFixed(2)}°`)
-          console.log(`  3D Position: (${pos.x.toFixed(3)}, ${pos.y.toFixed(3)}, ${pos.z.toFixed(3)})`)
-          console.log(`  Temperature: ${temperature.toFixed(2)}°C`)
-          console.log(`  Neighbors: ${cell.neighbours(simulation['grid']).length}`)
-          console.log(`  Area: ${cell.area.toFixed(6)}`)
-          console.log(`  Is Pentagon: ${cell.isPentagon}`)
-          console.log(`  Is Pole: ${cell.isPole}`)
-          if (cell.isNorthPole) console.log('  → North Pole')
-          if (cell.isSouthPole) console.log('  → South Pole')
-          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+          // Notify parent component
+          onCellClick?.(clickedCellIndex)
         }
       }
     }
@@ -143,7 +127,7 @@ export function CellPicker({ simulation, meshRef, onHoverCell }: CellPickerProps
       canvas.removeEventListener('pointermove', handlePointerMove)
       canvas.removeEventListener('click', handleClick)
     }
-  }, [camera, gl, meshRef, raycaster, simulation])
+  }, [camera, gl, meshRef, raycaster, simulation, onHoverCell])
 
   return null
 }

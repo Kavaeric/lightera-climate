@@ -62,7 +62,7 @@ export function DebugTextureCanvas({
     if (!ctx) return
 
     // Read pixels from the current render target
-    const renderTarget = simulation.getCurrentRenderTarget()
+    const renderTarget = simulation.getClimateDataTarget(0)
     const textureWidth = simulation.getTextureWidth()
     const textureHeight = simulation.getTextureHeight()
     const buffer = new Float32Array(textureWidth * textureHeight * 4)

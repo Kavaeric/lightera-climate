@@ -57,7 +57,7 @@ export function DebugTextureView({
         }
       `,
       uniforms: {
-        stateTex: { value: simulation.getCurrentTexture() },
+        stateTex: { value: simulation.getClimateDataTarget(0).texture },
         valueMin: { value: -40 },
         valueMax: { value: 30 },
       },
@@ -84,7 +84,7 @@ export function DebugTextureView({
     const camera = cameraRef.current
 
     // Update texture
-    material.uniforms.stateTex.value = simulation.getCurrentTexture()
+    material.uniforms.stateTex.value = simulation.getClimateDataTarget(0).texture
 
     // Calculate viewport position
     const canvas = gl.domElement

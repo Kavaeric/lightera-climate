@@ -21,7 +21,7 @@ interface LatLonGridProps {
 export function LatLonGrid({
   radius = 1.0, // Same radius as sphere
   latitudeLines = 8, // Every 10 degrees
-  longitudeLines = 23, // Every 15 degrees
+  longitudeLines = 24, // Every 15 degrees
   color = '#ffffff',
   visible = true,
   segments = 32,
@@ -122,7 +122,7 @@ export function LatLonGrid({
       transparent: true,
       depthWrite: false,
       depthTest: false,
-      // Note: linewidth is not supported by ShaderMaterial (WebGL limitation)
+      // linewidth is not supported by ShaderMaterial
       // Line width control would require geometry-based approach (expanding lines to quads)
     })
   }, [color, frontOpacity, backOpacity])

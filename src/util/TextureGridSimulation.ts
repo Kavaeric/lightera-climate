@@ -2,8 +2,8 @@ import * as THREE from 'three'
 import { Grid, GridCell } from './geodesic'
 
 /**
- * GPU-based grid simulation using textures for state storage
- * Each pixel in the texture represents one cell on the geodesic grid
+ * Climate simulation for a geodesic grid sphere
+ * Stores climate data (temperature, etc.) over time for each cell
  */
 export class TextureGridSimulation {
   private grid: Grid
@@ -12,51 +12,55 @@ export class TextureGridSimulation {
   private textureWidth: number
   private textureHeight: number
 
-  // State textures (ping-pong buffers)
-  public stateTexture: THREE.DataTexture
-  public nextStateTexture: THREE.DataTexture
+  // Number of time samples (e.g., 365 for daily averages over a year)
+  private timeSamples: number
 
-  // Neighbour lookup textures
+  // Neighbour lookup textures (for future heat transport calculations)
   public neighbourIndices1: THREE.DataTexture // stores neighbours 0,1,2
   public neighbourIndices2: THREE.DataTexture // stores neighbours 3,4,5
   public neighbourCounts: THREE.DataTexture // stores how many neighbours (5 or 6)
 
-  // Render targets for ping-pong rendering
-  public renderTarget1: THREE.WebGLRenderTarget
-  public renderTarget2: THREE.WebGLRenderTarget
-  private currentTarget: number = 0 // 0 or 1, for ping-ponging
+  // Cell position data (lat/lon in degrees)
+  public cellPositions: THREE.DataTexture // RG = [latitude, longitude] in degrees
 
-  constructor(subdivision: number) {
+  // Climate data storage: array of render targets, one per time sample
+  // Each render target RGBA = [temperature, humidity, pressure, unused]
+  public climateDataTargets: THREE.WebGLRenderTarget[]
+
+  constructor(subdivision: number, timeSamples: number = 365) {
     this.grid = new Grid(subdivision)
     this.cells = Array.from(this.grid)
     this.cellCount = this.cells.length
+    this.timeSamples = timeSamples
 
     // Calculate 2D texture dimensions (square or near-square, power-of-2)
-    // Find dimensions that can fit all cells
     const sqrtCells = Math.sqrt(this.cellCount)
     const baseWidth = Math.ceil(sqrtCells)
     this.textureWidth = Math.pow(2, Math.ceil(Math.log2(baseWidth)))
     this.textureHeight = Math.ceil(this.cellCount / this.textureWidth)
-    // Round height to next power of 2 for better GPU performance
     this.textureHeight = Math.pow(2, Math.ceil(Math.log2(this.textureHeight)))
 
+    const totalMemoryMB = (this.textureWidth * this.textureHeight * timeSamples * 4 * 4) / (1024 * 1024)
     console.log(
-      `TextureGridSimulation: ${this.cellCount} cells, texture size: ${this.textureWidth}x${this.textureHeight}`
+      `TextureGridSimulation: ${this.cellCount} cells, ${timeSamples} time samples`
+    )
+    console.log(
+      `Texture size: ${this.textureWidth}x${this.textureHeight}, Total memory: ${totalMemoryMB.toFixed(1)}MB`
     )
 
-    // Create textures
-    this.stateTexture = this.createStateTexture()
-    this.nextStateTexture = this.createStateTexture()
+    // Create neighbour lookup textures
     this.neighbourIndices1 = this.createneighbourTexture1()
     this.neighbourIndices2 = this.createneighbourTexture2()
     this.neighbourCounts = this.createNeighbourCountTexture()
 
-    // Create render targets for GPU computation
-    this.renderTarget1 = this.createRenderTarget()
-    this.renderTarget2 = this.createRenderTarget()
+    // Create cell position texture
+    this.cellPositions = this.createCellPositionTexture()
 
-    // Initialize values
-    this.initializeValues()
+    // Create climate data storage (one render target per time sample)
+    this.climateDataTargets = []
+    for (let i = 0; i < timeSamples; i++) {
+      this.climateDataTargets.push(this.createRenderTarget())
+    }
   }
 
   /**
@@ -76,26 +80,6 @@ export class TextureGridSimulation {
     return (y * this.textureWidth + x) * channels
   }
 
-  /**
-   * Create a state texture (RGBA32F, 2D layout)
-   * R = temperature, G/B/A reserved for future properties
-   */
-  private createStateTexture(): THREE.DataTexture {
-    const data = new Float32Array(this.textureWidth * this.textureHeight * 4) // RGBA
-    const texture = new THREE.DataTexture(
-      data,
-      this.textureWidth,
-      this.textureHeight,
-      THREE.RGBAFormat,
-      THREE.FloatType
-    )
-    texture.minFilter = THREE.NearestFilter
-    texture.magFilter = THREE.NearestFilter
-    texture.wrapS = THREE.ClampToEdgeWrapping
-    texture.wrapT = THREE.ClampToEdgeWrapping
-    texture.needsUpdate = true
-    return texture
-  }
 
   /**
    * Create neighbour indices texture 1 (stores neighbours 0, 1, 2)
@@ -219,6 +203,36 @@ export class TextureGridSimulation {
   }
 
   /**
+   * Create cell position texture (stores lat/lon for each cell)
+   */
+  private createCellPositionTexture(): THREE.DataTexture {
+    const data = new Float32Array(this.textureWidth * this.textureHeight * 2) // RG
+
+    for (let i = 0; i < this.cellCount; i++) {
+      const cell = this.cells[i]
+      const coords = this.indexTo2D(i)
+      const dataIndex = this.coordsToDataIndex(coords.x, coords.y, 2)
+
+      data[dataIndex + 0] = cell.latLon.lat // R = latitude (degrees)
+      data[dataIndex + 1] = cell.latLon.lon // G = longitude (degrees)
+    }
+
+    const texture = new THREE.DataTexture(
+      data,
+      this.textureWidth,
+      this.textureHeight,
+      THREE.RGFormat,
+      THREE.FloatType
+    )
+    texture.minFilter = THREE.NearestFilter
+    texture.magFilter = THREE.NearestFilter
+    texture.wrapS = THREE.ClampToEdgeWrapping
+    texture.wrapT = THREE.ClampToEdgeWrapping
+    texture.needsUpdate = true
+    return texture
+  }
+
+  /**
    * Create a render target for GPU computation
    */
   private createRenderTarget(): THREE.WebGLRenderTarget {
@@ -233,59 +247,17 @@ export class TextureGridSimulation {
   }
 
   /**
-   * Initialize temperature values with random noise
-   * Random values between -40°C and +30°C to test diffusion
+   * Get a specific climate data render target by time sample index
    */
-  private initializeValues() {
-    const data = this.stateTexture.image.data as Float32Array
-
-    for (let i = 0; i < this.cellCount; i++) {
-      // Random temperature between -40 and +30
-      const temp = -40 + Math.random() * 70
-
-      const coords = this.indexTo2D(i)
-      const dataIndex = this.coordsToDataIndex(coords.x, coords.y, 4)
-
-      data[dataIndex + 0] = temp // R = temperature
-      data[dataIndex + 1] = 0 // G = unused
-      data[dataIndex + 2] = 0 // B = unused
-      data[dataIndex + 3] = 0 // A = unused
-    }
-
-    this.stateTexture.needsUpdate = true
-
-    // Copy to render target 1
-    // (This will be done in the component after renderer is available)
+  getClimateDataTarget(timeSampleIndex: number): THREE.WebGLRenderTarget {
+    return this.climateDataTargets[timeSampleIndex]
   }
 
   /**
-   * Get the current state texture (for rendering)
+   * Get the number of time samples
    */
-  getCurrentTexture(): THREE.Texture {
-    return this.currentTarget === 0
-      ? this.renderTarget1.texture
-      : this.renderTarget2.texture
-  }
-
-  /**
-   * Get the current render target (for writing)
-   */
-  getCurrentRenderTarget(): THREE.WebGLRenderTarget {
-    return this.currentTarget === 0 ? this.renderTarget1 : this.renderTarget2
-  }
-
-  /**
-   * Get the next render target (for reading)
-   */
-  getNextRenderTarget(): THREE.WebGLRenderTarget {
-    return this.currentTarget === 0 ? this.renderTarget2 : this.renderTarget1
-  }
-
-  /**
-   * Swap ping-pong buffers
-   */
-  swapBuffers() {
-    this.currentTarget = 1 - this.currentTarget
+  getTimeSamples(): number {
+    return this.timeSamples
   }
 
   /**
@@ -321,11 +293,15 @@ export class TextureGridSimulation {
   }
 
   /**
-   * Read back temperature value from GPU (slow, for stats only)
+   * Read back temperature value from GPU for a specific cell and time sample
    */
-  async getTemperature(cellIndex: number, renderer: THREE.WebGLRenderer): Promise<number> {
+  async getTemperature(
+    cellIndex: number,
+    timeSampleIndex: number,
+    renderer: THREE.WebGLRenderer
+  ): Promise<number> {
     const buffer = new Float32Array(4)
-    const target = this.getCurrentRenderTarget()
+    const target = this.climateDataTargets[timeSampleIndex]
     const coords = this.indexTo2D(cellIndex)
 
     // Read a single pixel
@@ -335,35 +311,36 @@ export class TextureGridSimulation {
   }
 
   /**
-   * Read back min/max temperature from GPU (slow, for stats only)
+   * Read back all climate data for a specific cell across all time samples
    */
-  async getMinMaxTemperature(renderer: THREE.WebGLRenderer): Promise<{ min: number; max: number }> {
-    const buffer = new Float32Array(this.textureWidth * this.textureHeight * 4)
-    const target = this.getCurrentRenderTarget()
+  async getClimateDataForCell(
+    cellIndex: number,
+    renderer: THREE.WebGLRenderer
+  ): Promise<Array<{ temperature: number; humidity: number; pressure: number }>> {
+    const coords = this.indexTo2D(cellIndex)
+    const buffer = new Float32Array(4)
+    const results: Array<{ temperature: number; humidity: number; pressure: number }> = []
 
-    renderer.readRenderTargetPixels(target, 0, 0, this.textureWidth, this.textureHeight, buffer)
-
-    let min = Infinity
-    let max = -Infinity
-
-    for (let i = 0; i < this.cellCount; i++) {
-      const coords = this.indexTo2D(i)
-      const dataIndex = this.coordsToDataIndex(coords.x, coords.y, 4)
-      const temp = buffer[dataIndex] // R channel
-      min = Math.min(min, temp)
-      max = Math.max(max, temp)
+    for (let i = 0; i < this.timeSamples; i++) {
+      const target = this.climateDataTargets[i]
+      renderer.readRenderTargetPixels(target, coords.x, coords.y, 1, 1, buffer)
+      results.push({
+        temperature: buffer[0],
+        humidity: buffer[1],
+        pressure: buffer[2],
+      })
     }
 
-    return { min, max }
+    return results
   }
 
   dispose() {
-    this.stateTexture.dispose()
-    this.nextStateTexture.dispose()
     this.neighbourIndices1.dispose()
     this.neighbourIndices2.dispose()
     this.neighbourCounts.dispose()
-    this.renderTarget1.dispose()
-    this.renderTarget2.dispose()
+    this.cellPositions.dispose()
+    for (const target of this.climateDataTargets) {
+      target.dispose()
+    }
   }
 }

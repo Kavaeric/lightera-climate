@@ -41,13 +41,13 @@ export function TextureSimulationRenderer({
       vertexShader: fullscreenVertexShader,
       fragmentShader: diffusionFragmentShader,
       uniforms: {
-        stateTex: { value: simulation.stateTexture },
+        stateTex: { value: simulation.getClimateDataTarget(0).texture },
         neighbourIndices1: { value: simulation.neighbourIndices1 },
         neighbourIndices2: { value: simulation.neighbourIndices2 },
         neighbourCounts: { value: simulation.neighbourCounts },
         textureWidth: { value: simulation.getTextureWidth() },
         textureHeight: { value: simulation.getTextureHeight() },
-        diffusionRate: { value: 0.05 },
+        diffusionRate: { value: 0.1 },
       },
     })
 
@@ -61,7 +61,7 @@ export function TextureSimulationRenderer({
       vertexShader: fullscreenVertexShader,
       fragmentShader: copyFragmentShader,
       uniforms: {
-        sourceTex: { value: simulation.stateTexture },
+        sourceTex: { value: simulation.getClimateDataTarget(0).texture },
       },
     })
 
@@ -70,7 +70,7 @@ export function TextureSimulationRenderer({
     tempScene.add(copyMesh)
 
     const prevTarget = gl.getRenderTarget()
-    gl.setRenderTarget(simulation.getCurrentRenderTarget())
+    gl.setRenderTarget(simulation.getClimateDataTarget(0))
     gl.clear()
     gl.render(tempScene, cameraRef.current)
     gl.setRenderTarget(prevTarget)
@@ -105,18 +105,19 @@ export function TextureSimulationRenderer({
     // Run fixed timestep updates
     while (accumulatorRef.current >= SIMULATION_RATE) {
       // Read from current buffer, write to next buffer
-      const sourceTexture = simulation.getCurrentTexture()
+      const sourceTexture = simulation.getClimateDataTarget(0).texture
       material.uniforms.stateTex.value = sourceTexture
 
       // Render to next buffer
       const prevTarget = gl.getRenderTarget()
-      gl.setRenderTarget(simulation.getNextRenderTarget())
+      gl.setRenderTarget(simulation.getClimateDataTarget(1))
       gl.clear()
       gl.render(scene, camera)
       gl.setRenderTarget(prevTarget)
 
       // Swap buffers
-      simulation.swapBuffers()
+      simulation.getClimateDataTarget(0).texture = simulation.getClimateDataTarget(1).texture
+      simulation.getClimateDataTarget(1).texture = simulation.getClimateDataTarget(0).texture
 
       // Deduct timestep from accumulator
       accumulatorRef.current -= SIMULATION_RATE
