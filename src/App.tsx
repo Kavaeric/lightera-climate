@@ -10,7 +10,7 @@ import { ClimateSolver } from './components/ClimateSolver'
 import { ClimateGraph } from './components/ClimateGraph'
 import { DEFAULT_PLANET_CONFIG, type PlanetConfig } from './config/planetConfig'
 
-const SIMULATION_RESOLUTION = 64; // 128 seems to be the max until it crashes
+const SIMULATION_RESOLUTION = 16; // 128 seems to be the max until it crashes
 
 interface SceneProps {
   simulation: TextureGridSimulation
@@ -30,14 +30,16 @@ function Scene({ simulation, planetConfig, showLatLonGrid, hoveredCell, selected
       {/* Climate solver - computes temperature for all time samples */}
       <ClimateSolver
         simulation={simulation}
-        solarConstant={planetConfig.solarConstant}
+        solarFlux={planetConfig.solarFlux}
         albedo={planetConfig.albedo}
+        emissivity={planetConfig.emissivity}
         subsolarPoint={planetConfig.subsolarPoint}
         rotationsPerYear={planetConfig.rotationsPerYear}
         cosmicBackgroundTemp={planetConfig.cosmicBackgroundTemp}
         yearLength={planetConfig.yearLength}
+        spinupOrbits={planetConfig.iterations}
         surfaceHeatCapacity={planetConfig.surfaceHeatCapacity}
-        thermalConductivity={planetConfig.thermalDiffusivity}
+        thermalConductivity={planetConfig.groundDiffusion}
       />
 
       {/* Visible geometry - reads from climate data */}

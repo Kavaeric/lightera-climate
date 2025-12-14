@@ -10,12 +10,14 @@ import thermalEvolutionFragmentShader from '../shaders/thermalEvolution.frag?raw
 interface ClimateSolverProps {
   simulation: TextureGridSimulation
   // Planet parameters
-  solarConstant?: number // W/m² (default: 1361 for Earth)
+  solarFlux?: number // W/m² - solar flux at planet's orbital distance (default: 1361 for Earth)
   albedo?: number // 0-1 (default: 0.3)
+  emissivity?: number // 0-1 - thermal emissivity (default: 1.0 for perfect blackbody)
   subsolarPoint?: { lat: number; lon: number } // degrees (default: 0, 0) - initial subsolar point
   rotationsPerYear?: number // number of rotations per orbital period (default: 1 = tidally locked)
   cosmicBackgroundTemp?: number // K (default: 2.7)
   yearLength?: number // seconds (default: Earth's 31557600s)
+  spinupOrbits?: number // number of orbits to simulate (default: 1)
   surfaceHeatCapacity?: number // J/(m²·K) (default: 1e5 for rock)
   thermalConductivity?: number // W/(m·K) - lateral heat conduction (default: 0.1)
   onSolveComplete?: () => void
@@ -27,12 +29,14 @@ interface ClimateSolverProps {
  */
 export function ClimateSolver({
   simulation,
-  solarConstant = 1361,
+  solarFlux = 1361,
   albedo = 0.3,
+  emissivity = 1.0,
   subsolarPoint = { lat: 0, lon: 0 },
   rotationsPerYear = 1,
   cosmicBackgroundTemp = 2.7,
   yearLength = 31557600,
+  spinupOrbits = 1,
   surfaceHeatCapacity = 1e5,
   thermalConductivity = 0.1,
   onSolveComplete,
@@ -44,17 +48,19 @@ export function ClimateSolver({
     if (solvedRef.current) return
 
     console.log('ClimateSolver: Starting physics-based climate calculation...')
-    console.log(`  Solar constant: ${solarConstant} W/m²`)
+    console.log(`  Solar flux: ${solarFlux} W/m²`)
     console.log(`  Albedo: ${albedo}`)
+    console.log(`  Emissivity: ${emissivity}`)
     console.log(`  Initial subsolar point: ${subsolarPoint.lat}°, ${subsolarPoint.lon}°`)
     console.log(`  Rotations per year: ${rotationsPerYear}`)
-    console.log(`  Year length: ${yearLength}s`)
+    console.log(`  Year length: ${yearLength}s (${(yearLength / 86400).toFixed(1)} days)`)
+    console.log(`  Spin-up orbits: ${spinupOrbits}`)
     console.log(`  Surface heat capacity: ${surfaceHeatCapacity} J/(m²·K)`)
     console.log(`  Thermal conductivity: ${thermalConductivity} W/(m·K)`)
 
     // Calculate timestep with sub-stepping for stability
     const timeSamples = simulation.getTimeSamples()
-    const timePerSample = yearLength / timeSamples // seconds per saved sample
+    const timePerSample = yearLength / timeSamples // seconds per saved sample (for final orbit)
 
     // For stability, we need dt small relative to thermal timescale
     // Thermal timescale ≈ C / (4 * σ * T³) for blackbody cooling
@@ -83,8 +89,9 @@ export function ClimateSolver({
         neighbourIndices2: { value: simulation.neighbourIndices2 },
         neighbourCounts: { value: simulation.neighbourCounts },
         subsolarPoint: { value: new THREE.Vector2(subsolarPoint.lat, subsolarPoint.lon) },
-        solarConstant: { value: solarConstant },
+        solarFlux: { value: solarFlux },
         albedo: { value: albedo },
+        emissivity: { value: emissivity },
         surfaceHeatCapacity: { value: surfaceHeatCapacity },
         dt: { value: dt },
         textureWidth: { value: simulation.getTextureWidth() },
@@ -137,6 +144,7 @@ export function ClimateSolver({
     mesh.material = thermalMaterial
 
     console.log('ClimateSolver: Time-stepping through climate evolution...')
+    console.log(`  Total simulation time: ${(spinupOrbits * yearLength / 86400).toFixed(1)} days`)
 
     // Additional temp target for sub-stepping ping-pong
     const tempTarget2 = new THREE.WebGLRenderTarget(
@@ -152,40 +160,76 @@ export function ClimateSolver({
       }
     )
 
-    // Time-step through the year
-    for (let sampleIdx = 0; sampleIdx < timeSamples; sampleIdx++) {
-      // Starting state for this sample
-      let currentSource = sampleIdx === 0 ? tempTarget : simulation.getClimateDataTarget(sampleIdx - 1)
+    // Track the state at the end of each orbit for continuity between orbits
+    let orbitEndState = tempTarget // Start with initial conditions
 
-      // Take multiple sub-steps to advance to next sample
-      for (let subStep = 0; subStep < subStepsPerSample; subStep++) {
-        // Calculate time within year for this sub-step
-        const totalSteps = sampleIdx * subStepsPerSample + subStep
-        const yearProgress = (totalSteps * dt) / yearLength
-        const rotationDegrees = yearProgress * rotationsPerYear * 360
-        const currentSubsolarLon = (subsolarPoint.lon + rotationDegrees) % 360
+    // Run for multiple orbits to reach thermal equilibrium
+    // Only the final orbit's samples are saved
+    for (let orbitIdx = 0; orbitIdx < spinupOrbits; orbitIdx++) {
+      const isLastOrbit = orbitIdx === spinupOrbits - 1
+      console.log(`  Orbit ${orbitIdx + 1}/${spinupOrbits}...`)
 
-        // Update subsolar point uniform
-        thermalMaterial.uniforms.subsolarPoint.value.set(subsolarPoint.lat, currentSubsolarLon)
+      // Track the previous sample's end state within this orbit
+      let previousSampleState = orbitEndState
 
-        // Ping-pong between temp targets for sub-stepping
-        const destTarget = subStep === subStepsPerSample - 1
-          ? simulation.getClimateDataTarget(sampleIdx)  // Last sub-step saves to actual sample
-          : (subStep % 2 === 0 ? tempTarget2 : tempTarget)
+      // Time-step through the year
+      for (let sampleIdx = 0; sampleIdx < timeSamples; sampleIdx++) {
+        // Starting state for this sample
+        let currentSource
+        if (sampleIdx === 0) {
+          // First sample of each orbit: use end state from previous orbit
+          currentSource = orbitEndState
+        } else if (isLastOrbit) {
+          // Final orbit: read from permanent storage
+          currentSource = simulation.getClimateDataTarget(sampleIdx - 1)
+        } else {
+          // Intermediate orbits: use tracked previous sample state
+          currentSource = previousSampleState
+        }
 
-        thermalMaterial.uniforms.previousTemperature.value = currentSource.texture
+        // Take multiple sub-steps to advance to next sample
+        for (let subStep = 0; subStep < subStepsPerSample; subStep++) {
+          // Calculate time within total simulation for this sub-step
+          const totalSteps = (orbitIdx * timeSamples * subStepsPerSample) + (sampleIdx * subStepsPerSample) + subStep
+          const totalTime = totalSteps * dt
+          const yearProgress = (totalTime % yearLength) / yearLength
+          const rotationDegrees = yearProgress * rotationsPerYear * 360
+          const currentSubsolarLon = (subsolarPoint.lon + rotationDegrees) % 360
 
-        // Render physics step
-        gl.setRenderTarget(destTarget)
-        gl.render(scene, camera)
+          // Update subsolar point uniform
+          thermalMaterial.uniforms.subsolarPoint.value.set(subsolarPoint.lat, currentSubsolarLon)
 
-        // Update source for next sub-step
-        currentSource = destTarget
-      }
+          // Determine destination target
+          let destTarget
+          if (isLastOrbit && subStep === subStepsPerSample - 1) {
+            // Last sub-step of final orbit: save to sample storage
+            destTarget = simulation.getClimateDataTarget(sampleIdx)
+          } else {
+            // Intermediate steps: ping-pong between temp targets
+            destTarget = subStep % 2 === 0 ? tempTarget2 : tempTarget
+          }
 
-      // Progress reporting
-      if (sampleIdx % Math.floor(timeSamples / 10) === 0) {
-        console.log(`  Progress: ${Math.floor((sampleIdx / timeSamples) * 100)}%`)
+          thermalMaterial.uniforms.previousTemperature.value = currentSource.texture
+
+          // Render physics step
+          gl.setRenderTarget(destTarget)
+          gl.render(scene, camera)
+
+          // Update source for next sub-step
+          currentSource = destTarget
+        }
+
+        // After finishing this sample, currentSource holds the final state
+        // Save it for the next sample (and potentially next orbit)
+        previousSampleState = currentSource
+        if (sampleIdx === timeSamples - 1) {
+          orbitEndState = currentSource
+        }
+
+        // Progress reporting (only for final orbit)
+        if (isLastOrbit && sampleIdx % Math.floor(timeSamples / 10) === 0) {
+          console.log(`    Sample progress: ${Math.floor((sampleIdx / timeSamples) * 100)}%`)
+        }
       }
     }
 
@@ -203,7 +247,7 @@ export function ClimateSolver({
     console.log('ClimateSolver: Climate calculation complete!')
 
     onSolveComplete?.()
-  }, [gl, simulation, solarConstant, albedo, subsolarPoint, rotationsPerYear, cosmicBackgroundTemp, yearLength, surfaceHeatCapacity, thermalConductivity, onSolveComplete])
+  }, [gl, simulation, solarFlux, albedo, emissivity, subsolarPoint, rotationsPerYear, cosmicBackgroundTemp, yearLength, spinupOrbits, surfaceHeatCapacity, thermalConductivity, onSolveComplete])
 
   // This component doesn't render anything visible
   return null

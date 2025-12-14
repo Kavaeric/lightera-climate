@@ -97,7 +97,7 @@ export function ClimateGraph({ data, cellIndex, cellLatLon, onClose }: ClimateGr
       <XYChart
         height={240}
         xScale={{ type: 'linear' }}
-        yScale={{ type: 'linear', domain: [0, 400] }}
+        yScale={{ type: 'linear', domain: [0, 700] }}
       >
         <Grid columns={false} numTicks={4} />
         <Axis orientation="bottom" label="Sample index" numTicks={6} />

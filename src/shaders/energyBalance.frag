@@ -10,11 +10,11 @@ uniform sampler2D cellPositions; // RG = [latitude, longitude] in degrees
 
 // Planet parameters
 uniform vec2 subsolarPoint; // [lat, lon] in degrees where sun is directly overhead
-uniform float solarConstant; // Solar irradiance at planet's distance (W/m²)
+uniform float solarFlux; // Solar irradiance at planet's distance (W/m²)
 uniform float albedo; // Surface reflectivity (0-1)
 
 // Physical constants
-const float STEFAN_BOLTZMANN = 5.67e-8; // W/(m²·K⁴)
+const float STEFAN_BOLTZMANN = 5.670374419e-8; // W/(m²·K⁴)
 const float PI = 3.14159265359;
 
 // Convert degrees to radians
@@ -47,7 +47,7 @@ void main() {
 
   // Solar flux hitting the surface
   // Negative cos means sun is below horizon (nightside)
-  float solarFlux = solarConstant * (1.0 - albedo) * max(0.0, cosSunAngle);
+  float solarFlux = solarFlux * (1.0 - albedo) * max(0.0, cosSunAngle);
 
   // Energy balance: solarFlux = σ * T^4
   // Therefore: T = (solarFlux / σ)^0.25

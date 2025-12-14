@@ -14,8 +14,9 @@ const float STEFAN_BOLTZMANN = 5.670374419e-8; // W/(m²·K⁴)
 
 // Simulation parameters
 uniform vec2 subsolarPoint;           // [lat, lon] in degrees
-uniform float solarConstant;          // W/m²
+uniform float solarFlux;          // W/m²
 uniform float albedo;                 // 0-1
+uniform float emissivity;             // 0-1 - thermal emissivity
 uniform float surfaceHeatCapacity;    // J/(m²·K)
 uniform float dt;                     // timestep in seconds
 uniform float textureWidth;
@@ -46,9 +47,9 @@ float calculateSolarFlux(float lat, float lon, vec2 subsolar) {
   float cosAngle = sin(lat_rad) * sin(subsolar_lat_rad) +
                    cos(lat_rad) * cos(subsolar_lat_rad) * cos(lon_rad - subsolar_lon_rad);
 
-  // Flux = solarConstant * max(0, cosAngle)
+  // Flux = solarFlux * max(0, cosAngle)
   // If cosAngle < 0, the sun is below the horizon
-  float flux = solarConstant * max(0.0, cosAngle);
+  float flux = solarFlux * max(0.0, cosAngle);
 
   return flux;
 }
@@ -77,7 +78,8 @@ void main() {
   Q_solar = Q_solar * (1.0 - albedo);
 
   // Calculate outgoing blackbody radiation
-  float Q_radiation = STEFAN_BOLTZMANN * pow(T_old, 4.0);
+  // Q_out = emissivity * σ * T^4
+  float Q_radiation = emissivity * STEFAN_BOLTZMANN * pow(T_old, 4.0);
 
   // Calculate net radiative heating rate
   float dQ_radiation = Q_solar - Q_radiation;

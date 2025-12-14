@@ -127,7 +127,7 @@ export function CellPicker({ simulation, meshRef, onHoverCell, onCellClick }: Ce
       canvas.removeEventListener('pointermove', handlePointerMove)
       canvas.removeEventListener('click', handleClick)
     }
-  }, [camera, gl, meshRef, raycaster, simulation, onHoverCell])
+  }, [camera, gl, meshRef, raycaster, simulation, onHoverCell, onCellClick])
 
   return null
 }
