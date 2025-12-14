@@ -58,20 +58,18 @@ export function ClimateSolver({
     console.log(`  Surface heat capacity: ${surfaceHeatCapacity} J/(m²·K)`)
     console.log(`  Thermal conductivity: ${thermalConductivity} W/(m·K)`)
 
-    // Calculate timestep with sub-stepping for stability
+    // Calculate timestep with simulation stepping for stability
     const timeSamples = simulation.getTimeSamples()
     const timePerSample = yearLength / timeSamples // seconds per saved sample (for final orbit)
 
-    // For stability, we need dt small relative to thermal timescale
-    // Thermal timescale ≈ C / (4 * σ * T³) for blackbody cooling
-    // For T~300K: timescale ≈ 1e5 / (4 * 5.67e-8 * 27e6) ≈ 1600s
-    // Use dt = 1 hour (3600s) for good stability
-    const dt = 3600 // 1 hour timestep
-    const subStepsPerSample = Math.ceil(timePerSample / dt)
+    // Use a fixed number of simulation steps per sample for consistent accuracy regardless of year length
+    // This ensures that total physics steps = timeSamples * simStepsPerSample is constant
+    const simStepsPerSample = 12 // Fixed number of physics steps between each sample
+    const dt = timePerSample / simStepsPerSample // Calculated timestep
 
     console.log(`  Time per sample: ${timePerSample.toFixed(1)}s (${(timePerSample / 3600).toFixed(2)} hours)`)
-    console.log(`  Physics timestep: ${dt}s (${(dt / 3600).toFixed(2)} hours)`)
-    console.log(`  Sub-steps per sample: ${subStepsPerSample}`)
+    console.log(`  Physics timestep: ${dt.toFixed(1)}s (${(dt / 3600).toFixed(4)} hours)`)
+    console.log(`  Sim steps per sample: ${simStepsPerSample}`)
 
     // Create offscreen scene and camera for rendering
     const scene = new THREE.Scene()
@@ -146,7 +144,7 @@ export function ClimateSolver({
     console.log('ClimateSolver: Time-stepping through climate evolution...')
     console.log(`  Total simulation time: ${(spinupOrbits * yearLength / 86400).toFixed(1)} days`)
 
-    // Additional temp target for sub-stepping ping-pong
+    // Additional temp target for simulation stepping ping-pong
     const tempTarget2 = new THREE.WebGLRenderTarget(
       simulation.getTextureWidth(),
       simulation.getTextureHeight(),
@@ -187,10 +185,10 @@ export function ClimateSolver({
           currentSource = previousSampleState
         }
 
-        // Take multiple sub-steps to advance to next sample
-        for (let subStep = 0; subStep < subStepsPerSample; subStep++) {
-          // Calculate time within total simulation for this sub-step
-          const totalSteps = (orbitIdx * timeSamples * subStepsPerSample) + (sampleIdx * subStepsPerSample) + subStep
+        // Take multiple simulation steps to advance to next sample
+        for (let simStep = 0; simStep < simStepsPerSample; simStep++) {
+          // Calculate time within total simulation for this simulation step
+          const totalSteps = (orbitIdx * timeSamples * simStepsPerSample) + (sampleIdx * simStepsPerSample) + simStep
           const totalTime = totalSteps * dt
           const yearProgress = (totalTime % yearLength) / yearLength
           const rotationDegrees = yearProgress * rotationsPerYear * 360
@@ -201,12 +199,15 @@ export function ClimateSolver({
 
           // Determine destination target
           let destTarget
-          if (isLastOrbit && subStep === subStepsPerSample - 1) {
-            // Last sub-step of final orbit: save to sample storage
-            destTarget = simulation.getClimateDataTarget(sampleIdx)
+          const isFinalSimStep = isLastOrbit && simStep === simStepsPerSample - 1
+
+          if (isFinalSimStep) {
+            // Last simulation step of final orbit: save to sample storage
+            // Always use a temp target first to avoid feedback loops
+            destTarget = simStep % 2 === 0 ? tempTarget2 : tempTarget
           } else {
             // Intermediate steps: ping-pong between temp targets
-            destTarget = subStep % 2 === 0 ? tempTarget2 : tempTarget
+            destTarget = simStep % 2 === 0 ? tempTarget2 : tempTarget
           }
 
           thermalMaterial.uniforms.previousTemperature.value = currentSource.texture
@@ -215,8 +216,38 @@ export function ClimateSolver({
           gl.setRenderTarget(destTarget)
           gl.render(scene, camera)
 
-          // Update source for next sub-step
+          // Update source for next simulation step
           currentSource = destTarget
+        }
+
+        // For final orbit, copy the last computed state to sample storage
+        if (isLastOrbit) {
+          // currentSource now holds the final state of this sample
+          const finalTarget = simulation.getClimateDataTarget(sampleIdx)
+
+          // Copy from currentSource to finalTarget using a simple blit
+          gl.setRenderTarget(finalTarget)
+
+          // Use a simple copy shader material
+          const copyMaterial = new THREE.ShaderMaterial({
+            vertexShader: fullscreenVertexShader,
+            fragmentShader: `
+              precision highp float;
+              varying vec2 vUv;
+              uniform sampler2D source;
+              void main() {
+                gl_FragColor = texture2D(source, vUv);
+              }
+            `,
+            uniforms: { source: { value: currentSource.texture } }
+          })
+
+          const copyMesh = new THREE.Mesh(geometry, copyMaterial)
+          const copyScene = new THREE.Scene()
+          copyScene.add(copyMesh)
+          gl.render(copyScene, camera)
+          copyMaterial.dispose()
+          copyScene.clear()
         }
 
         // After finishing this sample, currentSource holds the final state

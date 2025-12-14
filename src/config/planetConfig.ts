@@ -31,16 +31,16 @@ export interface PlanetConfig {
  * Default Earth-like configuration for tidally locked airless world
  */
 export const DEFAULT_PLANET_CONFIG: PlanetConfig = {
-  solarFlux: 9159, // Mercury's solar constant (W/m²)
+  solarFlux: 1361, // Solar flux at the top of the atmosphere (W/m²) (Earth: 1361 W/m²)
   cosmicBackgroundTemp: 2.7, // Temperature of the cosmic background, usually 2.7K
-  yearLength: 7603000, // Mercury: 88 days in seconds
+  yearLength: 31540000, // 1 orbital year in seconds (Earth: 365.25 days, or 31540000 seconds)
   iterations: 128, // Run for many orbits to reach thermal equilibrium
-  albedo: 0.10, // Mercury's albedo
-  emissivity: 0.90, // Typical rocky surface emissivity
-  surfaceHeatCapacity: 2.927e8,
-  subsolarPoint: { lat: 0, lon: 0 }, // Equator, prime meridian
-  displayRange: { min: 150, max: 500 }, // 0K to 700K (covers Mercury's range)
-  rotationsPerYear: 2, // Tidally locked (0 rotations per orbit relative to the sun)
+  albedo: 0.30, // Albedo of the planet's surface (Earth: ~0.30)
+  emissivity: 0.90, // Emissivity of the planet's surface (Earth: ~0.90)
+  surfaceHeatCapacity: 2.927e8, // Heat capacity of the planet's crust/surface (Earth: 2.927e8 J/(m²·K))
+  subsolarPoint: { lat: 0, lon: 0 }, // Location of the equator and prime meridian
+  displayRange: { min: 150, max: 500 }, // Colour scale range for visualisation
+  rotationsPerYear: 1, // Number of rotations per orbit; 0 means tidally locked
   groundDiffusion: 0.05, // Slow subsurface heat conduction through the ground
   groundDiffusionIterations: 16, // Minimal diffusion passes for subsurface conduction
 }
