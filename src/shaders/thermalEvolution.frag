@@ -19,12 +19,13 @@ uniform float yearProgress;           // 0-1 - current position in orbit (0 = ve
 uniform float solarFlux;              // W/m²
 uniform float albedo;                 // 0-1
 uniform float emissivity;             // 0-1 - thermal emissivity
-uniform float surfaceHeatCapacity;    // J/(m²·K)
+uniform float surfaceHeatCapacity;    // J/(m²·K) - heat capacity per unit area
 uniform float dt;                     // timestep in seconds
 uniform float textureWidth;
 uniform float textureHeight;
 uniform float cosmicBackgroundTemp;   // K
 uniform float thermalConductivity;    // W/(m·K) - for lateral heat conduction
+uniform float planetRadius;           // meters - planet's radius for calculating surface area and scaling
 
 /**
  * Convert degrees to radians

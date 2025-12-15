@@ -22,7 +22,7 @@ export interface SimulationConfig {
 export const DEFAULT_SIMULATION_CONFIG: SimulationConfig = {
   resolution: 64, // Geodesic subdivisions (128 creates too many cells and crashes)
   timeSamples: 365, // Save 60 temperature samples per orbit
-  iterations: 128, // Run for 128 orbits to reach thermal equilibrium
+  iterations: 64, // Run for 128 orbits to reach thermal equilibrium
   physicsStepsPerSample: 1, // 10 physics steps between each saved sample
-  groundDiffusion: 0.1, // Slow subsurface heat conduction
+  groundDiffusion: 0.05, // Slow subsurface heat conduction
 }

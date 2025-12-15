@@ -1,17 +1,17 @@
 /**
- * Display configuration - visualization and UI settings
+ * Display configuration - visualisation and UI settings
  */
 
 export interface DisplayConfig {
-  // Temperature display range for color mapping
+  // Temperature display range for colour mapping
   temperatureRange: { min: number; max: number } // Kelvin
 
-  // Color mapping - architecture allows future expansion to other colormaps
-  colormap: 'fast' // Currently only 'fast' supported; will expand to 'viridis' | 'blackbody' later
+  // Colour mapping - architecture allows future expansion to other colourmaps
+  colourmap: 'fast' // Currently only 'fast' supported; will expand to 'viridis' | 'blackbody' later
 
   // Underflow/overflow colors (RGB values 0-1)
-  underflowColor: [number, number, number] // Color for temperatures below min (e.g., deep blue)
-  overflowColor: [number, number, number] // Color for temperatures above max (e.g., magenta)
+  underflowColour: [number, number, number] // Colour for temperatures below min (e.g., deep blue)
+  overflowColour: [number, number, number] // Colour for temperatures above max (e.g., magenta)
 
   // Latitude/longitude grid overlay settings
   latitudeLines: number // Number of horizontal grid lines
@@ -27,10 +27,10 @@ export interface DisplayConfig {
  * Matches the previous hardcoded values from planetConfig.displayRange
  */
 export const DEFAULT_DISPLAY_CONFIG: DisplayConfig = {
-  temperatureRange: { min: 100, max: 500 }, // Kelvin color scale range
-  colormap: 'fast',
-  underflowColor: [0.0, 0.0, 0.2], // Navy blue for cold
-  overflowColor: [1.0, 0.0, 1.0], // Magenta for hot
+  temperatureRange: { min: 100, max: 400 }, // Kelvin colour scale range
+  colourmap: 'fast',
+  underflowColour: [0.0, 0.0, 0.2], // Navy blue for cold
+  overflowColour: [1.0, 0.0, 1.0], // Magenta for hot
   latitudeLines: 8, // ~10 degree spacing
   longitudeLines: 24, // ~15 degree spacing
   gridSegments: 48,

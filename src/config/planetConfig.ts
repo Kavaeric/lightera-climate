@@ -4,6 +4,9 @@
  */
 
 export interface PlanetConfig {
+  // Physical properties
+  radius: number // meters - planet's radius (e.g., Earth: 6,371,000m)
+
   // Orbital parameters
   solarFlux: number // W/m² - solar irradiance at planet's distance
   cosmicBackgroundTemp: number // K - temperature of the cosmic background, usually 2.7K
@@ -24,6 +27,7 @@ export interface PlanetConfig {
  * Default Earth-like configuration for tidally locked airless world
  */
 export const DEFAULT_PLANET_CONFIG: PlanetConfig = {
+  radius: 6371000, // Planet radius in meters (Earth: 6,371 km)
   solarFlux: 1361, // Solar flux at the top of the atmosphere (W/m²)
   cosmicBackgroundTemp: 2.7, // Temperature of the cosmic background, usually 2.7K
   yearLength: 31540000, // 1 orbital year in seconds (Earth: 365.25 days)

@@ -76,16 +76,16 @@ export function createDisplayMaterial(config: DisplayMaterialConfig): THREE.Shad
       fastColors: { value: FAST_COLORMAP },
       underflowColor: {
         value: new THREE.Vector3(
-          displayConfig.underflowColor[0],
-          displayConfig.underflowColor[1],
-          displayConfig.underflowColor[2]
+          displayConfig.underflowColour[0],
+          displayConfig.underflowColour[1],
+          displayConfig.underflowColour[2]
         ),
       },
       overflowColor: {
         value: new THREE.Vector3(
-          displayConfig.overflowColor[0],
-          displayConfig.overflowColor[1],
-          displayConfig.overflowColor[2]
+          displayConfig.overflowColour[0],
+          displayConfig.overflowColour[1],
+          displayConfig.overflowColour[2]
         ),
       },
 

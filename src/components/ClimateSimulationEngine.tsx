@@ -54,6 +54,7 @@ export function ClimateSimulationEngine({
 
   // Extract values from config objects for clarity
   const {
+    radius,
     solarFlux,
     albedo,
     emissivity,
@@ -132,6 +133,7 @@ export function ClimateSimulationEngine({
         textureHeight: { value: simulation.getTextureHeight() },
         cosmicBackgroundTemp: { value: cosmicBackgroundTemp },
         thermalConductivity: { value: thermalConductivity },
+        planetRadius: { value: radius },
       },
     })
 
