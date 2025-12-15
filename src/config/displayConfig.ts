@@ -27,12 +27,12 @@ export interface DisplayConfig {
  * Matches the previous hardcoded values from planetConfig.displayRange
  */
 export const DEFAULT_DISPLAY_CONFIG: DisplayConfig = {
-  temperatureRange: { min: 150, max: 500 }, // Kelvin color scale range
+  temperatureRange: { min: 100, max: 500 }, // Kelvin color scale range
   colormap: 'fast',
   underflowColor: [0.0, 0.0, 0.2], // Navy blue for cold
   overflowColor: [1.0, 0.0, 1.0], // Magenta for hot
   latitudeLines: 8, // ~10 degree spacing
   longitudeLines: 24, // ~15 degree spacing
-  gridSegments: 32,
+  gridSegments: 48,
   highlightThreshold: 0.0005, // Tighter threshold reduces z-fighting at cell boundaries
 }

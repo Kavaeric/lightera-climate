@@ -32,16 +32,8 @@ function Scene({ simulation, planetConfig, simulationConfig, displayConfig, show
       {/* Climate solver - computes temperature for all time samples */}
       <ClimateSimulationEngine
         simulation={simulation}
-        solarFlux={planetConfig.solarFlux}
-        albedo={planetConfig.albedo}
-        emissivity={planetConfig.emissivity}
-        subsolarPoint={planetConfig.subsolarPoint}
-        rotationsPerYear={planetConfig.rotationsPerYear}
-        cosmicBackgroundTemp={planetConfig.cosmicBackgroundTemp}
-        yearLength={planetConfig.yearLength}
-        iterations={simulationConfig.iterations}
-        surfaceHeatCapacity={planetConfig.surfaceHeatCapacity}
-        thermalConductivity={simulationConfig.groundDiffusion}
+        planetConfig={planetConfig}
+        simulationConfig={simulationConfig}
       />
 
       {/* Visible geometry - reads from climate data */}

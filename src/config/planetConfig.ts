@@ -16,7 +16,7 @@ export interface PlanetConfig {
 
   // Rotational parameters
   subsolarPoint: { lat: number; lon: number } // degrees - where sun is directly overhead
-  rotationsPerYear: number // rotations per orbit (e.g., 1 = tidally locked, 0.5 = Mercury)
+  rotationsPerYear: number // rotations per orbit (e.g., 0 = tidally locked)
   axialTilt?: number // degrees (for future use with seasons)
 }
 
@@ -31,5 +31,6 @@ export const DEFAULT_PLANET_CONFIG: PlanetConfig = {
   emissivity: 0.90, // Emissivity of the planet's surface (Earth: ~0.90)
   surfaceHeatCapacity: 2.927e8, // Heat capacity of the planet's crust/surface (Earth: 2.927e8 J/(m²·K))
   subsolarPoint: { lat: 0, lon: 0 }, // Location of the equator and prime meridian
-  rotationsPerYear: 1, // Number of rotations per orbit (1 = tidally locked)
+  rotationsPerYear: 365, // Number of rotations per orbit (0 = tidally locked)
+  axialTilt: 23.44, // The angle of the planet's axis of rotation (Earth: 23.44°)
 }

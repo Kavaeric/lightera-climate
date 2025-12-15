@@ -2,6 +2,8 @@ import { useRef, useEffect } from 'react'
 import { useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { TextureGridSimulation } from '../util/TextureGridSimulation'
+import type { PlanetConfig } from '../config/planetConfig'
+import type { SimulationConfig } from '../config/simulationConfig'
 
 // Import shaders
 import fullscreenVertexShader from '../shaders/fullscreen.vert?raw'
@@ -9,16 +11,8 @@ import thermalEvolutionFragmentShader from '../shaders/thermalEvolution.frag?raw
 
 interface ClimateSimulationEngineProps {
   simulation: TextureGridSimulation
-  solarFlux?: number
-  albedo?: number
-  emissivity?: number
-  subsolarPoint?: { lat: number; lon: number }
-  rotationsPerYear?: number
-  cosmicBackgroundTemp?: number
-  yearLength?: number
-  iterations?: number
-  surfaceHeatCapacity?: number
-  thermalConductivity?: number
+  planetConfig: PlanetConfig
+  simulationConfig: SimulationConfig
   onSolveComplete?: () => void
 }
 
@@ -33,14 +27,14 @@ interface SimState {
   tempTarget2?: THREE.WebGLRenderTarget
   mesh?: THREE.Mesh
   timeSamples: number
-  simStepsPerSample: number
+  physicsStepsPerSample: number  // Physics substeps between saved samples (for numerical stability)
   dt: number
   yearLength: number
   subsolarPoint: { lat: number; lon: number }
   rotationsPerYear: number
   orbitIdx: number
   sampleIdx: number
-  simStep: number
+  physicsStep: number  // Current substep within the current sample
   orbitEndState?: THREE.WebGLRenderTarget
   previousSampleState?: THREE.WebGLRenderTarget
   currentSource?: THREE.WebGLRenderTarget
@@ -52,31 +46,38 @@ interface SimState {
  */
 export function ClimateSimulationEngine({
   simulation,
-  solarFlux = 1361,
-  albedo = 0.3,
-  emissivity = 1.0,
-  subsolarPoint = { lat: 0, lon: 0 },
-  rotationsPerYear = 1,
-  cosmicBackgroundTemp = 2.7,
-  yearLength = 31557600,
-  iterations = 1,
-  surfaceHeatCapacity = 1e5,
-  thermalConductivity = 0.1,
+  planetConfig,
+  simulationConfig,
   onSolveComplete,
 }: ClimateSimulationEngineProps) {
   const { gl } = useThree()
+
+  // Extract values from config objects for clarity
+  const {
+    solarFlux,
+    albedo,
+    emissivity,
+    subsolarPoint,
+    rotationsPerYear,
+    cosmicBackgroundTemp,
+    yearLength,
+    surfaceHeatCapacity,
+    axialTilt = 0,
+  } = planetConfig
+
+  const { iterations, groundDiffusion: thermalConductivity } = simulationConfig
   const stateRef = useRef<SimState>({
     initialized: false,
     complete: false,
     timeSamples: 0,
-    simStepsPerSample: 12,
+    physicsStepsPerSample: 1,
     dt: 0,
     yearLength,
     subsolarPoint,
     rotationsPerYear,
     orbitIdx: 0,
     sampleIdx: 0,
-    simStep: 0,
+    physicsStep: 0,
   })
 
   // Initialize GPU resources once
@@ -91,12 +92,14 @@ export function ClimateSimulationEngine({
     console.log(`  Iterations: ${iterations}`)
 
     const timeSamples = simulation.getTimeSamples()
+    // Use a reasonable default for physics substeps (12 gives good numerical stability)
+    // This can be made configurable later if needed
+    const physicsStepsPerSample = 12
     const timePerSample = yearLength / timeSamples
-    const simStepsPerSample = 12
-    const dt = timePerSample / simStepsPerSample
+    const dt = timePerSample / physicsStepsPerSample
 
     state.timeSamples = timeSamples
-    state.simStepsPerSample = simStepsPerSample
+    state.physicsStepsPerSample = physicsStepsPerSample
     state.dt = dt
 
     console.log(`  Time per sample: ${timePerSample.toFixed(1)}s`)
@@ -117,7 +120,9 @@ export function ClimateSimulationEngine({
         neighbourIndices1: { value: simulation.neighbourIndices1 },
         neighbourIndices2: { value: simulation.neighbourIndices2 },
         neighbourCounts: { value: simulation.neighbourCounts },
-        subsolarPoint: { value: new THREE.Vector2(subsolarPoint.lat, subsolarPoint.lon) },
+        baseSubsolarPoint: { value: new THREE.Vector2(subsolarPoint.lat, subsolarPoint.lon) },
+        axialTilt: { value: axialTilt },
+        yearProgress: { value: 0 },
         solarFlux: { value: solarFlux },
         albedo: { value: albedo },
         emissivity: { value: emissivity },
@@ -190,7 +195,7 @@ export function ClimateSimulationEngine({
     state.orbitEndState = tempTarget
     state.previousSampleState = tempTarget
     state.currentSource = tempTarget
-  }, [gl, simulation, solarFlux, albedo, emissivity, subsolarPoint, rotationsPerYear, cosmicBackgroundTemp, yearLength, iterations, surfaceHeatCapacity, thermalConductivity])
+  }, [gl, simulation, planetConfig, simulationConfig])
 
   // Run simulation in independent animation loop (not Three Fiber's useFrame)
   useEffect(() => {
@@ -219,44 +224,45 @@ export function ClimateSimulationEngine({
         frameTimeSum = 0
       }
 
-      // Use maximum step count per frame - GPU work is trivial, CPU overhead is the bottleneck
-      // The shader just does basic math per cell, so we can do thousands of steps per frame
-      // This reduces total frames from 11,520 to ~23 frames for a complete simulation
-      const stepsPerFrame = Math.max(500, Math.floor(state.timeSamples * state.simStepsPerSample / 2))
+      // UI pacing parameter: how many physics steps to compute per animation frame
+      // Increase for faster simulation (fewer total frames), decrease for finer progress updates
+      // With physics substeps + samples, each frame completes multiple time samples
+      const stepsPerFrame = Math.max(500, Math.floor(state.timeSamples * state.physicsStepsPerSample / 2))
       const { scene, camera, geometry, thermalMaterial, tempTarget, tempTarget2, mesh } = state
       if (!scene || !camera || !geometry || !thermalMaterial || !tempTarget || !tempTarget2 || !mesh) {
         animationFrameId = requestAnimationFrame(simulationLoop)
         return
       }
 
-      // Execute stepsPerFrame simulation steps
+      // Execute stepsPerFrame physics steps
       for (let step = 0; step < stepsPerFrame; step++) {
         const isLastOrbit = state.orbitIdx === iterations - 1
 
         // Calculate current state
-        const totalSteps = (state.orbitIdx * state.timeSamples * state.simStepsPerSample) +
-                          (state.sampleIdx * state.simStepsPerSample) +
-                          state.simStep
+        const totalSteps = (state.orbitIdx * state.timeSamples * state.physicsStepsPerSample) +
+                          (state.sampleIdx * state.physicsStepsPerSample) +
+                          state.physicsStep
         const totalTime = totalSteps * state.dt
         const yearProgress = (totalTime % state.yearLength) / state.yearLength
         const rotationDegrees = yearProgress * state.rotationsPerYear * 360
         const currentSubsolarLon = (state.subsolarPoint.lon + rotationDegrees) % 360
 
-        thermalMaterial.uniforms.subsolarPoint.value.set(state.subsolarPoint.lat, currentSubsolarLon)
+        thermalMaterial.uniforms.baseSubsolarPoint.value.set(state.subsolarPoint.lat, currentSubsolarLon)
+        thermalMaterial.uniforms.yearProgress.value = yearProgress
 
         // Ping-pong between targets
-        const destTarget = state.simStep % 2 === 0 ? tempTarget2 : tempTarget
+        const destTarget = state.physicsStep % 2 === 0 ? tempTarget2 : tempTarget
         thermalMaterial.uniforms.previousTemperature.value = state.currentSource!.texture
 
         gl.setRenderTarget(destTarget)
         gl.render(scene, camera)
         state.currentSource = destTarget
 
-        // Advance to next step
-        state.simStep++
+        // Advance to next physics step
+        state.physicsStep++
 
-        if (state.simStep >= state.simStepsPerSample) {
-          state.simStep = 0
+        if (state.physicsStep >= state.physicsStepsPerSample) {
+          state.physicsStep = 0
 
           // For final orbit, save sample
           if (isLastOrbit && state.currentSource) {

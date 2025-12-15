@@ -13,8 +13,10 @@ uniform sampler2D neighbourCounts;     // Number of neighbours (5 or 6)
 const float STEFAN_BOLTZMANN = 5.670374419e-8; // W/(m²·K⁴)
 
 // Simulation parameters
-uniform vec2 subsolarPoint;           // [lat, lon] in degrees
-uniform float solarFlux;          // W/m²
+uniform vec2 baseSubsolarPoint;       // [lat, lon] in degrees - subsolar point at vernal equinox
+uniform float axialTilt;              // degrees - planet's axial tilt (0 = no tilt, 23.44 = Earth-like)
+uniform float yearProgress;           // 0-1 - current position in orbit (0 = vernal equinox, 0.5 = autumnal)
+uniform float solarFlux;              // W/m²
 uniform float albedo;                 // 0-1
 uniform float emissivity;             // 0-1 - thermal emissivity
 uniform float surfaceHeatCapacity;    // J/(m²·K)
@@ -29,6 +31,24 @@ uniform float thermalConductivity;    // W/(m·K) - for lateral heat conduction
  */
 float deg2rad(float deg) {
   return deg * 3.14159265359 / 180.0;
+}
+
+/**
+ * Calculate subsolar point latitude based on orbital position and axial tilt
+ *
+ * During the year, the subsolar latitude oscillates due to axial tilt:
+ * - At vernal/autumnal equinox (yearProgress = 0.0 or 0.5): subsolar_lat = base_lat
+ * - At summer solstice (yearProgress = 0.25): subsolar_lat = base_lat + axialTilt
+ * - At winter solstice (yearProgress = 0.75): subsolar_lat = base_lat - axialTilt
+ */
+float calculateSubsolarLatitude(float baseLat, float tilt, float progress) {
+  // Convert to radians for sinusoidal motion
+  float orbitAngle = progress * 2.0 * 3.14159265359;
+
+  // Sun's latitude oscillates from -tilt to +tilt relative to base latitude
+  float tiltedLat = baseLat + tilt * sin(orbitAngle);
+
+  return tiltedLat;
 }
 
 /**
@@ -70,6 +90,10 @@ void main() {
 
   // Read cell position
   vec2 cellLatLon = texture2D(cellPositions, vUv).rg; // [lat, lon] in degrees
+
+  // Calculate subsolar point based on orbital position and axial tilt
+  float subsolarLat = calculateSubsolarLatitude(baseSubsolarPoint.x, axialTilt, yearProgress);
+  vec2 subsolarPoint = vec2(subsolarLat, baseSubsolarPoint.y);
 
   // Calculate incoming solar flux
   float Q_solar = calculateSolarFlux(cellLatLon.x, cellLatLon.y, subsolarPoint);
