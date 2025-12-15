@@ -18,7 +18,7 @@ export interface SimulationConfig {
  */
 export const DEFAULT_SIMULATION_CONFIG: SimulationConfig = {
   resolution: 16, // Geodesic subdivisions (128 creates too many cells and crashes)
-  timeSamples: 365, // Save 60 temperature samples per orbit
+  timeSamples: 365, // Save 365 temperature samples per orbit
   iterations: 128, // Run for 128 orbits to reach thermal equilibrium
-  physicsStepsPerSample: 1, // 10 physics steps between each saved sample
+  physicsStepsPerSample: 2, // 2 physics steps between each saved sample
 }

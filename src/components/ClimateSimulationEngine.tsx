@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { TextureGridSimulation } from '../util/TextureGridSimulation'
 import type { PlanetConfig } from '../config/planetConfig'
 import type { SimulationConfig } from '../config/simulationConfig'
+import { useSimulation } from '../context/SimulationContext'
 
 // Import shaders
 import fullscreenVertexShader from '../shaders/fullscreen.vert?raw'
@@ -48,6 +49,7 @@ export function ClimateSimulationEngine({
   onSolveComplete,
 }: ClimateSimulationEngineProps) {
   const { gl } = useThree()
+  const { setSimulationStatus } = useSimulation()
 
   // Extract values from config objects for clarity
   const {
@@ -247,7 +249,9 @@ export function ClimateSimulationEngine({
             state.sampleIdx = 0
             state.orbitIdx++
 
-            console.log(`  Orbit ${state.orbitIdx}/${iterations}...`)
+            const statusMsg = `Orbit ${state.orbitIdx}/${iterations}...`
+            console.log(`  ${statusMsg}`)
+            setSimulationStatus(statusMsg)
 
             if (state.orbitIdx >= iterations) {
               // Done!
@@ -259,7 +263,9 @@ export function ClimateSimulationEngine({
 
               gl.setRenderTarget(null)
 
+              const completeMsg = 'Simulation completed!'
               console.log('ClimateSolver: Climate calculation complete!')
+              setSimulationStatus(completeMsg)
               onSolveComplete?.()
               return
             }
@@ -281,7 +287,7 @@ export function ClimateSimulationEngine({
     return () => {
       cancelAnimationFrame(animationFrameId)
     }
-  }, [gl, simulation, iterations])
+  }, [gl, simulation, iterations, setSimulationStatus])
 
   return null
 }

@@ -6,7 +6,6 @@
 import * as THREE from 'three'
 import { TextureGridSimulation } from '../../util/TextureGridSimulation'
 import type { PlanetConfig } from '../../config/planetConfig'
-import type { SimulationConfig } from '../../config/simulationConfig'
 import fullscreenVertexShader from '../../shaders/fullscreen.vert?raw'
 import thermalEvolutionFragmentShader from '../../shaders/thermalEvolution.frag?raw'
 
@@ -16,7 +15,6 @@ import thermalEvolutionFragmentShader from '../../shaders/thermalEvolution.frag?
 export function createThermalEvolutionMaterial(
   simulation: TextureGridSimulation,
   planetConfig: PlanetConfig,
-  simulationConfig: SimulationConfig,
   dt: number
 ): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
@@ -42,7 +40,7 @@ export function createThermalEvolutionMaterial(
 
       // Thermal parameters
       surfaceHeatCapacity: { value: planetConfig.surfaceHeatCapacity },
-      thermalConductivity: { value: simulationConfig.groundDiffusion },
+      thermalConductivity: { value: planetConfig.groundConductivity },
 
       // Physics timestep
       dt: { value: dt },

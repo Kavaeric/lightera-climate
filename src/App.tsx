@@ -11,11 +11,10 @@ import { ClimateDataChart } from './components/ClimateDataChart'
 import { DEFAULT_PLANET_CONFIG, type PlanetConfig } from './config/planetConfig'
 import { DEFAULT_SIMULATION_CONFIG, type SimulationConfig } from './config/simulationConfig'
 import { DEFAULT_DISPLAY_CONFIG, type DisplayConfig } from './config/displayConfig'
+import { SimulationProvider, useSimulation } from './context/SimulationContext'
 
 interface SceneProps {
   simulation: TextureGridSimulation
-  planetConfig: PlanetConfig
-  simulationConfig: SimulationConfig
   displayConfig: DisplayConfig
   showLatLonGrid: boolean
   hoveredCell: number | null
@@ -24,22 +23,23 @@ interface SceneProps {
   onCellClick: (cellIndex: number) => void
 }
 
-function Scene({ simulation, planetConfig, simulationConfig, displayConfig, showLatLonGrid, hoveredCell, selectedCell, onHoverCell, onCellClick }: SceneProps) {
+function Scene({ simulation, displayConfig, showLatLonGrid, hoveredCell, selectedCell, onHoverCell, onCellClick }: SceneProps) {
   const meshRef = useRef<THREE.Mesh>(null)
+  const { activeSimulationConfig, activePlanetConfig } = useSimulation()
 
   return (
     <>
       {/* Climate solver - computes temperature for all time samples */}
       <ClimateSimulationEngine
         simulation={simulation}
-        planetConfig={planetConfig}
-        simulationConfig={simulationConfig}
+        planetConfig={activePlanetConfig}
+        simulationConfig={activeSimulationConfig}
       />
 
       {/* Visible geometry - reads from climate data */}
       <PlanetRenderer
         ref={meshRef}
-        subdivisions={simulationConfig.resolution}
+        subdivisions={activeSimulationConfig.resolution}
         radius={1}
         simulation={simulation}
         valueRange={displayConfig.temperatureRange}
@@ -99,16 +99,14 @@ function ClimateDataFetcher({
   return null // Don't render anything in the Canvas
 }
 
-function App() {
+function AppContent() {
   // UI configuration objects (mutable via input fields)
   const [pendingPlanetConfig, setPendingPlanetConfig] = useState<PlanetConfig>(DEFAULT_PLANET_CONFIG)
   const [pendingSimulationConfig, setPendingSimulationConfig] = useState<SimulationConfig>(DEFAULT_SIMULATION_CONFIG)
-  const [displayConfig] = useState<DisplayConfig>(DEFAULT_DISPLAY_CONFIG)
+  const [displayConfig, setDisplayConfig] = useState<DisplayConfig>(DEFAULT_DISPLAY_CONFIG)
 
-  // Active configuration objects (only updated when "Run simulation" is clicked)
-  const [activeSimulationConfig, setActiveSimulationConfig] = useState<SimulationConfig>(DEFAULT_SIMULATION_CONFIG)
-  const [activePlanetConfig, setActivePlanetConfig] = useState<PlanetConfig>(DEFAULT_PLANET_CONFIG)
-  const [simulationKey, setSimulationKey] = useState(0)
+  // Get active config and simulation state from context
+  const { activeSimulationConfig, simulationKey, simulationStatus, runSimulation } = useSimulation()
 
   // Create climate simulation - recreate only when activeSimulationConfig changes (i.e., on button click)
   const simulation = useMemo(() => {
@@ -149,8 +147,6 @@ function App() {
         <Scene
           key={simulationKey}
           simulation={simulation}
-          planetConfig={activePlanetConfig}
-          simulationConfig={activeSimulationConfig}
           displayConfig={displayConfig}
           showLatLonGrid={showLatLonGrid}
           hoveredCell={hoveredCell}
@@ -164,7 +160,7 @@ function App() {
       </Canvas>
 
       {/* Info panel */}
-      <div style={{ position: 'absolute', top: 10, left: 10, width: '380px', height: '100vdh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', color: 'white', background: 'rgba(0,0,0,0.5)', padding: '8px', fontFamily: 'monospace' }}>
+      <div style={{ position: 'absolute', width: '280px', height: '100dvh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', color: 'white', background: 'rgba(0,0,0,0.5)', padding: '12px', fontFamily: 'monospace' }}>
         <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <h2>Simulation settings</h2>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -286,27 +282,69 @@ function App() {
           <button
             onClick={() => {
               // Apply pending configs to active configs and restart simulation
-              setActiveSimulationConfig(pendingSimulationConfig)
-              setActivePlanetConfig(pendingPlanetConfig)
+              runSimulation(pendingSimulationConfig, pendingPlanetConfig)
               setSelectedCell(null)
               setSelectedCellLatLon(null)
               setClimateData([])
-              setSimulationKey((prev) => prev + 1)
             }}
           >
             Run simulation
           </button>
         </section>
         <hr style={{ margin: '8px 0', border: 'none', borderTop: '1px solid rgba(255,255,255,0.3)' }} />
-        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}>
-          <input
-            type="checkbox"
-            checked={showLatLonGrid}
-            onChange={(e) => setShowLatLonGrid(e.target.checked)}
-            style={{ cursor: 'pointer' }}
-          />
-          <span>Show latitude and longitude grid</span>
-        </label>
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <h2>Status</h2>
+          <span>{simulationStatus}</span>
+        </section>
+        <hr style={{ margin: '8px 0', border: 'none', borderTop: '1px solid rgba(255,255,255,0.3)' }} />
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <h2>Display settings</h2>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>Temperature range min (K)</span>
+            <input
+              type="number"
+              step="1"
+              value={displayConfig.temperatureRange.min}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                setDisplayConfig({
+                  ...displayConfig,
+                  temperatureRange: {
+                    ...displayConfig.temperatureRange,
+                    min: isNaN(val) ? displayConfig.temperatureRange.min : val,
+                  },
+                });
+              }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>Temperature range max (K)</span>
+            <input
+              type="number"
+              step="1"
+              value={displayConfig.temperatureRange.max}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                setDisplayConfig({
+                  ...displayConfig,
+                  temperatureRange: {
+                    ...displayConfig.temperatureRange,
+                    max: isNaN(val) ? displayConfig.temperatureRange.max : val,
+                  },
+                });
+              }}
+            />
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}>
+            <input
+              type="checkbox"
+              checked={showLatLonGrid}
+              onChange={(e) => setShowLatLonGrid(e.target.checked)}
+              style={{ cursor: 'pointer' }}
+            />
+            <span>Show latitude and longitude grid</span>
+          </label>
+        </section>
       </div>
 
       {/* Climate graph - rendered outside Canvas */}
@@ -320,6 +358,14 @@ function App() {
       )}
     </main>
   );
+}
+
+function App() {
+  return (
+    <SimulationProvider>
+      <AppContent />
+    </SimulationProvider>
+  )
 }
 
 export default App;
