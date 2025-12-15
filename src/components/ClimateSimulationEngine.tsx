@@ -9,23 +9,46 @@ import thermalEvolutionFragmentShader from '../shaders/thermalEvolution.frag?raw
 
 interface ClimateSimulationEngineProps {
   simulation: TextureGridSimulation
-  // Planet parameters
-  solarFlux?: number // W/m² - solar flux at planet's orbital distance (default: 1361 for Earth)
-  albedo?: number // 0-1 (default: 0.3)
-  emissivity?: number // 0-1 - thermal emissivity (default: 1.0 for perfect blackbody)
-  subsolarPoint?: { lat: number; lon: number } // degrees (default: 0, 0) - initial subsolar point
-  rotationsPerYear?: number // number of rotations per orbital period (default: 1 = tidally locked)
-  cosmicBackgroundTemp?: number // K (default: 2.7)
-  yearLength?: number // seconds (default: Earth's 31557600s)
-  iterations?: number // number of orbits to simulate (default: 1) - renamed from spinupOrbits for consistency
-  surfaceHeatCapacity?: number // J/(m²·K) (default: 1e5 for rock)
-  thermalConductivity?: number // W/(m·K) - lateral heat conduction (default: 0.1)
+  solarFlux?: number
+  albedo?: number
+  emissivity?: number
+  subsolarPoint?: { lat: number; lon: number }
+  rotationsPerYear?: number
+  cosmicBackgroundTemp?: number
+  yearLength?: number
+  iterations?: number
+  surfaceHeatCapacity?: number
+  thermalConductivity?: number
   onSolveComplete?: () => void
+}
+
+interface SimState {
+  initialized: boolean
+  complete: boolean
+  scene?: THREE.Scene
+  camera?: THREE.OrthographicCamera
+  geometry?: THREE.BufferGeometry
+  thermalMaterial?: THREE.ShaderMaterial
+  tempTarget?: THREE.WebGLRenderTarget
+  tempTarget2?: THREE.WebGLRenderTarget
+  mesh?: THREE.Mesh
+  timeSamples: number
+  simStepsPerSample: number
+  dt: number
+  yearLength: number
+  subsolarPoint: { lat: number; lon: number }
+  rotationsPerYear: number
+  orbitIdx: number
+  sampleIdx: number
+  simStep: number
+  orbitEndState?: THREE.WebGLRenderTarget
+  previousSampleState?: THREE.WebGLRenderTarget
+  currentSource?: THREE.WebGLRenderTarget
 }
 
 /**
  * Component that solves the climate simulation using GPU shaders
- * Uses physics-based time-stepping to evolve temperatures with proper thermal inertia
+ * Runs ~10 steps per frame to maintain responsive UI
  */
 export function ClimateSimulationEngine({
   simulation,
@@ -42,46 +65,54 @@ export function ClimateSimulationEngine({
   onSolveComplete,
 }: ClimateSimulationEngineProps) {
   const { gl } = useThree()
-  const solvedRef = useRef(false)
+  const stateRef = useRef<SimState>({
+    initialized: false,
+    complete: false,
+    timeSamples: 0,
+    simStepsPerSample: 12,
+    dt: 0,
+    yearLength,
+    subsolarPoint,
+    rotationsPerYear,
+    orbitIdx: 0,
+    sampleIdx: 0,
+    simStep: 0,
+  })
 
+  // Initialize GPU resources once
   useEffect(() => {
-    if (solvedRef.current) return
+    const state = stateRef.current
+    if (state.initialized) return
+    state.initialized = true
 
     console.log('ClimateSolver: Starting physics-based climate calculation...')
     console.log(`  Solar flux: ${solarFlux} W/m²`)
     console.log(`  Albedo: ${albedo}`)
-    console.log(`  Emissivity: ${emissivity}`)
-    console.log(`  Initial subsolar point: ${subsolarPoint.lat}°, ${subsolarPoint.lon}°`)
-    console.log(`  Rotations per year: ${rotationsPerYear}`)
-    console.log(`  Year length: ${yearLength}s (${(yearLength / 86400).toFixed(1)} days)`)
     console.log(`  Iterations: ${iterations}`)
-    console.log(`  Surface heat capacity: ${surfaceHeatCapacity} J/(m²·K)`)
-    console.log(`  Thermal conductivity: ${thermalConductivity} W/(m·K)`)
 
-    // Calculate timestep with simulation stepping for stability
     const timeSamples = simulation.getTimeSamples()
-    const timePerSample = yearLength / timeSamples // seconds per saved sample (for final orbit)
+    const timePerSample = yearLength / timeSamples
+    const simStepsPerSample = 12
+    const dt = timePerSample / simStepsPerSample
 
-    // Use a fixed number of simulation steps per sample for consistent accuracy regardless of year length
-    // This ensures that total physics steps = timeSamples * simStepsPerSample is constant
-    const simStepsPerSample = 12 // Fixed number of physics steps between each sample
-    const dt = timePerSample / simStepsPerSample // Calculated timestep
+    state.timeSamples = timeSamples
+    state.simStepsPerSample = simStepsPerSample
+    state.dt = dt
 
-    console.log(`  Time per sample: ${timePerSample.toFixed(1)}s (${(timePerSample / 3600).toFixed(2)} hours)`)
-    console.log(`  Physics timestep: ${dt.toFixed(1)}s (${(dt / 3600).toFixed(4)} hours)`)
-    console.log(`  Sim steps per sample: ${simStepsPerSample}`)
+    console.log(`  Time per sample: ${timePerSample.toFixed(1)}s`)
+    console.log(`  Time-stepping through climate evolution...`)
+    console.log(`  Total simulation time: ${(iterations * yearLength / 86400).toFixed(1)} days`)
 
-    // Create offscreen scene and camera for rendering
+    // Create scene and materials
     const scene = new THREE.Scene()
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
     const geometry = new THREE.PlaneGeometry(2, 2)
 
-    // Create thermal evolution shader material
     const thermalMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: thermalEvolutionFragmentShader,
       uniforms: {
-        previousTemperature: { value: null }, // Will be set per timestep
+        previousTemperature: { value: null },
         cellPositions: { value: simulation.cellPositions },
         neighbourIndices1: { value: simulation.neighbourIndices1 },
         neighbourIndices2: { value: simulation.neighbourIndices2 },
@@ -102,7 +133,6 @@ export function ClimateSimulationEngine({
     const mesh = new THREE.Mesh(geometry, thermalMaterial)
     scene.add(mesh)
 
-    // Create temporary render target for ping-pong buffering
     const tempTarget = new THREE.WebGLRenderTarget(
       simulation.getTextureWidth(),
       simulation.getTextureHeight(),
@@ -116,10 +146,20 @@ export function ClimateSimulationEngine({
       }
     )
 
-    const prevTarget = gl.getRenderTarget()
+    const tempTarget2 = new THREE.WebGLRenderTarget(
+      simulation.getTextureWidth(),
+      simulation.getTextureHeight(),
+      {
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
+        format: THREE.RGBAFormat,
+        type: THREE.FloatType,
+        wrapS: THREE.ClampToEdgeWrapping,
+        wrapT: THREE.ClampToEdgeWrapping,
+      }
+    )
 
-    // Initialize with cosmic background temperature as starting condition
-    // Create a simple initialization shader
+    // Initialize with cosmic background temperature
     const initMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: `
@@ -138,148 +178,170 @@ export function ClimateSimulationEngine({
     gl.render(scene, camera)
     initMaterial.dispose()
 
-    // Switch back to thermal evolution material
     mesh.material = thermalMaterial
 
-    console.log('ClimateSolver: Time-stepping through climate evolution...')
-    console.log(`  Total simulation time: ${(iterations * yearLength / 86400).toFixed(1)} days`)
+    state.scene = scene
+    state.camera = camera
+    state.geometry = geometry
+    state.thermalMaterial = thermalMaterial
+    state.tempTarget = tempTarget
+    state.tempTarget2 = tempTarget2
+    state.mesh = mesh
+    state.orbitEndState = tempTarget
+    state.previousSampleState = tempTarget
+    state.currentSource = tempTarget
+  }, [gl, simulation, solarFlux, albedo, emissivity, subsolarPoint, rotationsPerYear, cosmicBackgroundTemp, yearLength, iterations, surfaceHeatCapacity, thermalConductivity])
 
-    // Additional temp target for simulation stepping ping-pong
-    const tempTarget2 = new THREE.WebGLRenderTarget(
-      simulation.getTextureWidth(),
-      simulation.getTextureHeight(),
-      {
-        minFilter: THREE.NearestFilter,
-        magFilter: THREE.NearestFilter,
-        format: THREE.RGBAFormat,
-        type: THREE.FloatType,
-        wrapS: THREE.ClampToEdgeWrapping,
-        wrapT: THREE.ClampToEdgeWrapping,
+  // Run simulation in independent animation loop (not Three Fiber's useFrame)
+  useEffect(() => {
+    if (!stateRef.current.initialized) return
+
+    let animationFrameId: number
+    let lastFrameTime = performance.now()
+    let frameCount = 0
+    let frameTimeSum = 0
+
+    const simulationLoop = () => {
+      const state = stateRef.current
+      if (state.complete) return
+
+      // Measure frame time for adaptive stepping
+      const now = performance.now()
+      const frameTime = now - lastFrameTime
+      lastFrameTime = now
+      frameCount++
+      frameTimeSum += frameTime
+
+      // Log average frame time every 60 frames
+      if (frameCount % 60 === 0) {
+        const avgFrameTime = frameTimeSum / 60
+        console.log(`Avg frame time: ${avgFrameTime.toFixed(2)}ms (${(1000 / avgFrameTime).toFixed(1)} fps)`)
+        frameTimeSum = 0
       }
-    )
 
-    // Track the state at the end of each orbit for continuity between orbits
-    let orbitEndState = tempTarget // Start with initial conditions
+      // Use maximum step count per frame - GPU work is trivial, CPU overhead is the bottleneck
+      // The shader just does basic math per cell, so we can do thousands of steps per frame
+      // This reduces total frames from 11,520 to ~23 frames for a complete simulation
+      const stepsPerFrame = Math.max(500, Math.floor(state.timeSamples * state.simStepsPerSample / 2))
+      const { scene, camera, geometry, thermalMaterial, tempTarget, tempTarget2, mesh } = state
+      if (!scene || !camera || !geometry || !thermalMaterial || !tempTarget || !tempTarget2 || !mesh) {
+        animationFrameId = requestAnimationFrame(simulationLoop)
+        return
+      }
 
-    // Run for multiple orbits to reach thermal equilibrium
-    // Only the final orbit's samples are saved
-    for (let orbitIdx = 0; orbitIdx < iterations; orbitIdx++) {
-      const isLastOrbit = orbitIdx === iterations - 1
-      console.log(`  Orbit ${orbitIdx + 1}/${iterations}...`)
+      // Execute stepsPerFrame simulation steps
+      for (let step = 0; step < stepsPerFrame; step++) {
+        const isLastOrbit = state.orbitIdx === iterations - 1
 
-      // Track the previous sample's end state within this orbit
-      let previousSampleState = orbitEndState
+        // Calculate current state
+        const totalSteps = (state.orbitIdx * state.timeSamples * state.simStepsPerSample) +
+                          (state.sampleIdx * state.simStepsPerSample) +
+                          state.simStep
+        const totalTime = totalSteps * state.dt
+        const yearProgress = (totalTime % state.yearLength) / state.yearLength
+        const rotationDegrees = yearProgress * state.rotationsPerYear * 360
+        const currentSubsolarLon = (state.subsolarPoint.lon + rotationDegrees) % 360
 
-      // Time-step through the year
-      for (let sampleIdx = 0; sampleIdx < timeSamples; sampleIdx++) {
-        // Starting state for this sample
-        let currentSource
-        if (sampleIdx === 0) {
-          // First sample of each orbit: use end state from previous orbit
-          currentSource = orbitEndState
-        } else if (isLastOrbit) {
-          // Final orbit: read from permanent storage
-          currentSource = simulation.getClimateDataTarget(sampleIdx - 1)
-        } else {
-          // Intermediate orbits: use tracked previous sample state
-          currentSource = previousSampleState
-        }
+        thermalMaterial.uniforms.subsolarPoint.value.set(state.subsolarPoint.lat, currentSubsolarLon)
 
-        // Take multiple simulation steps to advance to next sample
-        for (let simStep = 0; simStep < simStepsPerSample; simStep++) {
-          // Calculate time within total simulation for this simulation step
-          const totalSteps = (orbitIdx * timeSamples * simStepsPerSample) + (sampleIdx * simStepsPerSample) + simStep
-          const totalTime = totalSteps * dt
-          const yearProgress = (totalTime % yearLength) / yearLength
-          const rotationDegrees = yearProgress * rotationsPerYear * 360
-          const currentSubsolarLon = (subsolarPoint.lon + rotationDegrees) % 360
+        // Ping-pong between targets
+        const destTarget = state.simStep % 2 === 0 ? tempTarget2 : tempTarget
+        thermalMaterial.uniforms.previousTemperature.value = state.currentSource!.texture
 
-          // Update subsolar point uniform
-          thermalMaterial.uniforms.subsolarPoint.value.set(subsolarPoint.lat, currentSubsolarLon)
+        gl.setRenderTarget(destTarget)
+        gl.render(scene, camera)
+        state.currentSource = destTarget
 
-          // Determine destination target
-          let destTarget
-          const isFinalSimStep = isLastOrbit && simStep === simStepsPerSample - 1
+        // Advance to next step
+        state.simStep++
 
-          if (isFinalSimStep) {
-            // Last simulation step of final orbit: save to sample storage
-            // Always use a temp target first to avoid feedback loops
-            destTarget = simStep % 2 === 0 ? tempTarget2 : tempTarget
-          } else {
-            // Intermediate steps: ping-pong between temp targets
-            destTarget = simStep % 2 === 0 ? tempTarget2 : tempTarget
+        if (state.simStep >= state.simStepsPerSample) {
+          state.simStep = 0
+
+          // For final orbit, save sample
+          if (isLastOrbit && state.currentSource) {
+            const finalTarget = simulation.getClimateDataTarget(state.sampleIdx)
+            gl.setRenderTarget(finalTarget)
+
+            const copyMaterial = new THREE.ShaderMaterial({
+              vertexShader: fullscreenVertexShader,
+              fragmentShader: `
+                precision highp float;
+                varying vec2 vUv;
+                uniform sampler2D source;
+                void main() {
+                  gl_FragColor = texture2D(source, vUv);
+                }
+              `,
+              uniforms: { source: { value: state.currentSource.texture } }
+            })
+
+            const copyMesh = new THREE.Mesh(geometry, copyMaterial)
+            const copyScene = new THREE.Scene()
+            copyScene.add(copyMesh)
+            gl.render(copyScene, camera)
+            copyMaterial.dispose()
+            copyScene.clear()
           }
 
-          thermalMaterial.uniforms.previousTemperature.value = currentSource.texture
+          state.previousSampleState = state.currentSource
+          state.sampleIdx++
 
-          // Render physics step
-          gl.setRenderTarget(destTarget)
-          gl.render(scene, camera)
+          if (state.sampleIdx >= state.timeSamples) {
+            state.sampleIdx = 0
+            state.orbitEndState = state.currentSource
 
-          // Update source for next simulation step
-          currentSource = destTarget
-        }
+            console.log(`  Orbit ${state.orbitIdx + 1}/${iterations}...`)
+            state.orbitIdx++
 
-        // For final orbit, copy the last computed state to sample storage
-        if (isLastOrbit) {
-          // currentSource now holds the final state of this sample
-          const finalTarget = simulation.getClimateDataTarget(sampleIdx)
+            if (state.orbitIdx >= iterations) {
+              // Done!
+              state.complete = true
 
-          // Copy from currentSource to finalTarget using a simple blit
-          gl.setRenderTarget(finalTarget)
+              if (state.tempTarget2) state.tempTarget2.dispose()
+              if (state.geometry) state.geometry.dispose()
+              if (state.thermalMaterial) state.thermalMaterial.dispose()
+              if (state.tempTarget) state.tempTarget.dispose()
+              if (state.scene) state.scene.clear()
 
-          // Use a simple copy shader material
-          const copyMaterial = new THREE.ShaderMaterial({
-            vertexShader: fullscreenVertexShader,
-            fragmentShader: `
-              precision highp float;
-              varying vec2 vUv;
-              uniform sampler2D source;
-              void main() {
-                gl_FragColor = texture2D(source, vUv);
-              }
-            `,
-            uniforms: { source: { value: currentSource.texture } }
-          })
+              gl.setRenderTarget(null)
 
-          const copyMesh = new THREE.Mesh(geometry, copyMaterial)
-          const copyScene = new THREE.Scene()
-          copyScene.add(copyMesh)
-          gl.render(copyScene, camera)
-          copyMaterial.dispose()
-          copyScene.clear()
-        }
+              console.log('ClimateSolver: Climate calculation complete!')
+              onSolveComplete?.()
+              return
+            }
 
-        // After finishing this sample, currentSource holds the final state
-        // Save it for the next sample (and potentially next orbit)
-        previousSampleState = currentSource
-        if (sampleIdx === timeSamples - 1) {
-          orbitEndState = currentSource
-        }
-
-        // Progress reporting (only for final orbit)
-        if (isLastOrbit && sampleIdx % Math.floor(timeSamples / 10) === 0) {
-          console.log(`    Sample progress: ${Math.floor((sampleIdx / timeSamples) * 100)}%`)
+            // Reset for next orbit
+            state.currentSource = state.orbitEndState
+            state.previousSampleState = state.orbitEndState
+          } else {
+            // Determine source for next sample
+            if (state.sampleIdx === 0) {
+              state.currentSource = state.orbitEndState
+            } else if (isLastOrbit) {
+              state.currentSource = simulation.getClimateDataTarget(state.sampleIdx - 1)
+            } else {
+              state.currentSource = state.previousSampleState
+            }
+          }
         }
       }
+
+      // Restore render target to canvas (null = render to default framebuffer)
+      gl.setRenderTarget(null)
+
+      // Schedule next frame
+      animationFrameId = requestAnimationFrame(simulationLoop)
     }
 
-    tempTarget2.dispose()
+    // Start the simulation loop
+    animationFrameId = requestAnimationFrame(simulationLoop)
 
-    gl.setRenderTarget(prevTarget)
+    // Cleanup
+    return () => {
+      cancelAnimationFrame(animationFrameId)
+    }
+  }, [gl, simulation, iterations])
 
-    // Clean up
-    geometry.dispose()
-    thermalMaterial.dispose()
-    tempTarget.dispose()
-    scene.clear()
-
-    solvedRef.current = true
-    console.log('ClimateSolver: Climate calculation complete!')
-
-    onSolveComplete?.()
-  }, [gl, simulation, solarFlux, albedo, emissivity, subsolarPoint, rotationsPerYear, cosmicBackgroundTemp, yearLength, iterations, surfaceHeatCapacity, thermalConductivity, onSolveComplete])
-
-  // This component doesn't render anything visible
   return null
 }

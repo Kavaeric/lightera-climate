@@ -127,7 +127,7 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
         fastColors: { value: fastColors },
         underflowColor: { value: new THREE.Vector3(0.0, 0.0, 0.2) },
         overflowColor: { value: new THREE.Vector3(1.0, 0.0, 1.0) },
-        highlightThreshold: { value: 0.01 },
+        highlightThreshold: { value: 0.001 },
         hoveredCellIndex: { value: -1 },
         selectedCellIndex: { value: -1 },
         textureWidth: { value: simulation.getTextureWidth() },
@@ -135,10 +135,6 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
       },
       vertexShader: displayVertexShader,
       fragmentShader: displayFragmentShader,
-      // Enable polygon offset to prevent z-fighting between coplanar faces at cell boundaries
-      polygonOffset: true,
-      polygonOffsetFactor: 1.0,
-      polygonOffsetUnits: 1.0,
     })
 
     return shaderMaterial

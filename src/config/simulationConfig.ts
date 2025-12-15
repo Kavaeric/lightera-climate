@@ -13,7 +13,6 @@ export interface SimulationConfig {
 
   // Thermal properties
   groundDiffusion: number // lateral heat conduction coefficient (0-1, 0 = no diffusion)
-  groundDiffusionIterations: number // not currently used (for future diffusion passes)
 }
 
 /**
@@ -21,10 +20,9 @@ export interface SimulationConfig {
  * These values control the accuracy and speed of the simulation
  */
 export const DEFAULT_SIMULATION_CONFIG: SimulationConfig = {
-  resolution: 16, // Geodesic subdivisions (128 creates too many cells and crashes)
-  timeSamples: 60, // Save 60 temperature samples per orbit
+  resolution: 64, // Geodesic subdivisions (128 creates too many cells and crashes)
+  timeSamples: 365, // Save 60 temperature samples per orbit
   iterations: 128, // Run for 128 orbits to reach thermal equilibrium
-  physicsStepsPerSample: 10, // 10 physics steps between each saved sample
-  groundDiffusion: 0.05, // Slow subsurface heat conduction
-  groundDiffusionIterations: 16, // Minimal diffusion (for future use)
+  physicsStepsPerSample: 1, // 10 physics steps between each saved sample
+  groundDiffusion: 0.1, // Slow subsurface heat conduction
 }
