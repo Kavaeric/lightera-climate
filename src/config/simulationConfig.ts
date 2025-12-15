@@ -10,9 +10,6 @@ export interface SimulationConfig {
   // Solver parameters
   iterations: number // number of orbits to simulate before saving (spin-up for equilibrium)
   physicsStepsPerSample: number // sub-steps per time sample for numerical stability
-
-  // Thermal properties
-  groundDiffusion: number // lateral heat conduction coefficient (0-1, 0 = no diffusion)
 }
 
 /**
@@ -20,9 +17,8 @@ export interface SimulationConfig {
  * These values control the accuracy and speed of the simulation
  */
 export const DEFAULT_SIMULATION_CONFIG: SimulationConfig = {
-  resolution: 64, // Geodesic subdivisions (128 creates too many cells and crashes)
+  resolution: 16, // Geodesic subdivisions (128 creates too many cells and crashes)
   timeSamples: 365, // Save 60 temperature samples per orbit
-  iterations: 64, // Run for 128 orbits to reach thermal equilibrium
+  iterations: 128, // Run for 128 orbits to reach thermal equilibrium
   physicsStepsPerSample: 1, // 10 physics steps between each saved sample
-  groundDiffusion: 0.05, // Slow subsurface heat conduction
 }

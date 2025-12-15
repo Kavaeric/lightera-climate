@@ -61,9 +61,11 @@ export function ClimateSimulationEngine({
     yearLength,
     surfaceHeatCapacity,
     axialTilt = 0,
+    groundConductivity,
   } = planetConfig
 
-  const { iterations, groundDiffusion: thermalConductivity } = simulationConfig
+  const { iterations } = simulationConfig
+  const thermalConductivity = groundConductivity
   const stateRef = useRef<SimState>({
     initialized: false,
     complete: false,

@@ -100,15 +100,20 @@ function ClimateDataFetcher({
 }
 
 function App() {
-  // Create climate simulation once at App level
-  const simulation = useMemo(() => {
-    return new TextureGridSimulation(DEFAULT_SIMULATION_CONFIG)
-  }, [])
-
-  // Configuration objects
-  const [planetConfig] = useState<PlanetConfig>(DEFAULT_PLANET_CONFIG)
-  const [simulationConfig] = useState<SimulationConfig>(DEFAULT_SIMULATION_CONFIG)
+  // UI configuration objects (mutable via input fields)
+  const [pendingPlanetConfig, setPendingPlanetConfig] = useState<PlanetConfig>(DEFAULT_PLANET_CONFIG)
+  const [pendingSimulationConfig, setPendingSimulationConfig] = useState<SimulationConfig>(DEFAULT_SIMULATION_CONFIG)
   const [displayConfig] = useState<DisplayConfig>(DEFAULT_DISPLAY_CONFIG)
+
+  // Active configuration objects (only updated when "Run simulation" is clicked)
+  const [activeSimulationConfig, setActiveSimulationConfig] = useState<SimulationConfig>(DEFAULT_SIMULATION_CONFIG)
+  const [activePlanetConfig, setActivePlanetConfig] = useState<PlanetConfig>(DEFAULT_PLANET_CONFIG)
+  const [simulationKey, setSimulationKey] = useState(0)
+
+  // Create climate simulation - recreate only when activeSimulationConfig changes (i.e., on button click)
+  const simulation = useMemo(() => {
+    return new TextureGridSimulation(activeSimulationConfig)
+  }, [activeSimulationConfig])
 
   const [showLatLonGrid, setShowLatLonGrid] = useState(true)
   const [hoveredCell, setHoveredCell] = useState<number | null>(null)
@@ -142,9 +147,10 @@ function App() {
 
         {/* Climate simulation */}
         <Scene
+          key={simulationKey}
           simulation={simulation}
-          planetConfig={planetConfig}
-          simulationConfig={simulationConfig}
+          planetConfig={activePlanetConfig}
+          simulationConfig={activeSimulationConfig}
           displayConfig={displayConfig}
           showLatLonGrid={showLatLonGrid}
           hoveredCell={hoveredCell}
@@ -158,13 +164,139 @@ function App() {
       </Canvas>
 
       {/* Info panel */}
-      <div style={{ position: 'absolute', top: 10, left: 10, color: 'white', background: 'rgba(0,0,0,0.5)', padding: '8px', fontFamily: 'monospace' }}>
-        <dl style={{ margin: 0 }}>
-          <dt>Cells</dt>
-          <dd>{simulation.getCellCount()}</dd>
-          <dt>Time samples</dt>
-          <dd>{simulation.getTimeSamples()}</dd>
-        </dl>
+      <div style={{ position: 'absolute', top: 10, left: 10, width: '380px', height: '100vdh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', color: 'white', background: 'rgba(0,0,0,0.5)', padding: '8px', fontFamily: 'monospace' }}>
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <h2>Simulation settings</h2>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>Resolution</span>
+            <input
+              type="number"
+              value={pendingSimulationConfig.resolution}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                setPendingSimulationConfig({ ...pendingSimulationConfig, resolution: isNaN(val) ? pendingSimulationConfig.resolution : val });
+              }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>Time samples per orbit</span>
+            <input
+              type="number"
+              value={pendingSimulationConfig.timeSamples}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                setPendingSimulationConfig({ ...pendingSimulationConfig, timeSamples: isNaN(val) ? pendingSimulationConfig.timeSamples : val });
+              }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>Iterations</span>
+            <input
+              type="number"
+              value={pendingSimulationConfig.iterations}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                setPendingSimulationConfig({ ...pendingSimulationConfig, iterations: isNaN(val) ? pendingSimulationConfig.iterations : val });
+              }}
+            />
+          </label>
+          <br />
+          <h2>Planet settings</h2>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>Solar flux (W/m²)</span>
+            <input
+              type="number"
+              step="1"
+              min="0"
+              value={pendingPlanetConfig.solarFlux}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                setPendingPlanetConfig({ ...pendingPlanetConfig, solarFlux: isNaN(val) ? pendingPlanetConfig.solarFlux : val });
+              }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>Albedo (0-1)</span>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              max="1"
+              value={pendingPlanetConfig.albedo}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                setPendingPlanetConfig({ ...pendingPlanetConfig, albedo: isNaN(val) ? pendingPlanetConfig.albedo : val });
+              }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>Emissivity (0-1)</span>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              max="1"
+              value={pendingPlanetConfig.emissivity}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                setPendingPlanetConfig({ ...pendingPlanetConfig, emissivity: isNaN(val) ? pendingPlanetConfig.emissivity : val });
+              }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>Rotations per orbit</span>
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              value={pendingPlanetConfig.rotationsPerYear}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                setPendingPlanetConfig({ ...pendingPlanetConfig, rotationsPerYear: isNaN(val) ? pendingPlanetConfig.rotationsPerYear : val });
+              }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>Axial tilt (degrees)</span>
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              value={pendingPlanetConfig.axialTilt}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                setPendingPlanetConfig({ ...pendingPlanetConfig, axialTilt: isNaN(val) ? pendingPlanetConfig.axialTilt : val });
+              }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>Ground conductivity (0-1)</span>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              max="1"
+              value={pendingPlanetConfig.groundConductivity}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                setPendingPlanetConfig({ ...pendingPlanetConfig, groundConductivity: isNaN(val) ? pendingPlanetConfig.groundConductivity : val });
+              }}
+            />
+          </label>
+          <button
+            onClick={() => {
+              // Apply pending configs to active configs and restart simulation
+              setActiveSimulationConfig(pendingSimulationConfig)
+              setActivePlanetConfig(pendingPlanetConfig)
+              setSelectedCell(null)
+              setSelectedCellLatLon(null)
+              setClimateData([])
+              setSimulationKey((prev) => prev + 1)
+            }}
+          >
+            Run simulation
+          </button>
+        </section>
         <hr style={{ margin: '8px 0', border: 'none', borderTop: '1px solid rgba(255,255,255,0.3)' }} />
         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}>
           <input
