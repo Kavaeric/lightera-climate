@@ -27,7 +27,7 @@ export interface DisplayConfig {
  * Matches the previous hardcoded values from planetConfig.displayRange
  */
 export const DEFAULT_DISPLAY_CONFIG: DisplayConfig = {
-  temperatureRange: { min: 100, max: 400 }, // Kelvin colour scale range
+  temperatureRange: { min: 200, max: 350 }, // Kelvin colour scale range
   colourmap: 'fast',
   underflowColour: [0.0, 0.0, 0.2], // Navy blue for cold
   overflowColour: [1.0, 0.0, 1.0], // Magenta for hot
