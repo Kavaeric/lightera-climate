@@ -23,8 +23,6 @@ interface SimState {
   camera?: THREE.OrthographicCamera
   geometry?: THREE.BufferGeometry
   thermalMaterial?: THREE.ShaderMaterial
-  tempTarget?: THREE.WebGLRenderTarget
-  tempTarget2?: THREE.WebGLRenderTarget
   mesh?: THREE.Mesh
   timeSamples: number
   physicsStepsPerSample: number  // Physics substeps between saved samples (for numerical stability)
@@ -35,9 +33,8 @@ interface SimState {
   orbitIdx: number
   sampleIdx: number
   physicsStep: number  // Current substep within the current sample
-  orbitEndState?: THREE.WebGLRenderTarget
-  previousSampleState?: THREE.WebGLRenderTarget
-  currentSource?: THREE.WebGLRenderTarget
+  currentTargetIndex: number  // Index into climateDataTargets for reading previous state
+  nextTargetIndex: number  // Index into climateDataTargets for writing next state
 }
 
 /**
@@ -79,6 +76,8 @@ export function ClimateSimulationEngine({
     orbitIdx: 0,
     sampleIdx: 0,
     physicsStep: 0,
+    currentTargetIndex: 0,
+    nextTargetIndex: 1,
   })
 
   // Initialize GPU resources once
@@ -140,33 +139,7 @@ export function ClimateSimulationEngine({
     const mesh = new THREE.Mesh(geometry, thermalMaterial)
     scene.add(mesh)
 
-    const tempTarget = new THREE.WebGLRenderTarget(
-      simulation.getTextureWidth(),
-      simulation.getTextureHeight(),
-      {
-        minFilter: THREE.NearestFilter,
-        magFilter: THREE.NearestFilter,
-        format: THREE.RGBAFormat,
-        type: THREE.FloatType,
-        wrapS: THREE.ClampToEdgeWrapping,
-        wrapT: THREE.ClampToEdgeWrapping,
-      }
-    )
-
-    const tempTarget2 = new THREE.WebGLRenderTarget(
-      simulation.getTextureWidth(),
-      simulation.getTextureHeight(),
-      {
-        minFilter: THREE.NearestFilter,
-        magFilter: THREE.NearestFilter,
-        format: THREE.RGBAFormat,
-        type: THREE.FloatType,
-        wrapS: THREE.ClampToEdgeWrapping,
-        wrapT: THREE.ClampToEdgeWrapping,
-      }
-    )
-
-    // Initialize with cosmic background temperature
+    // Initialize first archive target with cosmic background temperature
     const initMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: `
@@ -181,7 +154,8 @@ export function ClimateSimulationEngine({
       },
     })
     mesh.material = initMaterial
-    gl.setRenderTarget(tempTarget)
+    const firstTarget = simulation.getClimateDataTarget(0)
+    gl.setRenderTarget(firstTarget)
     gl.render(scene, camera)
     initMaterial.dispose()
 
@@ -191,12 +165,9 @@ export function ClimateSimulationEngine({
     state.camera = camera
     state.geometry = geometry
     state.thermalMaterial = thermalMaterial
-    state.tempTarget = tempTarget
-    state.tempTarget2 = tempTarget2
     state.mesh = mesh
-    state.orbitEndState = tempTarget
-    state.previousSampleState = tempTarget
-    state.currentSource = tempTarget
+    state.currentTargetIndex = 0
+    state.nextTargetIndex = 1
   }, [gl, simulation, planetConfig, simulationConfig])
 
   // Run simulation in independent animation loop (not Three Fiber's useFrame)
@@ -230,16 +201,14 @@ export function ClimateSimulationEngine({
       // Increase for faster simulation (fewer total frames), decrease for finer progress updates
       // With physics substeps + samples, each frame completes multiple time samples
       const stepsPerFrame = Math.max(500, Math.floor(state.timeSamples * state.physicsStepsPerSample / 2))
-      const { scene, camera, geometry, thermalMaterial, tempTarget, tempTarget2, mesh } = state
-      if (!scene || !camera || !geometry || !thermalMaterial || !tempTarget || !tempTarget2 || !mesh) {
+      const { scene, camera, geometry, thermalMaterial, mesh } = state
+      if (!scene || !camera || !geometry || !thermalMaterial || !mesh) {
         animationFrameId = requestAnimationFrame(simulationLoop)
         return
       }
 
       // Execute stepsPerFrame physics steps
       for (let step = 0; step < stepsPerFrame; step++) {
-        const isLastOrbit = state.orbitIdx === iterations - 1
-
         // Calculate current state
         const totalSteps = (state.orbitIdx * state.timeSamples * state.physicsStepsPerSample) +
                           (state.sampleIdx * state.physicsStepsPerSample) +
@@ -252,64 +221,38 @@ export function ClimateSimulationEngine({
         thermalMaterial.uniforms.baseSubsolarPoint.value.set(state.subsolarPoint.lat, currentSubsolarLon)
         thermalMaterial.uniforms.yearProgress.value = yearProgress
 
-        // Ping-pong between targets
-        const destTarget = state.physicsStep % 2 === 0 ? tempTarget2 : tempTarget
-        thermalMaterial.uniforms.previousTemperature.value = state.currentSource!.texture
+        // Read from current target, write to next target
+        const sourceTarget = simulation.getClimateDataTarget(state.currentTargetIndex)
+        const destTarget = simulation.getClimateDataTarget(state.nextTargetIndex)
+
+        thermalMaterial.uniforms.previousTemperature.value = sourceTarget.texture
 
         gl.setRenderTarget(destTarget)
         gl.render(scene, camera)
-        state.currentSource = destTarget
 
         // Advance to next physics step
         state.physicsStep++
 
+        // Rotate indices for next step
+        state.currentTargetIndex = state.nextTargetIndex
+        state.nextTargetIndex = (state.nextTargetIndex + 1) % state.timeSamples
+
         if (state.physicsStep >= state.physicsStepsPerSample) {
           state.physicsStep = 0
-
-          // For final orbit, save sample
-          if (isLastOrbit && state.currentSource) {
-            const finalTarget = simulation.getClimateDataTarget(state.sampleIdx)
-            gl.setRenderTarget(finalTarget)
-
-            const copyMaterial = new THREE.ShaderMaterial({
-              vertexShader: fullscreenVertexShader,
-              fragmentShader: `
-                precision highp float;
-                varying vec2 vUv;
-                uniform sampler2D source;
-                void main() {
-                  gl_FragColor = texture2D(source, vUv);
-                }
-              `,
-              uniforms: { source: { value: state.currentSource.texture } }
-            })
-
-            const copyMesh = new THREE.Mesh(geometry, copyMaterial)
-            const copyScene = new THREE.Scene()
-            copyScene.add(copyMesh)
-            gl.render(copyScene, camera)
-            copyMaterial.dispose()
-            copyScene.clear()
-          }
-
-          state.previousSampleState = state.currentSource
           state.sampleIdx++
 
           if (state.sampleIdx >= state.timeSamples) {
             state.sampleIdx = 0
-            state.orbitEndState = state.currentSource
-
-            console.log(`  Orbit ${state.orbitIdx + 1}/${iterations}...`)
             state.orbitIdx++
+
+            console.log(`  Orbit ${state.orbitIdx}/${iterations}...`)
 
             if (state.orbitIdx >= iterations) {
               // Done!
               state.complete = true
 
-              if (state.tempTarget2) state.tempTarget2.dispose()
               if (state.geometry) state.geometry.dispose()
               if (state.thermalMaterial) state.thermalMaterial.dispose()
-              if (state.tempTarget) state.tempTarget.dispose()
               if (state.scene) state.scene.clear()
 
               gl.setRenderTarget(null)
@@ -317,19 +260,6 @@ export function ClimateSimulationEngine({
               console.log('ClimateSolver: Climate calculation complete!')
               onSolveComplete?.()
               return
-            }
-
-            // Reset for next orbit
-            state.currentSource = state.orbitEndState
-            state.previousSampleState = state.orbitEndState
-          } else {
-            // Determine source for next sample
-            if (state.sampleIdx === 0) {
-              state.currentSource = state.orbitEndState
-            } else if (isLastOrbit) {
-              state.currentSource = simulation.getClimateDataTarget(state.sampleIdx - 1)
-            } else {
-              state.currentSource = state.previousSampleState
             }
           }
         }
