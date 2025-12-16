@@ -9,7 +9,7 @@ varying vec3 vWorldPosition;
 varying vec3 vViewDirection;
 
 void main() {
-  // For a sphere centered at origin, the normal is the normalized position
+  // For a sphere centred at origin, the normal is the normalised position
   vec3 normal = normalize(vWorldPosition);
   
   // Calculate dot product of view direction and normal

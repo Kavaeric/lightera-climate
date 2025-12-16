@@ -33,7 +33,7 @@ const SOUTH_POLE_QUAD_ID = 'SP'
  * Build a per-face frame for ISEA projection
  */
 function triangleFrame({ a, b, c }: { a: THREE.Vector3; b: THREE.Vector3; c: THREE.Vector3 }) {
-  // Face-center direction (spherical centroid)
+  // Face-centre direction (spherical centroid)
   const n = a.clone().add(b).add(c).normalize()
   // Base direction: b -> c, then Gram–Schmidt into tangent plane
   const ref = c.clone().sub(b)

@@ -5,7 +5,7 @@
 
 export interface PlanetConfig {
   // Physical properties
-  radius: number // meters - planet's radius (e.g., Earth: 6,371,000m)
+  radius: number // metres - planet's radius (e.g., Earth: 6,371,000m)
 
   // Orbital parameters
   solarFlux: number // W/m² - solar irradiance at planet's distance
@@ -30,8 +30,8 @@ export interface PlanetConfig {
  * For comparison: Ocean water at 4000m depth = 1.674e10 J/(m²·K) (57x higher!)
  */
 export const DEFAULT_PLANET_CONFIG: PlanetConfig = {
-  // radius: 6371000, // Planet radius in meters (Earth: 6,371 km)
-  radius: 2439700, // Planet radius in meters (Mercury: 2,439.7 km)
+  // radius: 6371000, // Planet radius in metres (Earth: 6,371 km)
+  radius: 2439700, // Planet radius in metres (Mercury: 2,439.7 km)
   // solarFlux: 1361, // Solar flux at the top of the atmosphere (W/m²)
   solarFlux: 9159, // Solar flux at the top of the atmosphere (W/m²)
   cosmicBackgroundTemp: 2.7, // Temperature of the cosmic background, usually 2.7K

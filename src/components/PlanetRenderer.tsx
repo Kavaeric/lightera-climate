@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { Grid } from '../simulation/geometry/geodesic'
 import { TextureGridSimulation } from '../util/TextureGridSimulation'
 import type { DisplayConfig } from '../config/displayConfig'
-import { getColourmapForMode } from '../config/colourmaps'
+import { getVisualisationMode } from '../config/visualisationModes'
 import { buildDisplayShaderUniforms } from '../util/ShaderBuilder'
 
 // Import shaders
@@ -18,8 +18,8 @@ interface PlanetRendererProps {
 }
 
 /**
- * Renders the 3D planet visualization with temperature data from GPU texture
- * Pure data visualization component - no interaction or selection logic
+ * Renders the 3D planet visualisation with temperature data from GPU texture
+ * Pure data visualisation component - no interaction or selection logic
  * Highlighting is handled separately by CellHighlightOverlay
  * Each vertex has a UV coordinate pointing to its cell's pixel in the state texture
  */
@@ -78,53 +78,20 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
 
   // Create shader material using unified display shader
   const material = useMemo(() => {
-    // Determine data source texture, value range, and data channel based on visualization mode
-    let sourceTexture: THREE.Texture
-    let valueRange: { min: number; max: number }
-    let dataChannel: number
+    // Get visualisation mode configuration
+    const mode = getVisualisationMode(displayConfig.visualisationMode)
 
-    if (displayConfig.visualisationMode === 'temperature') {
-      sourceTexture = simulation.getClimateDataTarget(0).texture
-      valueRange = displayConfig.temperatureRange
-      dataChannel = 0  // Temperature uses red channel
-    } else if (displayConfig.visualisationMode === 'iceThickness') {
-      // Ice thickness visualization from hydrology archive
-      sourceTexture = simulation.getHydrologyArchiveTarget(0).texture
-      valueRange = displayConfig.iceThicknessRange
-      dataChannel = 0  // Ice thickness uses red channel
-    } else if (displayConfig.visualisationMode === 'elevation') {
-      // Elevation from terrain
-      sourceTexture = simulation.terrainData
-      valueRange = displayConfig.elevationRange
-      dataChannel = 0  // Elevation in red channel
-    } else {
-      // All other modes use hydrology data
-      sourceTexture = simulation.getHydrologyArchiveTarget(0).texture
-      switch (displayConfig.visualisationMode) {
-        case 'waterDepth':
-          valueRange = displayConfig.waterDepthRange
-          dataChannel = 2  // Water depth in blue channel
-          break
-        case 'salinity':
-          valueRange = displayConfig.salinityRange
-          dataChannel = 3  // Salinity in alpha channel
-          break
-        default:
-          valueRange = displayConfig.temperatureRange
-          dataChannel = 0
-      }
-    }
+    // Get data source texture and range from visualisation mode
+    const sourceTexture = mode.getTextureSource(simulation)
+    const valueRange = mode.getRange(displayConfig)
 
-    // Get colourmap for this visualization mode
-    const colourmap = getColourmapForMode(displayConfig.visualisationMode)
-
-    // Build shader uniforms from colourmap
+    // Build shader uniforms from visualisation mode configuration
     const shaderUniforms = buildDisplayShaderUniforms(
       sourceTexture,
-      colourmap,
+      mode.colourmap,
       valueRange.min,
       valueRange.max,
-      dataChannel
+      mode.dataChannel
     )
 
     const shaderMaterial = new THREE.ShaderMaterial({

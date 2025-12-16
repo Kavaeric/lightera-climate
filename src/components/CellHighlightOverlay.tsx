@@ -16,7 +16,7 @@ interface CellHighlightOverlayProps {
 
 /**
  * Renders cell highlighting overlay - separate mesh for hover and selection effects
- * Decoupled from data visualization, allows pure data display in PlanetRenderer
+ * Decoupled from data visualisation, allows pure data display in PlanetRenderer
  * Similar to ReferenceGridOverlay pattern with backface fading
  */
 export const CellHighlightOverlay = forwardRef<THREE.Mesh, CellHighlightOverlayProps>(

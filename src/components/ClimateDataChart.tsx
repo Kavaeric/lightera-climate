@@ -113,10 +113,10 @@ export function ClimateDataChart({ data, cellIndex, cellLatLon, onClose }: Clima
 
       <div style={{ display: 'flex', gap: 16, fontSize: 16 }}>
         <div>
-          Water depth: <strong>{hydrologyStats.waterDepthMax.toFixed(3)}m</strong>
+          Water depth: <strong>{hydrologyStats.waterDepthMax.toFixed(3)} m</strong>
         </div>
         <div>
-          Ice thickness: <strong>{hydrologyStats.iceThicknessMax.toFixed(3)}m</strong>
+          Ice thickness: <strong>{hydrologyStats.iceThicknessMax.toFixed(3)} m</strong>
         </div>
         <div>
           Salinity: <strong>{hydrologyStats.salinityAvg.toFixed(1)} PSU</strong>

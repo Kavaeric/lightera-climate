@@ -90,7 +90,7 @@ export function ClimateSimulationEngine({
     nextTargetIndex: 1,
   })
 
-  // Initialize GPU resources once
+  // Initialise GPU resources once
   useEffect(() => {
     const state = stateRef.current
     if (state.initialized) return
@@ -150,7 +150,7 @@ export function ClimateSimulationEngine({
       fragmentShader: surfaceEvolutionFragmentShader,
       uniforms: {
         terrainData: { value: simulation.terrainData },
-        hydrologyData: { value: blankTexture }, // Initialize with blank texture, will be set before each render
+        hydrologyData: { value: blankTexture }, // Initialise with blank texture, will be set before each render
       },
     })
 
@@ -164,8 +164,8 @@ export function ClimateSimulationEngine({
         neighbourIndices2: { value: simulation.neighbourIndices2 },
         neighbourCounts: { value: simulation.neighbourCounts },
         terrainData: { value: simulation.terrainData },
-        hydrologyData: { value: blankTexture }, // Initialize with blank texture, will be set before each render
-        surfaceData: { value: blankTexture }, // Initialize with blank texture, will be set before each render
+        hydrologyData: { value: blankTexture }, // Initialise with blank texture, will be set before each render
+        surfaceData: { value: blankTexture }, // Initialise with blank texture, will be set before each render
         baseSubsolarPoint: { value: new THREE.Vector2(subsolarPoint.lat, subsolarPoint.lon) },
         axialTilt: { value: axialTilt },
         yearProgress: { value: 0 },
@@ -182,7 +182,7 @@ export function ClimateSimulationEngine({
       },
     })
 
-    // Create a simple initialization material
+    // Create a simple initialisation material
     const initMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: `
@@ -202,15 +202,15 @@ export function ClimateSimulationEngine({
     mesh.frustumCulled = false
     scene.add(mesh)
 
-    // Initialize first climate target with cosmic background temperature
+    // Initialise first climate target with cosmic background temperature
     const firstTarget = simulation.getClimateDataTarget(0)
     gl.setRenderTarget(firstTarget)
     gl.clear()  // Clear the render target before rendering
     gl.render(scene, camera)
-    gl.setRenderTarget(null)  // CRITICAL: Reset render target after initialization
+    gl.setRenderTarget(null)  // CRITICAL: Reset render target after initialisation
 
-    // Initialize hydrology render targets from initial data
-    // Create an initialization material for copying the hydrology data texture to render targets
+    // Initialise hydrology render targets from initial data
+    // Create an initialisation material for copying the hydrology data texture to render targets
     const hydrologyInitMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: `
@@ -233,7 +233,7 @@ export function ClimateSimulationEngine({
     gl.render(scene, camera)
     gl.setRenderTarget(null)
 
-    // Also initialize the archive target for visualization
+    // Also initialise the archive target for visualisation
     const archiveTarget = simulation.getHydrologyArchiveTarget(0)
     gl.setRenderTarget(archiveTarget)
     gl.clear()
@@ -242,7 +242,7 @@ export function ClimateSimulationEngine({
 
     hydrologyInitMaterial.dispose()
 
-    // Initialize surface data by running surface shader once
+    // Initialise surface data by running surface shader once
     // Surface reads from terrain (static) and initial hydrology
     const surfaceFirstTarget = simulation.getSurfaceDataNext()
     surfaceMaterial.uniforms.terrainData.value = simulation.terrainData
@@ -253,7 +253,7 @@ export function ClimateSimulationEngine({
     gl.render(scene, camera)
     gl.setRenderTarget(null)
 
-    // Swap surface buffers so current has initialized data
+    // Swap surface buffers so current has initialised data
     simulation.swapSurfaceBuffers()
 
     // Now dispose init material and attach the simulation materials

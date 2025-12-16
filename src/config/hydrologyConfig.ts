@@ -7,9 +7,9 @@
  */
 
 export interface HydrologyConfig {
-  // Ice thickness per cell (meters)
+  // Ice thickness per cell (metres)
   // 0 = no ice, >0 = ice present
-  // Max typical value: 10,000m (Antarctica mean ~2km)
+  // Max typical value: 10,000 m (Antarctica mean ~2 km)
   iceThickness: number[]
 }
 
@@ -17,8 +17,8 @@ export interface HydrologyConfig {
  * Hydrology state stored in GPU texture
  * Format: RGBA = [iceThickness, waterThermalMass, reserved1, reserved2]
  *
- * iceThickness: in meters (range 0-10000)
- * waterThermalMass: normalized thermal mass indicator (0-1)
+ * iceThickness: in metres (range 0-10000)
+ * waterThermalMass: normalised thermal mass indicator (0-1)
  *   - Used to track whether surface is liquid water or ice
  *   - 1.0 = pure liquid water (C = 4186 * 1000 * depth)
  *   - 0.0 = pure ice or rock (C = 2.16e6)
@@ -26,8 +26,8 @@ export interface HydrologyConfig {
  * reserved: For future use (salinity effects, snow, etc.)
  */
 export interface HydrologyTextureFormat {
-  r: number // iceThickness (meters)
-  g: number // waterThermalMass (0-1 normalized)
+  r: number // iceThickness (metres)
+  g: number // waterThermalMass (0-1 normalised)
   b: number // reserved
   a: number // reserved
 }
@@ -42,7 +42,7 @@ export function createDefaultHydrology(cellCount: number): HydrologyConfig {
 }
 
 /**
- * Initialize hydrology texture data for GPU
+ * Initialise hydrology texture data for GPU
  * Called by TextureGridSimulation to create initial hydrology render target
  */
 export function initializeHydrologyData(

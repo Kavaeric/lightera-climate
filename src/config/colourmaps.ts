@@ -1,18 +1,18 @@
 /**
- * Colourmap definitions for data visualization
- * Each colourmap defines color ramps and underflow/overflow colors
+ * Colourmap definitions for data visualisation
+ * Each colourmap defines colour ramps and underflow/overflow colours
  */
 
 import * as THREE from 'three'
 
 export interface Colourmap {
   name: string
-  // Control points: array of RGB colors (0-1 range)
+  // Control points: array of RGB colours (0-1 range)
   colors: THREE.Vector3[]
-  // Color for values below the minimum range
-  underflowColor: THREE.Vector3
-  // Color for values above the maximum range
-  overflowColor: THREE.Vector3
+  // Colour for values below the minimum range
+  underflowColour: THREE.Vector3
+  // Colour for values above the maximum range
+  overflowColour: THREE.Vector3
 }
 
 /**
@@ -56,8 +56,8 @@ export const COLOURMAP_FAST: Colourmap = {
     new THREE.Vector3(0.6341969500479122, 0.1502395759815047, 0.12870449492087047),
     new THREE.Vector3(0.5900001145322249, 0.07669636770019067, 0.11947505935767005),
   ],
-  underflowColor: new THREE.Vector3(0.0, 0.0, 0.2), // Navy blue
-  overflowColor: new THREE.Vector3(1.0, 0.0, 1.0), // Magenta
+  underflowColour: new THREE.Vector3(0.0, 0.0, 0.2), // Navy blue
+  overflowColour: new THREE.Vector3(1.0, 0.0, 1.0), // Magenta
 }
 
 /**
@@ -70,13 +70,12 @@ export const COLOURMAP_GREYSCALE: Colourmap = {
     new THREE.Vector3(0.0, 0.0, 0.0),   // Black
     new THREE.Vector3(1.0, 1.0, 1.0),   // White
   ],
-  underflowColor: new THREE.Vector3(0.0, 0.0, 0.2), // Navy blue for underflow
-  overflowColor: new THREE.Vector3(1.0, 0.0, 1.0), // Magenta for overflow
+  underflowColour: new THREE.Vector3(0.0, 0.0, 0.2), // Navy blue for underflow
+  overflowColour: new THREE.Vector3(1.0, 0.0, 1.0), // Magenta for overflow
 }
 
 /**
  * Water depth colourmap ("BlueB1" via https://sciviscolor.org/)
- * Good for: Water depth visualization.
  * 
  */
 
@@ -95,8 +94,8 @@ export const COLOURMAP_WATERDEPTH: Colourmap = {
     new THREE.Vector3(0.121569, 0.145098, 0.400000), // x=0.9
     new THREE.Vector3(0.098039, 0.086275, 0.349020), // x=1.0
   ],
-  underflowColor: new THREE.Vector3(0.0, 0.0, 0.0),
-  overflowColor: new THREE.Vector3(0.0, 1.0, 1.0),
+  underflowColour: new THREE.Vector3(0.0, 0.0, 0.0),
+  overflowColour: new THREE.Vector3(0.0, 1.0, 1.0),
 }
 
 /**
@@ -126,8 +125,8 @@ export const COLOURMAP_SALINITY: Colourmap = {
     new THREE.Vector3(0.235294, 0.247059, 0.329412),
     new THREE.Vector3(0.180392, 0.176471, 0.231373),
   ],
-  underflowColor: new THREE.Vector3(0.0, 0.0, 0.0), // NaN/fallback colour (matches XML <NaN>)
-  overflowColor: new THREE.Vector3(1.0, 0.0, 1.0),
+  underflowColour: new THREE.Vector3(0.0, 0.0, 0.0), // NaN/fallback colour (matches XML <NaN>)
+  overflowColour: new THREE.Vector3(1.0, 0.0, 1.0),
 }
 
 /**
@@ -141,8 +140,8 @@ export const COLOURMAP_ALBEDO: Colourmap = {
     new THREE.Vector3(0.0, 0.0, 0.0),   // Black - low albedo
     new THREE.Vector3(1.0, 1.0, 1.0),   // White - high albedo
   ],
-  underflowColor: new THREE.Vector3(0.0, 0.0, 0.5),
-  overflowColor: new THREE.Vector3(1.0, 0.0, 1.0),
+  underflowColour: new THREE.Vector3(0.0, 0.0, 0.5),
+  overflowColour: new THREE.Vector3(1.0, 0.0, 1.0),
 }
 
 /**
@@ -198,40 +197,7 @@ export const COLOURMAP_ICE: Colourmap = {
     new THREE.Vector3(0.8900769443002639, 0.9085875152181073, 0.9996134041708363),
     new THREE.Vector3(0.9005281293207135, 0.9181095973202068, 0.9999999849571296)
   ],
-  underflowColor: new THREE.Vector3(0.0, 0.0, 0.0),
-  overflowColor: new THREE.Vector3(1.0, 1.0, 1.0),
+  underflowColour: new THREE.Vector3(0.0, 0.0, 0.0),
+  overflowColour: new THREE.Vector3(1.0, 1.0, 1.0),
 }
 
-/**
- * Get a colourmap by name
- */
-export function getColourmap(name: string): Colourmap | null {
-  const map: Record<string, Colourmap> = {
-    'fast': COLOURMAP_FAST,
-    'greyscale': COLOURMAP_GREYSCALE,
-    'salinity': COLOURMAP_SALINITY,
-    'albedo': COLOURMAP_ALBEDO,
-    'ice': COLOURMAP_ICE,
-  }
-  return map[name] || null
-}
-
-/**
- * Get the appropriate colourmap for a visualization mode
- */
-export function getColourmapForMode(mode: 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness'): Colourmap {
-  switch (mode) {
-    case 'temperature':
-      return COLOURMAP_FAST
-    case 'elevation':
-      return COLOURMAP_GREYSCALE
-    case 'waterDepth':
-      return COLOURMAP_WATERDEPTH
-    case 'salinity':
-      return COLOURMAP_SALINITY
-    case 'iceThickness':
-      return COLOURMAP_ICE
-    default:
-      return COLOURMAP_FAST
-  }
-}

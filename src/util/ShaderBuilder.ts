@@ -24,7 +24,7 @@ export function buildDisplayShaderUniforms(
     if (i < colourmap.colors.length) {
       paddedColors.push(colourmap.colors[i])
     } else {
-      // Pad with the last color repeated
+      // Pad with the last colour repeated
       paddedColors.push(colourmap.colors[colourmap.colors.length - 1])
     }
   }
@@ -36,7 +36,7 @@ export function buildDisplayShaderUniforms(
     dataChannel: { value: dataChannel },
     colourmapColors: { value: paddedColors },
     colourmapLength: { value: colourmap.colors.length },
-    underflowColor: { value: colourmap.underflowColor },
-    overflowColor: { value: colourmap.overflowColor },
+    underflowColour: { value: colourmap.underflowColour },
+    overflowColour: { value: colourmap.overflowColour },
   }
 }

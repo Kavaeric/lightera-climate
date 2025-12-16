@@ -30,7 +30,7 @@ void main() {
   // Read current state from hydrology (dynamic)
   vec4 hydro = texture2D(previousHydrology, vUv);
   float iceThickness = hydro.r;           // meters of ice
-  float waterThermalMass = hydro.g;       // 0-1, normalized indicator of water presence
+  float waterThermalMass = hydro.g;       // 0-1, normalised indicator of water presence
   float waterDepth = hydro.b;             // meters (evolves with evaporation/freezing)
   float salinity = hydro.a;               // PSU (Practical Salinity Units - travels with water)
 
@@ -49,17 +49,17 @@ void main() {
   float tempDifference = freezingPoint - T;  // Positive when below freezing, negative when above
 
   // Compute freezing rate (when tempDifference > 0)
-  // Symmetrized: both freeze and melt use same normalization scale (15K)
-  float normalizedFreezeDiff = clamp(tempDifference / 15.0, 0.0, 1.0);
-  float freezeRate = MAX_FREEZE_RATE * normalizedFreezeDiff;
+  // Symmetrized: both freeze and melt use same normalisation scale (15K)
+  float normalisedFreezeDiff = clamp(tempDifference / 15.0, 0.0, 1.0);
+  float freezeRate = MAX_FREEZE_RATE * normalisedFreezeDiff;
 
   // Smooth transition into freezing (threshold at 0.1K)
   float freezingWeight = smoothstep(-0.05, 0.15, tempDifference);
 
   // Compute melting rate (when tempDifference < 0)
-  // Symmetrized: both freeze and melt use same normalization scale (15K)
-  float normalizedMeltDiff = clamp(-tempDifference / 15.0, 0.0, 1.0);
-  float meltRate = MAX_MELT_RATE * normalizedMeltDiff;
+  // Symmetrized: both freeze and melt use same normalisation scale (15K)
+  float normalisedMeltDiff = clamp(-tempDifference / 15.0, 0.0, 1.0);
+  float meltRate = MAX_MELT_RATE * normalisedMeltDiff;
 
   // Smooth transition into melting (threshold at -0.1K)
   float meltingWeight = smoothstep(0.15, -0.05, tempDifference);
@@ -104,15 +104,15 @@ void main() {
   float waterBoilDifference = T - WATER_BOIL_POINT_VACUUM;  // Positive when above boiling point
 
   // Compute evaporation rate (proportional to temperature above boiling point)
-  // Normalize aggressively: 0K above boiling = 0% rate, 10K above = 100% rate
-  float normalizedEvapDiff = clamp(waterBoilDifference / 10.0, 0.0, 1.0);
+  // Normalise aggressively: 0K above boiling = 0% rate, 10K above = 100% rate
+  float normalisedEvapDiff = clamp(waterBoilDifference / 10.0, 0.0, 1.0);
 
   // Salty water evaporates slower than fresh water
   // 0 PSU (fresh): 100% evaporation rate
   // 35 PSU (ocean): ~65% evaporation rate
   // 100+ PSU (hypersaline): ~0% evaporation rate
   float salinityReductionFactor = 1.0 - (salinity / 100.0);
-  float evaporationRate = MAX_EVAPORATION_RATE * normalizedEvapDiff * salinityReductionFactor;
+  float evaporationRate = MAX_EVAPORATION_RATE * normalisedEvapDiff * salinityReductionFactor;
 
   // Smooth transition into evaporation (threshold at boiling point)
   // Smoothly ramp from 0 at -1K to 1 at +1K relative to boiling point

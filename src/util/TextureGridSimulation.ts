@@ -34,11 +34,11 @@ export class TextureGridSimulation {
   public hydrologyDataTargets: THREE.WebGLRenderTarget[]
 
   // Hydrology data archive: array of render targets, one per time sample
-  // Captures hydrology state at each time sample for visualization and analysis
+  // Captures hydrology state at each time sample for visualisation and analysis
   // Each render target RGBA = [iceThickness, waterThermalMass, waterDepth, salinity]
   public hydrologyArchive: THREE.WebGLRenderTarget[]
 
-  // Hydrology initialization data (temporary storage for setHydrologyData)
+  // Hydrology initialisation data (temporary storage for setHydrologyData)
   private hydrologyInitData: { waterDepth: number[]; salinity: number[]; iceThickness: number[] } | null = null
 
   // Surface data storage: TWO render targets (current and next frame)
@@ -79,14 +79,14 @@ export class TextureGridSimulation {
     // Create cell position texture
     this.cellPositions = this.createCellPositionTexture()
 
-    // Create terrain data texture (initialized with defaults)
+    // Create terrain data texture (initialised with defaults)
     this.terrainData = this.createDefaultTerrainTexture()
 
     // Create hydrology data storage (two render targets: current and next frame)
     this.hydrologyDataTargets = [this.createRenderTarget(), this.createRenderTarget()]
     this.initializeHydrologyTargets()
 
-    // Create hydrology archive (one render target per time sample for visualization)
+    // Create hydrology archive (one render target per time sample for visualisation)
     this.hydrologyArchive = []
     for (let i = 0; i < this.timeSamples; i++) {
       this.hydrologyArchive.push(this.createRenderTarget())
@@ -277,12 +277,12 @@ export class TextureGridSimulation {
   private createDefaultTerrainTexture(): THREE.DataTexture {
     const data = new Float32Array(this.textureWidth * this.textureHeight * 4) // RGBA
 
-    // Initialize with defaults: elevation=0, rest reserved
+      // Initialise with defaults: elevation=0, rest reserved
     for (let i = 0; i < this.cellCount; i++) {
       const coords = this.indexTo2D(i)
       const dataIndex = this.coordsToDataIndex(coords.x, coords.y, 4)
 
-      data[dataIndex + 0] = 0 // R = elevation (meters)
+      data[dataIndex + 0] = 0 // R = elevation (metres)
       data[dataIndex + 1] = 0 // G = reserved
       data[dataIndex + 2] = 0 // B = reserved
       data[dataIndex + 3] = 0 // A = reserved
@@ -330,18 +330,18 @@ export class TextureGridSimulation {
   }
 
   /**
-   * Initialize hydrology render targets with default values
+   * Initialise hydrology render targets with default values
    * Called during construction to set up initial ice/water state
-   * The actual initialization happens when the shader first runs
+   * The actual initialisation happens when the shader first runs
    */
   private initializeHydrologyTargets(): void {
     // Hydrology targets start cleared to [0, 0, 0, 0] by WebGL
-    // They will be properly initialized by setHydrologyData when terrain is loaded
+    // They will be properly initialised by setHydrologyData when terrain is loaded
   }
 
   /**
    * Set initial hydrology state (water depth, salinity, ice thickness)
-   * Stores the initialization data for later use by the simulation engine
+   * Stores the initialisation data for later use by the simulation engine
    */
   public setHydrologyData(
     waterDepth: number[],
@@ -359,13 +359,13 @@ export class TextureGridSimulation {
       return
     }
 
-    // Store initialization data for use during simulation
+    // Store initialisation data for use during simulation
     this.hydrologyInitData = { waterDepth, salinity, iceThickness }
   }
 
   /**
    * Create the initial hydrology data texture
-   * Called by ClimateSimulationEngine to initialize render targets
+   * Called by ClimateSimulationEngine to initialise render targets
    */
   public createInitialHydrologyTexture(): THREE.DataTexture {
     const { waterDepth, salinity, iceThickness } = this.hydrologyInitData || {
@@ -403,7 +403,7 @@ export class TextureGridSimulation {
   }
 
   /**
-   * Get hydrology initialization data (for shader initialization)
+   * Get hydrology initialisation data (for shader initialisation)
    */
   public getHydrologyInitData(): { waterDepth: number[]; salinity: number[]; iceThickness: number[] } | null {
     return this.hydrologyInitData

@@ -9,8 +9,8 @@ uniform sampler2D hydrologyData;      // Current hydrology: RGBA = [iceThickness
 void main() {
   // Read hydrology state
   vec4 hydro = texture2D(hydrologyData, vUv);
-  float iceThickness = hydro.r;       // meters
-  float waterDepth = hydro.b;         // meters (dynamic)
+  float iceThickness = hydro.r;       // metres
+  float waterDepth = hydro.b;         // metres (dynamic)
 
   // Compute effective surface albedo based on phase state (branch-free)
   // Ice and water have much higher albedo than rock

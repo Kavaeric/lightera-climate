@@ -5,7 +5,7 @@
 
 export interface TerrainConfig {
   // Elevation data (one value per geodesic cell) - STATIC, never changes
-  elevation: number[] // meters - height above/below sea level (negative = underwater)
+  elevation: number[] // metres - height above/below sea level (negative = underwater)
 }
 
 /**
@@ -29,7 +29,7 @@ export function createDefaultTerrain(cellCount: number): TerrainConfig {
 /**
  * Create a simple procedural terrain with continents and oceans
  * Uses Perlin-like noise for natural-looking elevation
- * NOTE: Hydrology initialization (water depth, salinity, ice) is handled separately
+ * NOTE: Hydrology initialisation (water depth, salinity, ice) is handled separately
  */
 export function createSimpleProcedural(
   cellCount: number,
@@ -91,8 +91,8 @@ export function createSimpleProcedural(
 
     // Normalize to roughly [-1, 1]
     heightNorm /= maxAmplitude
-    const maxElevation = 10000 // meters
-    const minElevation = -5000 // meters (deepest ocean)
+    const maxElevation = 10000 // metres
+    const minElevation = -5000 // metres (deepest ocean)
 
     // Map height [-1, 1] to actual elevation range
     elevation[i] = minElevation + ((heightNorm + 1) / 2) * (maxElevation - minElevation)

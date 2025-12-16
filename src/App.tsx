@@ -41,7 +41,7 @@ function Scene({ simulation, displayConfig, showLatLonGrid, hoveredCell, selecte
         simulationConfig={activeSimulationConfig}
       />
 
-      {/* Visible geometry - pure data visualization */}
+      {/* Visible geometry - pure data visualisation */}
       <PlanetRenderer
         ref={meshRef}
         subdivisions={activeSimulationConfig.resolution}
@@ -188,7 +188,7 @@ function AppContent() {
         <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <h2>Terrain settings</h2>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span>Sea level (meters)</span>
+            <span>Sea level (metres)</span>
             <input
               type="number"
               value={seaLevel}
@@ -235,7 +235,7 @@ function AppContent() {
                   })
                   const url = URL.createObjectURL(file)
                   const terrain = await terrainLoader.loadFromHeightmap(url, simulation.getCellCount(), cellLatLons, {
-                    elevationScale: 1000, // meters per pixel value
+                    elevationScale: 1000, // metres per pixel value
                     seaLevel: 128, // pixel value for sea level (8-bit image)
                   })
                   const hydrology = hydrologyInit.initializeFromElevation(terrain.elevation, seaLevel)

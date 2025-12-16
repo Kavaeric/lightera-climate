@@ -28,7 +28,7 @@ uniform float textureWidth;
 uniform float textureHeight;
 uniform float cosmicBackgroundTemp;   // K
 uniform float thermalConductivity;    // W/(m·K) - for lateral heat conduction
-uniform float planetRadius;           // meters - planet's radius for calculating surface area and scaling
+uniform float planetRadius;           // metres - planet's radius for calculating surface area and scaling
 
 /**
  * Convert degrees to radians
@@ -97,7 +97,7 @@ void main() {
 
   // Read terrain data (elevation only - other properties stored in hydrology/surface layers)
   vec4 terrain = texture2D(terrainData, vUv);
-  float elevation = terrain.r;        // meters (signed)
+  float elevation = terrain.r;        // metres (signed)
 
   // Calculate subsolar point based on orbital position and axial tilt
   float subsolarLat = calculateSubsolarLatitude(baseSubsolarPoint.x, axialTilt, yearProgress);
@@ -108,9 +108,9 @@ void main() {
 
   // Read hydrology state for heat capacity calculations
   vec4 hydro = texture2D(hydrologyData, vUv);
-  float iceThickness = hydro.r;           // meters
-  float waterThermalMass = hydro.g;       // 0-1 normalized indicator
-  float waterDepth = hydro.b;             // meters (dynamic, evolves with evaporation)
+  float iceThickness = hydro.r;           // metres
+  float waterThermalMass = hydro.g;       // 0-1 normalised indicator
+  float waterDepth = hydro.b;             // metres (dynamic, evolves with evaporation)
 
   // Determine phase state (needed for heat capacity selection)
   float hasWater = step(0.01, waterDepth);      // 1.0 if waterDepth > 0.01m
@@ -130,42 +130,42 @@ void main() {
   // Calculate net radiative heating rate
   float dQ_radiation = Q_solar - Q_radiation;
 
-  // Lateral heat conduction (diffusion from neighbors)
-  // Read neighbor indices
-  vec3 neighbors1 = texture2D(neighbourIndices1, vUv).rgb;
-  vec3 neighbors2 = texture2D(neighbourIndices2, vUv).rgb;
+  // Lateral heat conduction (diffusion from neighbours)
+  // Read neighbour indices
+  vec3 neighbours1 = texture2D(neighbourIndices1, vUv).rgb;
+  vec3 neighbours2 = texture2D(neighbourIndices2, vUv).rgb;
 
-  // Collect neighbor temperatures
-  float neighborSum = 0.0;
-  float validNeighbors = 0.0;
+  // Collect neighbour temperatures
+  float neighbourSum = 0.0;
+  float validNeighbours = 0.0;
 
-  // Process first 3 neighbors
+  // Process first 3 neighbours
   for (int i = 0; i < 3; i++) {
-    float neighborIdx = i == 0 ? neighbors1.r : (i == 1 ? neighbors1.g : neighbors1.b);
-    float isValid = step(0.0, neighborIdx);
+    float neighbourIdx = i == 0 ? neighbours1.r : (i == 1 ? neighbours1.g : neighbours1.b);
+    float isValid = step(0.0, neighbourIdx);
 
-    vec2 neighborUV = cellIndexToUV(neighborIdx);
-    float neighborTemp = texture2D(previousTemperature, neighborUV).r;
+    vec2 neighbourUV = cellIndexToUV(neighbourIdx);
+    float neighbourTemp = texture2D(previousTemperature, neighbourUV).r;
 
-    neighborSum += neighborTemp * isValid;
-    validNeighbors += isValid;
+    neighbourSum += neighbourTemp * isValid;
+    validNeighbours += isValid;
   }
 
-  // Process next 3 neighbors
+  // Process next 3 neighbours
   for (int i = 0; i < 3; i++) {
-    float neighborIdx = i == 0 ? neighbors2.r : (i == 1 ? neighbors2.g : neighbors2.b);
-    float isValid = step(0.0, neighborIdx);
+    float neighbourIdx = i == 0 ? neighbours2.r : (i == 1 ? neighbours2.g : neighbours2.b);
+    float isValid = step(0.0, neighbourIdx);
 
-    vec2 neighborUV = cellIndexToUV(neighborIdx);
-    float neighborTemp = texture2D(previousTemperature, neighborUV).r;
+    vec2 neighbourUV = cellIndexToUV(neighbourIdx);
+    float neighbourTemp = texture2D(previousTemperature, neighbourUV).r;
 
-    neighborSum += neighborTemp * isValid;
-    validNeighbors += isValid;
+    neighbourSum += neighbourTemp * isValid;
+    validNeighbours += isValid;
   }
 
   // Calculate conductive heat flux (simplified: assume constant thermal conductivity)
-  float avgNeighborTemp = neighborSum / max(validNeighbors, 1.0);
-  float dQ_conduction = thermalConductivity * (avgNeighborTemp - T_old);
+  float avgNeighbourTemp = neighbourSum / max(validNeighbours, 1.0);
+  float dQ_conduction = thermalConductivity * (avgNeighbourTemp - T_old);
 
   // Total heating rate (W/m²)
   float dQ_total = dQ_radiation + dQ_conduction;
@@ -177,7 +177,7 @@ void main() {
   // 3. Ice: C = 2100 * 917 * min(iceThickness, 150m) - capped at crust depth
   // This prevents unrealistic heat capacities from very deep water while still providing thermal inertia
 
-  const float CRUST_DEPTH = 150.0;  // meters - approximate depth of thermal crust being simulated
+  const float CRUST_DEPTH = 150.0;  // metres - approximate depth of thermal crust being simulated
 
   // Heat capacities for different phases
   float C_rock = surfaceHeatCapacity;                                    // Rock: 2.16e6

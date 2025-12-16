@@ -1,16 +1,16 @@
 /**
- * Hydrology initialization system
+ * Hydrology initialisation system
  * Handles initial water depth, salinity, and ice thickness based on elevation and user preferences
  */
 
 export interface HydrologyInitConfig {
-  waterDepth: number[]  // meters (0 = no water)
+  waterDepth: number[]  // metres (0 = no water)
   salinity: number[]    // PSU (0 = fresh, 35 = ocean)
-  iceThickness: number[] // meters (0 = no ice)
+  iceThickness: number[] // metres (0 = no ice)
 }
 
 /**
- * Initialize hydrology state based on elevation
+ * Initialise hydrology state based on elevation
  * Creates oceans in low-elevation areas, freshwater lakes at higher elevations
  */
 export class HydrologyInitializer {
@@ -61,7 +61,7 @@ export class HydrologyInitializer {
   }
 
   /**
-   * Initialize from pre-computed arrays
+   * Initialise from pre-computed arrays
    */
   loadFromArrays(
     waterDepth: number[],

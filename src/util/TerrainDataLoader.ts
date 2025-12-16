@@ -41,7 +41,7 @@ export class TerrainDataLoader {
     cellCount: number,
     cellLatLons: Array<{ lat: number; lon: number }>,
     options: {
-      elevationScale?: number // meters per pixel value (default: 1)
+      elevationScale?: number // metres per pixel value (default: 1)
       seaLevel?: number // pixel value for sea level (default: 128 for 8-bit)
     } = {}
   ): Promise<TerrainConfig> {

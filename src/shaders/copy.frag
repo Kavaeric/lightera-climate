@@ -1,4 +1,4 @@
-// Simple copy shader for initializing render targets
+// Simple copy shader for initialising render targets
 precision highp float;
 
 uniform sampler2D sourceTex;
