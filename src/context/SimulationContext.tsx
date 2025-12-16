@@ -15,6 +15,7 @@ interface SimulationContextType {
 
   // Simulation state
   simulationKey: number
+  shouldRunSimulation: boolean
 
   // Methods to update state
   setActiveSimulationConfig: (config: SimulationConfig) => void
@@ -37,11 +38,13 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
   const [activePlanetConfig, setActivePlanetConfig] = useState<PlanetConfig>(DEFAULT_PLANET_CONFIG)
   const [simulationStatus, setSimulationStatus] = useState<string>('Ready')
   const [simulationKey, setSimulationKey] = useState(0)
+  const [shouldRunSimulation, setShouldRunSimulation] = useState(false)
 
   const runSimulation = (simConfig: SimulationConfig, planetConfig: PlanetConfig) => {
     setActiveSimulationConfig(simConfig)
     setActivePlanetConfig(planetConfig)
     setSimulationStatus('Running...')
+    setShouldRunSimulation(true)
     setSimulationKey((prev) => prev + 1)
   }
 
@@ -52,6 +55,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
         activePlanetConfig,
         simulationStatus,
         simulationKey,
+        shouldRunSimulation,
         setActiveSimulationConfig,
         setActivePlanetConfig,
         setSimulationStatus,

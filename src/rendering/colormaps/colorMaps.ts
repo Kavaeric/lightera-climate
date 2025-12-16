@@ -3,12 +3,12 @@
  * All functions take a normalized value [0, 1] and return RGB [0, 1]
  */
 
-export type ColorMapFunction = (value: number) => { r: number; g: number; b: number }
+export type ColourmapFunction = (value: number) => { r: number; g: number; b: number }
 
 /**
- * Viridis-like perceptually uniform colormap
+ * Viridis-like perceptually uniform colourmap
  */
-export const viridis: ColorMapFunction = (value) => {
+export const viridis: ColourmapFunction = (value) => {
   // Simplified viridis approximation
   const r = Math.max(0, Math.min(1, 0.267 + 0.533 * value + 0.2 * Math.sin(value * Math.PI)))
   const g = Math.max(0, Math.min(1, 0.004 + 0.873 * value - 0.3 * value * value))
@@ -19,20 +19,20 @@ export const viridis: ColorMapFunction = (value) => {
 /**
  * Grayscale
  */
-export const grayscale: ColorMapFunction = (value) => ({
+export const grayscale: ColourmapFunction = (value) => ({
   r: value,
   g: value,
   b: value,
 })
 
 /**
- * Moreland's Smooth Cool-Warm diverging colormap
- * Perceptually uniform diverging colormap designed by Kenneth Moreland
+ * Moreland's Smooth Cool-Warm diverging colourmap
+ * Perceptually uniform diverging colourmap designed by Kenneth Moreland
  * Goes from cool blue through neutral lavender to warm red
  * Excellent for scientific visualisation with meaningful center points
  */
-export const moreland: ColorMapFunction = (value) => {
-  // Control points in RGB (sampled from Moreland's original colormap)
+export const moreland: ColourmapFunction = (value) => {
+  // Control points in RGB (sampled from Moreland's original colourmap)
   // These are perceptually uniform in CIELAB space
   const controlPoints = [
     { t: 0.0, r: 0.230, g: 0.299, b: 0.754 },  // Cool blue
@@ -66,11 +66,11 @@ export const moreland: ColorMapFunction = (value) => {
 }
 
 /**
- * Extended black-body radiation colormap
+ * Extended black-body radiation colourmap
  * Black -> Red -> Orange -> Yellow -> White -> Cyan -> Blue
  * Mimics the color of heating metal
  */
-export const blackbody: ColorMapFunction = (value) => {
+export const blackbody: ColourmapFunction = (value) => {
   if (value < 0.25) {
     // Black to red
     const t = value / 0.25

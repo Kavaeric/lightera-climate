@@ -8,6 +8,7 @@ uniform sampler2D cellPositions;       // Cell lat/lon positions
 uniform sampler2D neighbourIndices1;   // Neighbours 0,1,2
 uniform sampler2D neighbourIndices2;   // Neighbours 3,4,5
 uniform sampler2D neighbourCounts;     // Number of neighbours (5 or 6)
+uniform sampler2D terrainData;         // Terrain data [elevation, waterDepth, salinity, baseAlbedo]
 
 // Physical constants
 const float STEFAN_BOLTZMANN = 5.670374419e-8; // W/(m²·K⁴)
@@ -92,6 +93,13 @@ void main() {
   // Read cell position
   vec2 cellLatLon = texture2D(cellPositions, vUv).rg; // [lat, lon] in degrees
 
+  // Read terrain data
+  vec4 terrain = texture2D(terrainData, vUv);
+  float elevation = terrain.r;        // meters (signed)
+  float waterDepth = terrain.g;       // meters (unsigned, 0 = land)
+  float salinity = terrain.b;         // PSU (0-50)
+  float baseAlbedo = terrain.a;       // 0-1, terrain reflectivity
+
   // Calculate subsolar point based on orbital position and axial tilt
   float subsolarLat = calculateSubsolarLatitude(baseSubsolarPoint.x, axialTilt, yearProgress);
   vec2 subsolarPoint = vec2(subsolarLat, baseSubsolarPoint.y);
@@ -99,8 +107,9 @@ void main() {
   // Calculate incoming solar flux
   float Q_solar = calculateSolarFlux(cellLatLon.x, cellLatLon.y, subsolarPoint);
 
-  // Account for albedo (fraction of light reflected)
-  Q_solar = Q_solar * (1.0 - albedo);
+  // Account for per-cell albedo (fraction of light reflected)
+  // Use terrain base albedo; in future, this will blend with biome-derived albedo
+  Q_solar = Q_solar * (1.0 - baseAlbedo);
 
   // Calculate outgoing blackbody radiation
   // Q_out = emissivity * σ * T^4
@@ -149,9 +158,16 @@ void main() {
   // Total heating rate (W/m²)
   float dQ_total = dQ_radiation + dQ_conduction;
 
+  // Determine effective heat capacity based on water presence
+  // Water has much higher heat capacity than rock due to its specific heat (4186 J/kg·K)
+  // For a water column: C_water = specificHeat * density * depth = 4186 * 1000 * waterDepth
+  float isWater = step(0.01, waterDepth);  // 1.0 if waterDepth > 0.01m, else 0.0
+  float C_water = 4186.0 * 1000.0 * waterDepth;  // J/(m²·K) for water column
+  float effectiveHeatCapacity = mix(surfaceHeatCapacity, C_water, isWater);
+
   // Temperature change: dT/dt = dQ / C
   // Where C is heat capacity per unit area [J/(m²·K)]
-  float dT = (dQ_total / surfaceHeatCapacity) * dt;
+  float dT = (dQ_total / effectiveHeatCapacity) * dt;
 
   // New temperature
   float T_new = T_old + dT;

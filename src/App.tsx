@@ -4,6 +4,7 @@ import { useRef, useMemo, useState, useCallback, useEffect } from 'react'
 import * as THREE from 'three'
 import { TextureGridSimulation } from './util/TextureGridSimulation'
 import { PlanetRenderer } from './components/PlanetRenderer'
+import { CellHighlightOverlay } from './components/CellHighlightOverlay'
 import { PlanetInteraction } from './components/PlanetInteraction'
 import { ReferenceGridOverlay } from './components/ReferenceGridOverlay'
 import { ClimateSimulationEngine } from './components/ClimateSimulationEngine'
@@ -12,6 +13,8 @@ import { DEFAULT_PLANET_CONFIG, type PlanetConfig } from './config/planetConfig'
 import { DEFAULT_SIMULATION_CONFIG, type SimulationConfig } from './config/simulationConfig'
 import { DEFAULT_DISPLAY_CONFIG, type DisplayConfig } from './config/displayConfig'
 import { SimulationProvider, useSimulation } from './context/SimulationContext'
+import type { TerrainConfig } from './config/terrainConfig'
+import { TerrainDataLoader } from './util/TerrainDataLoader'
 
 interface SceneProps {
   simulation: TextureGridSimulation
@@ -25,6 +28,7 @@ interface SceneProps {
 
 function Scene({ simulation, displayConfig, showLatLonGrid, hoveredCell, selectedCell, onHoverCell, onCellClick }: SceneProps) {
   const meshRef = useRef<THREE.Mesh>(null)
+  const highlightRef = useRef<THREE.Mesh>(null)
   const { activeSimulationConfig, activePlanetConfig } = useSimulation()
 
   return (
@@ -36,13 +40,21 @@ function Scene({ simulation, displayConfig, showLatLonGrid, hoveredCell, selecte
         simulationConfig={activeSimulationConfig}
       />
 
-      {/* Visible geometry - reads from climate data */}
+      {/* Visible geometry - pure data visualization */}
       <PlanetRenderer
         ref={meshRef}
         subdivisions={activeSimulationConfig.resolution}
         radius={1}
         simulation={simulation}
-        valueRange={displayConfig.temperatureRange}
+        displayConfig={displayConfig}
+      />
+
+      {/* Cell highlighting overlay - separate mesh for interaction feedback */}
+      <CellHighlightOverlay
+        ref={highlightRef}
+        subdivisions={activeSimulationConfig.resolution}
+        radius={1}
+        simulation={simulation}
         hoveredCellIndex={hoveredCell}
         selectedCellIndex={selectedCell}
       />
@@ -104,6 +116,7 @@ function AppContent() {
   const [pendingPlanetConfig, setPendingPlanetConfig] = useState<PlanetConfig>(DEFAULT_PLANET_CONFIG)
   const [pendingSimulationConfig, setPendingSimulationConfig] = useState<SimulationConfig>(DEFAULT_SIMULATION_CONFIG)
   const [displayConfig, setDisplayConfig] = useState<DisplayConfig>(DEFAULT_DISPLAY_CONFIG)
+  const [terrainConfig, setTerrainConfig] = useState<TerrainConfig | null>(null)
 
   // Get active config and simulation state from context
   const { activeSimulationConfig, simulationKey, simulationStatus, runSimulation } = useSimulation()
@@ -112,6 +125,13 @@ function AppContent() {
   const simulation = useMemo(() => {
     return new TextureGridSimulation(activeSimulationConfig)
   }, [activeSimulationConfig])
+
+  // Load terrain and apply to simulation
+  useEffect(() => {
+    if (terrainConfig && simulation) {
+      simulation.setTerrainData(terrainConfig)
+    }
+  }, [terrainConfig, simulation])
 
   const [showLatLonGrid, setShowLatLonGrid] = useState(true)
   const [hoveredCell, setHoveredCell] = useState<number | null>(null)
@@ -162,6 +182,55 @@ function AppContent() {
       {/* Info panel */}
       <div style={{ position: 'absolute', width: '280px', height: '100dvh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', color: 'white', background: 'rgba(0,0,0,0.5)', padding: '12px', fontFamily: 'monospace' }}>
         <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <h2>Terrain settings</h2>
+          <button
+            onClick={async () => {
+              // Generate procedural terrain with a random seed
+              const loader = new TerrainDataLoader()
+              const cellLatLons = Array.from({ length: simulation.getCellCount() }, (_, i) => {
+                const cell = simulation.getCellLatLon(i)
+                return { lat: cell.lat, lon: cell.lon }
+              })
+              const seed = Math.floor(Math.random() * 1000000)
+              const terrain = loader.generateProcedural(simulation.getCellCount(), cellLatLons, seed)
+              setTerrainConfig(terrain)
+              console.log(`Generated procedural terrain with seed ${seed}`)
+            }}
+          >
+            Generate procedural terrain
+          </button>
+          <button
+            onClick={() => {
+              // Create file input for image upload
+              const input = document.createElement('input')
+              input.type = 'file'
+              input.accept = 'image/png,image/jpeg'
+              input.onchange = async (e) => {
+                const file = (e.target as HTMLInputElement).files?.[0]
+                if (!file) return
+                try {
+                  const loader = new TerrainDataLoader()
+                  const cellLatLons = Array.from({ length: simulation.getCellCount() }, (_, i) => {
+                    const cell = simulation.getCellLatLon(i)
+                    return { lat: cell.lat, lon: cell.lon }
+                  })
+                  const url = URL.createObjectURL(file)
+                  const terrain = await loader.loadFromHeightmap(url, simulation.getCellCount(), cellLatLons, {
+                    elevationScale: 1000, // meters per pixel value
+                  })
+                  setTerrainConfig(terrain)
+                  URL.revokeObjectURL(url)
+                  console.log('Loaded heightmap from file')
+                } catch (err) {
+                  console.error('Failed to load heightmap:', err)
+                }
+              }
+              input.click()
+            }}
+          >
+            Load heightmap from file
+          </button>
+          <br />
           <h2>Simulation settings</h2>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <span>Resolution</span>
@@ -208,20 +277,6 @@ function AppContent() {
               onChange={(e) => {
                 const val = parseFloat(e.target.value);
                 setPendingPlanetConfig({ ...pendingPlanetConfig, solarFlux: isNaN(val) ? pendingPlanetConfig.solarFlux : val });
-              }}
-            />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span>Albedo (0-1)</span>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              max="1"
-              value={pendingPlanetConfig.albedo}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value);
-                setPendingPlanetConfig({ ...pendingPlanetConfig, albedo: isNaN(val) ? pendingPlanetConfig.albedo : val });
               }}
             />
           </label>
@@ -299,6 +354,24 @@ function AppContent() {
         <hr style={{ margin: '8px 0', border: 'none', borderTop: '1px solid rgba(255,255,255,0.3)' }} />
         <section style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <h2>Display settings</h2>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>Visualisation mode</span>
+            <select
+              value={displayConfig.visualisationMode}
+              onChange={(e) => {
+                setDisplayConfig({
+                  ...displayConfig,
+                  visualisationMode: e.target.value as 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'albedo',
+                })
+              }}
+            >
+              <option value="temperature">Temperature</option>
+              <option value="elevation">Elevation (greyscale)</option>
+              <option value="waterDepth">Water depth (greyscale)</option>
+              <option value="salinity">Salinity (greyscale)</option>
+              <option value="albedo">Surface albedo</option>
+            </select>
+          </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <span>Temperature range min (K)</span>
             <input

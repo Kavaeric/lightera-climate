@@ -32,7 +32,7 @@ export const DEFAULT_PLANET_CONFIG: PlanetConfig = {
   solarFlux: 1361, // Solar flux at the top of the atmosphere (W/m²)
   cosmicBackgroundTemp: 2.7, // Temperature of the cosmic background, usually 2.7K
   yearLength: 31540000, // 1 orbital year in seconds (Earth: 365.25 days)
-  albedo: 0.30, // Albedo of the planet's surface (Earth: ~0.30)
+  albedo: 0.10, // Albedo of the planet's surface (Earth: ~0.30)
   emissivity: 0.90, // Emissivity of the planet's surface (Earth: ~0.90)
   surfaceHeatCapacity: 2.927e8, // Heat capacity of the planet's crust/surface (Earth: 2.927e8 J/(m²·K))
   groundConductivity: 0.05, // Lateral heat conduction coefficient (0-1, 0 = no diffusion)

@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { Grid, GridCell } from '../simulation/geometry/geodesic'
 import type { SimulationConfig } from '../config/simulationConfig'
+import type { TerrainConfig } from '../config/terrainConfig'
 
 /**
  * Climate simulation for a geodesic grid sphere
@@ -23,6 +24,9 @@ export class TextureGridSimulation {
 
   // Cell position data (lat/lon in degrees)
   public cellPositions: THREE.DataTexture // RG = [latitude, longitude] in degrees
+
+  // Terrain data (static, doesn't change per time sample)
+  public terrainData: THREE.DataTexture // RGBA = [elevation, waterDepth, salinity, baseAlbedo]
 
   // Climate data storage: array of render targets, one per time sample
   // Each render target RGBA = [temperature, humidity, pressure, unused]
@@ -56,6 +60,9 @@ export class TextureGridSimulation {
 
     // Create cell position texture
     this.cellPositions = this.createCellPositionTexture()
+
+    // Create terrain data texture (initialized with defaults)
+    this.terrainData = this.createDefaultTerrainTexture()
 
     // Create climate data storage (one render target per time sample)
     this.climateDataTargets = []
@@ -234,6 +241,64 @@ export class TextureGridSimulation {
   }
 
   /**
+   * Create default terrain texture (flat land, no water)
+   */
+  private createDefaultTerrainTexture(): THREE.DataTexture {
+    const data = new Float32Array(this.textureWidth * this.textureHeight * 4) // RGBA
+
+    // Initialize with defaults: elevation=0, waterDepth=0, salinity=0, baseAlbedo=0.3
+    for (let i = 0; i < this.cellCount; i++) {
+      const coords = this.indexTo2D(i)
+      const dataIndex = this.coordsToDataIndex(coords.x, coords.y, 4)
+
+      data[dataIndex + 0] = 0 // R = elevation (meters)
+      data[dataIndex + 1] = 0 // G = waterDepth (meters)
+      data[dataIndex + 2] = 0 // B = salinity (PSU)
+      data[dataIndex + 3] = 0.3 // A = baseAlbedo (Earth average)
+    }
+
+    const texture = new THREE.DataTexture(
+      data,
+      this.textureWidth,
+      this.textureHeight,
+      THREE.RGBAFormat,
+      THREE.FloatType
+    )
+    texture.minFilter = THREE.NearestFilter
+    texture.magFilter = THREE.NearestFilter
+    texture.wrapS = THREE.ClampToEdgeWrapping
+    texture.wrapT = THREE.ClampToEdgeWrapping
+    texture.needsUpdate = true
+    return texture
+  }
+
+  /**
+   * Update terrain data from a TerrainConfig
+   */
+  public setTerrainData(terrain: TerrainConfig): void {
+    if (terrain.elevation.length !== this.cellCount) {
+      console.error(
+        `Terrain config has ${terrain.elevation.length} cells but simulation has ${this.cellCount} cells`
+      )
+      return
+    }
+
+    const data = this.terrainData.image.data as Float32Array
+
+    for (let i = 0; i < this.cellCount; i++) {
+      const coords = this.indexTo2D(i)
+      const dataIndex = this.coordsToDataIndex(coords.x, coords.y, 4)
+
+      data[dataIndex + 0] = terrain.elevation[i] // R = elevation
+      data[dataIndex + 1] = terrain.waterDepth[i] // G = waterDepth
+      data[dataIndex + 2] = terrain.salinity[i] // B = salinity
+      data[dataIndex + 3] = terrain.baseAlbedo[i] // A = baseAlbedo
+    }
+
+    this.terrainData.needsUpdate = true
+  }
+
+  /**
    * Create a render target for GPU computation
    */
   private createRenderTarget(): THREE.WebGLRenderTarget {
@@ -351,6 +416,7 @@ export class TextureGridSimulation {
     this.neighbourIndices2.dispose()
     this.neighbourCounts.dispose()
     this.cellPositions.dispose()
+    this.terrainData.dispose()
     for (const target of this.climateDataTargets) {
       target.dispose()
     }

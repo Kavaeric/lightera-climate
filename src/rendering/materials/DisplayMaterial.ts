@@ -1,6 +1,6 @@
 /**
  * Display material factory - creates a shader material for visualizing climate data
- * Maps GPU texture data to visual colors using Fast colormap
+ * Maps GPU texture data to visual colors using Fast colourmap
  */
 
 import * as THREE from 'three'
@@ -18,10 +18,10 @@ export interface DisplayMaterialConfig {
 }
 
 /**
- * Fast colormap - 32 control points for perceptually uniform color rendering
- * Data from Kenneth Moreland's Fast colormap
+ * Fast colourmap - 32 control points for perceptually uniform color rendering
+ * Data from Kenneth Moreland's Fast colourmap
  */
-const FAST_COLORMAP = [
+const FAST_COLOURMAP = [
   new THREE.Vector3(0.05639932216773367, 0.056399092153948, 0.4700000908789252),
   new THREE.Vector3(0.11062118079323027, 0.1380849483224675, 0.5318811940715031),
   new THREE.Vector3(0.15062834225956712, 0.2122970107362595, 0.5947551775157331),
@@ -58,7 +58,7 @@ const FAST_COLORMAP = [
 
 /**
  * Create a display material for visualizing climate simulation data
- * Samples temperature texture and renders with Fast colormap
+ * Samples temperature texture and renders with Fast colourmap
  */
 export function createDisplayMaterial(config: DisplayMaterialConfig): THREE.ShaderMaterial {
   const { simulation, displayConfig, hoveredCellIndex, selectedCellIndex, currentTimeSample } = config
@@ -70,10 +70,10 @@ export function createDisplayMaterial(config: DisplayMaterialConfig): THREE.Shad
       // Texture data
       stateTex: { value: simulation.getClimateDataTarget(currentTimeSample).texture },
 
-      // Display range and colormapping
+      // Display range and colourmapping
       valueMin: { value: displayConfig.temperatureRange.min },
       valueMax: { value: displayConfig.temperatureRange.max },
-      fastColors: { value: FAST_COLORMAP },
+      fastColors: { value: FAST_COLOURMAP },
       underflowColor: {
         value: new THREE.Vector3(
           displayConfig.underflowColour[0],

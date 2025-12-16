@@ -3,8 +3,20 @@
  */
 
 export interface DisplayConfig {
+  // Visualization mode - what to display on the planet
+  visualisationMode: 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'albedo'
+
   // Temperature display range for colour mapping
   temperatureRange: { min: number; max: number } // Kelvin
+
+  // Elevation display range for greyscale mapping
+  elevationRange: { min: number; max: number } // meters
+
+  // Water depth display range for greyscale mapping
+  waterDepthRange: { min: number; max: number } // meters
+
+  // Salinity display range for greyscale mapping
+  salinityRange: { min: number; max: number } // PSU (Practical Salinity Units)
 
   // Colour mapping - architecture allows future expansion to other colourmaps
   colourmap: 'fast' // Currently only 'fast' supported; will expand to 'viridis' | 'blackbody' later
@@ -27,7 +39,11 @@ export interface DisplayConfig {
  * Matches the previous hardcoded values from planetConfig.displayRange
  */
 export const DEFAULT_DISPLAY_CONFIG: DisplayConfig = {
+  visualisationMode: 'temperature',
   temperatureRange: { min: 200, max: 350 }, // Kelvin colour scale range
+  elevationRange: { min: -5000, max: 10000 }, // meters (ocean depth to highest mountains in procedural generation)
+  waterDepthRange: { min: 0, max: 5000 }, // meters (typical ocean depth range)
+  salinityRange: { min: 0, max: 50 }, // PSU (0 = fresh, 35 = ocean, 50+ = hypersaline)
   colourmap: 'fast',
   underflowColour: [0.0, 0.0, 0.2], // Navy blue for cold
   overflowColour: [1.0, 0.0, 1.0], // Magenta for hot

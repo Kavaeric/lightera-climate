@@ -49,7 +49,7 @@ export function ClimateSimulationEngine({
   onSolveComplete,
 }: ClimateSimulationEngineProps) {
   const { gl } = useThree()
-  const { setSimulationStatus } = useSimulation()
+  const { setSimulationStatus, simulationKey, shouldRunSimulation } = useSimulation()
 
   // Extract values from config objects for clarity
   const {
@@ -124,6 +124,7 @@ export function ClimateSimulationEngine({
         neighbourIndices1: { value: simulation.neighbourIndices1 },
         neighbourIndices2: { value: simulation.neighbourIndices2 },
         neighbourCounts: { value: simulation.neighbourCounts },
+        terrainData: { value: simulation.terrainData },
         baseSubsolarPoint: { value: new THREE.Vector2(subsolarPoint.lat, subsolarPoint.lon) },
         axialTilt: { value: axialTilt },
         yearProgress: { value: 0 },
@@ -176,7 +177,15 @@ export function ClimateSimulationEngine({
 
   // Run simulation in independent animation loop (not Three Fiber's useFrame)
   useEffect(() => {
-    if (!stateRef.current.initialized) return
+    if (!stateRef.current.initialized || !shouldRunSimulation) return
+
+    // Reset state when simulation key changes
+    stateRef.current.complete = false
+    stateRef.current.orbitIdx = 0
+    stateRef.current.sampleIdx = 0
+    stateRef.current.physicsStep = 0
+    stateRef.current.currentTargetIndex = 0
+    stateRef.current.nextTargetIndex = 1
 
     let animationFrameId: number
     let lastFrameTime = performance.now()
@@ -287,7 +296,7 @@ export function ClimateSimulationEngine({
     return () => {
       cancelAnimationFrame(animationFrameId)
     }
-  }, [gl, simulation, iterations, setSimulationStatus])
+  }, [gl, simulation, iterations, setSimulationStatus, simulationKey, shouldRunSimulation])
 
   return null
 }
