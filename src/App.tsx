@@ -361,7 +361,7 @@ function AppContent() {
               onChange={(e) => {
                 setDisplayConfig({
                   ...displayConfig,
-                  visualisationMode: e.target.value as 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'albedo',
+                  visualisationMode: e.target.value as 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'albedo' | 'iceThickness',
                 })
               }}
             >
@@ -370,6 +370,7 @@ function AppContent() {
               <option value="waterDepth">Water depth (greyscale)</option>
               <option value="salinity">Salinity (greyscale)</option>
               <option value="albedo">Surface albedo</option>
+              <option value="iceThickness">Ice thickness</option>
             </select>
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -403,6 +404,42 @@ function AppContent() {
                   temperatureRange: {
                     ...displayConfig.temperatureRange,
                     max: isNaN(val) ? displayConfig.temperatureRange.max : val,
+                  },
+                });
+              }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>Ice thickness range min (m)</span>
+            <input
+              type="number"
+              step="1"
+              value={displayConfig.iceThicknessRange.min}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                setDisplayConfig({
+                  ...displayConfig,
+                  iceThicknessRange: {
+                    ...displayConfig.iceThicknessRange,
+                    min: isNaN(val) ? displayConfig.iceThicknessRange.min : val,
+                  },
+                });
+              }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>Ice thickness range max (m)</span>
+            <input
+              type="number"
+              step="1"
+              value={displayConfig.iceThicknessRange.max}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                setDisplayConfig({
+                  ...displayConfig,
+                  iceThicknessRange: {
+                    ...displayConfig.iceThicknessRange,
+                    max: isNaN(val) ? displayConfig.iceThicknessRange.max : val,
                   },
                 });
               }}

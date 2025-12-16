@@ -28,6 +28,16 @@ export class TextureGridSimulation {
   // Terrain data (static, doesn't change per time sample)
   public terrainData: THREE.DataTexture // RGBA = [elevation, waterDepth, salinity, baseAlbedo]
 
+  // Hydrology data storage: TWO render targets (current and next frame)
+  // Tracks ice and water phase transitions independently of climate
+  // Each render target RGBA = [iceThickness, waterThermalMass, reserved, reserved]
+  public hydrologyDataTargets: THREE.WebGLRenderTarget[]
+
+  // Hydrology data archive: array of render targets, one per time sample
+  // Captures hydrology state at each time sample for visualization and analysis
+  // Each render target RGBA = [iceThickness, waterThermalMass, reserved, reserved]
+  public hydrologyArchive: THREE.WebGLRenderTarget[]
+
   // Climate data storage: array of render targets, one per time sample
   // Each render target RGBA = [temperature, humidity, pressure, unused]
   public climateDataTargets: THREE.WebGLRenderTarget[]
@@ -63,6 +73,16 @@ export class TextureGridSimulation {
 
     // Create terrain data texture (initialized with defaults)
     this.terrainData = this.createDefaultTerrainTexture()
+
+    // Create hydrology data storage (two render targets: current and next frame)
+    this.hydrologyDataTargets = [this.createRenderTarget(), this.createRenderTarget()]
+    this.initializeHydrologyTargets()
+
+    // Create hydrology archive (one render target per time sample for visualization)
+    this.hydrologyArchive = []
+    for (let i = 0; i < this.timeSamples; i++) {
+      this.hydrologyArchive.push(this.createRenderTarget())
+    }
 
     // Create climate data storage (one render target per time sample)
     this.climateDataTargets = []
@@ -299,6 +319,39 @@ export class TextureGridSimulation {
   }
 
   /**
+   * Initialize hydrology render targets with default values
+   * Called during construction to set up initial ice/water state
+   * The actual initialization happens when the shader first runs
+   */
+  private initializeHydrologyTargets(): void {
+    // Hydrology targets start cleared to [0, 0, 0, 0] by WebGL (no ice, no water thermal mass)
+    // They will be properly initialized by the hydrologyEvolution shader on first pass
+  }
+
+  /**
+   * Get the current hydrology render target (for reading in shaders)
+   */
+  public getHydrologyDataCurrent(): THREE.WebGLRenderTarget {
+    return this.hydrologyDataTargets[0]
+  }
+
+  /**
+   * Get the next hydrology render target (for writing in shaders)
+   */
+  public getHydrologyDataNext(): THREE.WebGLRenderTarget {
+    return this.hydrologyDataTargets[1]
+  }
+
+  /**
+   * Swap hydrology buffers for next frame
+   */
+  public swapHydrologyBuffers(): void {
+    const temp = this.hydrologyDataTargets[0]
+    this.hydrologyDataTargets[0] = this.hydrologyDataTargets[1]
+    this.hydrologyDataTargets[1] = temp
+  }
+
+  /**
    * Create a render target for GPU computation
    */
   private createRenderTarget(): THREE.WebGLRenderTarget {
@@ -310,6 +363,13 @@ export class TextureGridSimulation {
       wrapS: THREE.ClampToEdgeWrapping,
       wrapT: THREE.ClampToEdgeWrapping,
     })
+  }
+
+  /**
+   * Get a specific hydrology archive render target by time sample index
+   */
+  getHydrologyArchiveTarget(timeSampleIndex: number): THREE.WebGLRenderTarget {
+    return this.hydrologyArchive[timeSampleIndex]
   }
 
   /**
@@ -417,6 +477,12 @@ export class TextureGridSimulation {
     this.neighbourCounts.dispose()
     this.cellPositions.dispose()
     this.terrainData.dispose()
+    for (const target of this.hydrologyDataTargets) {
+      target.dispose()
+    }
+    for (const target of this.hydrologyArchive) {
+      target.dispose()
+    }
     for (const target of this.climateDataTargets) {
       target.dispose()
     }

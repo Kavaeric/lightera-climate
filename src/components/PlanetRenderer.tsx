@@ -87,6 +87,16 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
       sourceTexture = simulation.getClimateDataTarget(0).texture
       valueRange = displayConfig.temperatureRange
       dataChannel = 0  // Temperature uses red channel
+    } else if (displayConfig.visualisationMode === 'iceThickness') {
+      // Ice thickness visualization from hydrology archive
+      sourceTexture = simulation.getHydrologyArchiveTarget(0).texture
+      valueRange = displayConfig.iceThicknessRange
+      dataChannel = 0  // Ice thickness uses red channel
+    } else if (displayConfig.visualisationMode === 'albedo') {
+      // Effective albedo visualization from hydrology archive (includes ice/water effects)
+      sourceTexture = simulation.getHydrologyArchiveTarget(0).texture
+      valueRange = { min: 0, max: 1 }
+      dataChannel = 2  // Effective albedo in blue channel
     } else {
       // All other modes use terrain data
       sourceTexture = simulation.terrainData
@@ -102,11 +112,6 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
         case 'salinity':
           valueRange = displayConfig.salinityRange
           dataChannel = 2  // Salinity in blue channel
-          break
-        case 'albedo':
-          // Albedo doesn't have a meaningful range, use placeholder
-          valueRange = { min: 0, max: 1 }
-          dataChannel = 3  // Albedo in alpha channel
           break
         default:
           valueRange = displayConfig.temperatureRange

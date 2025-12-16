@@ -9,6 +9,7 @@ import { useSimulation } from '../context/SimulationContext'
 // Import shaders
 import fullscreenVertexShader from '../shaders/fullscreen.vert?raw'
 import thermalEvolutionFragmentShader from '../shaders/thermalEvolution.frag?raw'
+import hydrologyEvolutionFragmentShader from '../shaders/hydrologyEvolution.frag?raw'
 
 interface ClimateSimulationEngineProps {
   simulation: TextureGridSimulation
@@ -23,7 +24,10 @@ interface SimState {
   scene?: THREE.Scene
   camera?: THREE.OrthographicCamera
   geometry?: THREE.BufferGeometry
+  hydrologyMaterial?: THREE.ShaderMaterial
   thermalMaterial?: THREE.ShaderMaterial
+  copyMaterial?: THREE.ShaderMaterial
+  blankRenderTarget?: THREE.WebGLRenderTarget
   mesh?: THREE.Mesh
   timeSamples: number
   physicsStepsPerSample: number  // Physics substeps between saved samples (for numerical stability)
@@ -115,16 +119,40 @@ export function ClimateSimulationEngine({
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
     const geometry = new THREE.PlaneGeometry(2, 2)
 
+    // Create a blank render target for texture uniforms
+    // This prevents WebGL feedback loop errors from null or mismatched texture types
+    const blankRenderTarget = new THREE.WebGLRenderTarget(simulation.getTextureWidth(), simulation.getTextureHeight(), {
+      minFilter: THREE.NearestFilter,
+      magFilter: THREE.NearestFilter,
+      format: THREE.RGBAFormat,
+      type: THREE.FloatType,
+      wrapS: THREE.ClampToEdgeWrapping,
+      wrapT: THREE.ClampToEdgeWrapping,
+    })
+    const blankTexture = blankRenderTarget.texture
+
+    // Create hydrology material for ice/water phase transitions
+    const hydrologyMaterial = new THREE.ShaderMaterial({
+      vertexShader: fullscreenVertexShader,
+      fragmentShader: hydrologyEvolutionFragmentShader,
+      uniforms: {
+        previousHydrology: { value: blankTexture },
+        currentTemperature: { value: blankTexture },
+        terrainData: { value: simulation.terrainData },
+      },
+    })
+
     const thermalMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: thermalEvolutionFragmentShader,
       uniforms: {
-        previousTemperature: { value: null },
+        previousTemperature: { value: blankTexture },
         cellPositions: { value: simulation.cellPositions },
         neighbourIndices1: { value: simulation.neighbourIndices1 },
         neighbourIndices2: { value: simulation.neighbourIndices2 },
         neighbourCounts: { value: simulation.neighbourCounts },
         terrainData: { value: simulation.terrainData },
+        hydrologyData: { value: blankTexture }, // Initialize with blank texture, will be set before each render
         baseSubsolarPoint: { value: new THREE.Vector2(subsolarPoint.lat, subsolarPoint.lon) },
         axialTilt: { value: axialTilt },
         yearProgress: { value: 0 },
@@ -141,10 +169,7 @@ export function ClimateSimulationEngine({
       },
     })
 
-    const mesh = new THREE.Mesh(geometry, thermalMaterial)
-    scene.add(mesh)
-
-    // Initialize first archive target with cosmic background temperature
+    // Create a simple initialization material
     const initMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: `
@@ -158,18 +183,29 @@ export function ClimateSimulationEngine({
         initTemp: { value: cosmicBackgroundTemp },
       },
     })
-    mesh.material = initMaterial
+
+    // Create mesh with init material first (avoids compiling expensive thermal shader prematurely)
+    const mesh = new THREE.Mesh(geometry, initMaterial)
+    mesh.frustumCulled = false
+    scene.add(mesh)
+
+    // Initialize first climate target with cosmic background temperature
     const firstTarget = simulation.getClimateDataTarget(0)
     gl.setRenderTarget(firstTarget)
+    gl.clear()  // Clear the render target before rendering
     gl.render(scene, camera)
-    initMaterial.dispose()
+    gl.setRenderTarget(null)  // CRITICAL: Reset render target after initialization
 
+    // Now dispose init material and attach the simulation materials
+    initMaterial.dispose()
     mesh.material = thermalMaterial
 
     state.scene = scene
     state.camera = camera
     state.geometry = geometry
+    state.hydrologyMaterial = hydrologyMaterial
     state.thermalMaterial = thermalMaterial
+    state.blankRenderTarget = blankRenderTarget
     state.mesh = mesh
     state.currentTargetIndex = 0
     state.nextTargetIndex = 1
@@ -214,8 +250,8 @@ export function ClimateSimulationEngine({
       // Increase for faster simulation (fewer total frames), decrease for finer progress updates
       // With physics substeps + samples, each frame completes multiple time samples
       const stepsPerFrame = Math.max(500, Math.floor(state.timeSamples * state.physicsStepsPerSample / 2))
-      const { scene, camera, geometry, thermalMaterial, mesh } = state
-      if (!scene || !camera || !geometry || !thermalMaterial || !mesh) {
+      const { scene, camera, geometry, hydrologyMaterial, thermalMaterial, mesh } = state
+      if (!scene || !camera || !geometry || !hydrologyMaterial || !thermalMaterial || !mesh) {
         animationFrameId = requestAnimationFrame(simulationLoop)
         return
       }
@@ -234,12 +270,38 @@ export function ClimateSimulationEngine({
         thermalMaterial.uniforms.baseSubsolarPoint.value.set(state.subsolarPoint.lat, currentSubsolarLon)
         thermalMaterial.uniforms.yearProgress.value = yearProgress
 
-        // Read from current target, write to next target
+        // Read from current climate target for temperature
         const sourceTarget = simulation.getClimateDataTarget(state.currentTargetIndex)
         const destTarget = simulation.getClimateDataTarget(state.nextTargetIndex)
 
-        thermalMaterial.uniforms.previousTemperature.value = sourceTarget.texture
+        // ===== STEP 1: Update hydrology (ice formation/melting) =====
+        // Hydrology reads: previous hydrology state, current temperature
+        // Hydrology writes: new hydrology state
+        const hydrologyCurrent = simulation.getHydrologyDataCurrent()
+        const hydrologyNext = simulation.getHydrologyDataNext()
 
+        hydrologyMaterial.uniforms.previousHydrology.value = hydrologyCurrent.texture
+        hydrologyMaterial.uniforms.currentTemperature.value = sourceTarget.texture
+
+        mesh.material = hydrologyMaterial
+        gl.setRenderTarget(hydrologyNext)
+        gl.render(scene, camera)
+
+        // Unbind the render target to avoid feedback loop
+        gl.setRenderTarget(null)
+
+        // Swap hydrology buffers for next step
+        simulation.swapHydrologyBuffers()
+
+        // ===== STEP 2: Update thermal (temperature evolution) =====
+        // Thermal reads: previous temperature, current hydrology (now updated), terrain
+        // Thermal writes: new temperature
+        // NOTE: Use hydrologyNext (which we just wrote to) as the input, not getHydrologyDataCurrent()
+        // This avoids potential texture binding issues with the render target cache
+        thermalMaterial.uniforms.previousTemperature.value = sourceTarget.texture
+        thermalMaterial.uniforms.hydrologyData.value = hydrologyNext.texture
+
+        mesh.material = thermalMaterial
         gl.setRenderTarget(destTarget)
         gl.render(scene, camera)
 
@@ -252,6 +314,35 @@ export function ClimateSimulationEngine({
 
         if (state.physicsStep >= state.physicsStepsPerSample) {
           state.physicsStep = 0
+
+          // Archive current hydrology state to the archive texture for this sample
+          const archiveTarget = simulation.getHydrologyArchiveTarget(state.sampleIdx)
+
+          // Create a simple copy material if it doesn't exist
+          if (!state.copyMaterial) {
+            state.copyMaterial = new THREE.ShaderMaterial({
+              vertexShader: fullscreenVertexShader,
+              fragmentShader: `
+                precision highp float;
+                uniform sampler2D sourceTexture;
+                varying vec2 vUv;
+                void main() {
+                  gl_FragColor = texture2D(sourceTexture, vUv);
+                }
+              `,
+              uniforms: {
+                sourceTexture: { value: null },
+              },
+            })
+          }
+
+          // Copy current hydrology to archive
+          state.copyMaterial.uniforms.sourceTexture.value = simulation.getHydrologyDataCurrent().texture
+          mesh.material = state.copyMaterial
+          gl.setRenderTarget(archiveTarget)
+          gl.render(scene, camera)
+          gl.setRenderTarget(null)
+
           state.sampleIdx++
 
           if (state.sampleIdx >= state.timeSamples) {
@@ -267,7 +358,10 @@ export function ClimateSimulationEngine({
               state.complete = true
 
               if (state.geometry) state.geometry.dispose()
+              if (state.hydrologyMaterial) state.hydrologyMaterial.dispose()
               if (state.thermalMaterial) state.thermalMaterial.dispose()
+              if (state.copyMaterial) state.copyMaterial.dispose()
+              if (state.blankRenderTarget) state.blankRenderTarget.dispose()
               if (state.scene) state.scene.clear()
 
               gl.setRenderTarget(null)

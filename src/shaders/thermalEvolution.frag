@@ -9,6 +9,7 @@ uniform sampler2D neighbourIndices1;   // Neighbours 0,1,2
 uniform sampler2D neighbourIndices2;   // Neighbours 3,4,5
 uniform sampler2D neighbourCounts;     // Number of neighbours (5 or 6)
 uniform sampler2D terrainData;         // Terrain data [elevation, waterDepth, salinity, baseAlbedo]
+uniform sampler2D hydrologyData;       // Hydrology data [iceThickness, waterThermalMass, reserved, reserved]
 
 // Physical constants
 const float STEFAN_BOLTZMANN = 5.670374419e-8; // W/(m²·K⁴)
@@ -107,9 +108,34 @@ void main() {
   // Calculate incoming solar flux
   float Q_solar = calculateSolarFlux(cellLatLon.x, cellLatLon.y, subsolarPoint);
 
+  // Read hydrology state early to compute dynamic albedo
+  vec4 hydro = texture2D(hydrologyData, vUv);
+  float iceThickness = hydro.r;           // meters
+  float waterThermalMass = hydro.g;       // 0-1 normalized indicator
+
+  // Determine actual surface albedo based on phase state
+  // Ice and water have much higher albedo than rock
+  float hasWater = step(0.01, waterDepth);  // 1.0 if waterDepth > 0.01m
+  float hasIce = step(0.01, iceThickness);   // 1.0 if iceThickness > 0.01m
+
+  // Albedo values (realistic):
+  // - Rock/land: baseAlbedo (typically 0.1-0.3)
+  // - Water (liquid): 0.06-0.10 (low, most light absorbed)
+  // - Ice/snow: 0.6-0.9 (very high, most light reflected)
+  float effectiveAlbedo = baseAlbedo;
+
+  if (hasWater > 0.5) {
+    if (hasIce > 0.5) {
+      // Ice-covered water: high albedo (freshly frozen sea ice is 0.6-0.7)
+      effectiveAlbedo = 0.65;
+    } else {
+      // Liquid water: low albedo (0.06)
+      effectiveAlbedo = 0.06;
+    }
+  }
+
   // Account for per-cell albedo (fraction of light reflected)
-  // Use terrain base albedo; in future, this will blend with biome-derived albedo
-  Q_solar = Q_solar * (1.0 - baseAlbedo);
+  Q_solar = Q_solar * (1.0 - effectiveAlbedo);
 
   // Calculate outgoing blackbody radiation
   // Q_out = emissivity * σ * T^4
@@ -158,12 +184,30 @@ void main() {
   // Total heating rate (W/m²)
   float dQ_total = dQ_radiation + dQ_conduction;
 
-  // Determine effective heat capacity based on water presence
-  // Water has much higher heat capacity than rock due to its specific heat (4186 J/kg·K)
-  // For a water column: C_water = specificHeat * density * depth = 4186 * 1000 * waterDepth
-  float isWater = step(0.01, waterDepth);  // 1.0 if waterDepth > 0.01m, else 0.0
-  float C_water = 4186.0 * 1000.0 * waterDepth;  // J/(m²·K) for water column
-  float effectiveHeatCapacity = mix(surfaceHeatCapacity, C_water, isWater);
+  // Determine effective heat capacity based on phase state (hydrology already read above)
+  // Three cases:
+  // 1. Rock/land: C = surfaceHeatCapacity (2.16e6 J/(m²·K))
+  // 2. Liquid water: C = 4186 * 1000 * waterDepth (very high, ~1.67e10 for 4km ocean)
+  // 3. Ice: C = 2100 * 917 * iceThickness (intermediate, ~1.93e6 per meter)
+
+  // Heat capacities for different phases
+  float C_rock = surfaceHeatCapacity;                          // Rock: 2.16e6
+  float C_water = 4186.0 * 1000.0 * waterDepth;              // Liquid water: very high
+  float C_ice = 2100.0 * 917.0 * iceThickness;               // Ice: intermediate
+
+  // Select heat capacity based on current phase
+  float effectiveHeatCapacity = C_rock;
+
+  if (hasWater > 0.5) {
+    // Water is present, check if frozen or liquid
+    if (hasIce > 0.5) {
+      // Ice layer present: use ice heat capacity
+      effectiveHeatCapacity = C_ice;
+    } else {
+      // Liquid water: use liquid heat capacity
+      effectiveHeatCapacity = C_water;
+    }
+  }
 
   // Temperature change: dT/dt = dQ / C
   // Where C is heat capacity per unit area [J/(m²·K)]

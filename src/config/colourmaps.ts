@@ -146,6 +146,23 @@ export const COLOURMAP_ALBEDO: Colourmap = {
 }
 
 /**
+ * Ice thickness colourmap - blue gradient from no ice to thick ice
+ * Good for: Visualizing ice sheet thickness and coverage
+ * 0.0 = dark blue (no ice), 1.0 = white (thick ice)
+ */
+export const COLOURMAP_ICE: Colourmap = {
+  name: 'ice',
+  colors: [
+    new THREE.Vector3(0.0, 0.2, 0.4),   // Dark blue - no ice
+    new THREE.Vector3(0.2, 0.6, 0.8),   // Light blue - thin ice
+    new THREE.Vector3(0.7, 0.85, 0.95), // Pale blue - thick ice
+    new THREE.Vector3(1.0, 1.0, 1.0),   // White - very thick ice
+  ],
+  underflowColor: new THREE.Vector3(0.0, 0.0, 0.0),
+  overflowColor: new THREE.Vector3(1.0, 1.0, 1.0),
+}
+
+/**
  * Get a colourmap by name
  */
 export function getColourmap(name: string): Colourmap | null {
@@ -154,6 +171,7 @@ export function getColourmap(name: string): Colourmap | null {
     'greyscale': COLOURMAP_GREYSCALE,
     'salinity': COLOURMAP_SALINITY,
     'albedo': COLOURMAP_ALBEDO,
+    'ice': COLOURMAP_ICE,
   }
   return map[name] || null
 }
@@ -161,7 +179,7 @@ export function getColourmap(name: string): Colourmap | null {
 /**
  * Get the appropriate colourmap for a visualization mode
  */
-export function getColourmapForMode(mode: 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'albedo'): Colourmap {
+export function getColourmapForMode(mode: 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'albedo' | 'iceThickness'): Colourmap {
   switch (mode) {
     case 'temperature':
       return COLOURMAP_FAST
@@ -173,6 +191,8 @@ export function getColourmapForMode(mode: 'temperature' | 'elevation' | 'waterDe
       return COLOURMAP_SALINITY
     case 'albedo':
       return COLOURMAP_GREYSCALE
+    case 'iceThickness':
+      return COLOURMAP_ICE
     default:
       return COLOURMAP_FAST
   }
