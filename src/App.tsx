@@ -15,6 +15,7 @@ import { DEFAULT_DISPLAY_CONFIG, type DisplayConfig } from './config/displayConf
 import { SimulationProvider, useSimulation } from './context/SimulationContext'
 import type { TerrainConfig } from './config/terrainConfig'
 import { TerrainDataLoader } from './util/TerrainDataLoader'
+import { HydrologyInitializer } from './util/HydrologyInitializer'
 
 interface SceneProps {
   simulation: TextureGridSimulation
@@ -78,7 +79,7 @@ function Scene({ simulation, displayConfig, showLatLonGrid, hoveredCell, selecte
   )
 }
 
-// Helper component to fetch climate data (stays inside Canvas for gl access)
+// Helper component to fetch climate and hydrology data (stays inside Canvas for gl access)
 function ClimateDataFetcher({
   simulation,
   cellIndex,
@@ -86,7 +87,7 @@ function ClimateDataFetcher({
 }: {
   simulation: TextureGridSimulation
   cellIndex: number | null
-  onDataFetched: (data: Array<{ day: number; temperature: number; humidity: number; pressure: number }>) => void
+  onDataFetched: (data: Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number }>) => void
 }) {
   const { gl } = useThree()
 
@@ -98,9 +99,11 @@ function ClimateDataFetcher({
 
     const fetchData = async () => {
       const climateData = await simulation.getClimateDataForCell(cellIndex, gl)
+      const hydrologyData = await simulation.getHydrologyDataForCell(cellIndex, gl)
       const formattedData = climateData.map((d, i) => ({
         day: i,
         ...d,
+        ...hydrologyData[i],
       }))
       onDataFetched(formattedData)
     }
@@ -137,7 +140,8 @@ function AppContent() {
   const [hoveredCell, setHoveredCell] = useState<number | null>(null)
   const [selectedCell, setSelectedCell] = useState<number | null>(null)
   const [selectedCellLatLon, setSelectedCellLatLon] = useState<{ lat: number; lon: number } | null>(null)
-  const [climateData, setClimateData] = useState<Array<{ day: number; temperature: number; humidity: number; pressure: number }>>([])
+  const [climateData, setClimateData] = useState<Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number }>>([])
+  const [seaLevel, setSeaLevel] = useState(0)
 
   const handleCellClick = useCallback((cellIndex: number) => {
     setSelectedCell(cellIndex)
@@ -150,7 +154,7 @@ function AppContent() {
     setClimateData([])
   }, [])
 
-  const handleDataFetched = useCallback((data: Array<{ day: number; temperature: number; humidity: number; pressure: number }>) => {
+  const handleDataFetched = useCallback((data: Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number }>) => {
     setClimateData(data)
   }, [])
 
@@ -183,18 +187,32 @@ function AppContent() {
       <div style={{ position: 'absolute', width: '280px', height: '100dvh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', color: 'white', background: 'rgba(0,0,0,0.5)', padding: '12px', fontFamily: 'monospace' }}>
         <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <h2>Terrain settings</h2>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>Sea level (meters)</span>
+            <input
+              type="number"
+              value={seaLevel}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                setSeaLevel(isNaN(val) ? seaLevel : val);
+              }}
+            />
+          </label>
           <button
             onClick={async () => {
               // Generate procedural terrain with a random seed
-              const loader = new TerrainDataLoader()
+              const terrainLoader = new TerrainDataLoader()
+              const hydrologyInit = new HydrologyInitializer()
               const cellLatLons = Array.from({ length: simulation.getCellCount() }, (_, i) => {
                 const cell = simulation.getCellLatLon(i)
                 return { lat: cell.lat, lon: cell.lon }
               })
               const seed = Math.floor(Math.random() * 1000000)
-              const terrain = loader.generateProcedural(simulation.getCellCount(), cellLatLons, seed)
+              const terrain = terrainLoader.generateProcedural(simulation.getCellCount(), cellLatLons, seed)
+              const hydrology = hydrologyInit.initializeFromElevation(terrain.elevation, seaLevel)
               setTerrainConfig(terrain)
-              console.log(`Generated procedural terrain with seed ${seed}`)
+              simulation.setHydrologyData(hydrology.waterDepth, hydrology.salinity, hydrology.iceThickness)
+              console.log(`Generated procedural terrain with seed ${seed}, seaLevel=${seaLevel}m`)
             }}
           >
             Generate procedural terrain
@@ -209,16 +227,20 @@ function AppContent() {
                 const file = (e.target as HTMLInputElement).files?.[0]
                 if (!file) return
                 try {
-                  const loader = new TerrainDataLoader()
+                  const terrainLoader = new TerrainDataLoader()
+                  const hydrologyInit = new HydrologyInitializer()
                   const cellLatLons = Array.from({ length: simulation.getCellCount() }, (_, i) => {
                     const cell = simulation.getCellLatLon(i)
                     return { lat: cell.lat, lon: cell.lon }
                   })
                   const url = URL.createObjectURL(file)
-                  const terrain = await loader.loadFromHeightmap(url, simulation.getCellCount(), cellLatLons, {
+                  const terrain = await terrainLoader.loadFromHeightmap(url, simulation.getCellCount(), cellLatLons, {
                     elevationScale: 1000, // meters per pixel value
+                    seaLevel: 128, // pixel value for sea level (8-bit image)
                   })
+                  const hydrology = hydrologyInit.initializeFromElevation(terrain.elevation, seaLevel)
                   setTerrainConfig(terrain)
+                  simulation.setHydrologyData(hydrology.waterDepth, hydrology.salinity, hydrology.iceThickness)
                   URL.revokeObjectURL(url)
                   console.log('Loaded heightmap from file')
                 } catch (err) {
@@ -361,15 +383,14 @@ function AppContent() {
               onChange={(e) => {
                 setDisplayConfig({
                   ...displayConfig,
-                  visualisationMode: e.target.value as 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'albedo' | 'iceThickness',
+                  visualisationMode: e.target.value as 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness',
                 })
               }}
             >
               <option value="temperature">Temperature</option>
               <option value="elevation">Elevation (greyscale)</option>
-              <option value="waterDepth">Water depth (greyscale)</option>
+              <option value="waterDepth">Water depth</option>
               <option value="salinity">Salinity (greyscale)</option>
-              <option value="albedo">Surface albedo</option>
               <option value="iceThickness">Ice thickness</option>
             </select>
           </label>

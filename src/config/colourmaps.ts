@@ -75,7 +75,7 @@ export const COLOURMAP_GREYSCALE: Colourmap = {
 }
 
 /**
- * Water depth colourmap ("BlueB1" from ParaView)
+ * Water depth colourmap ("BlueB1" via https://sciviscolor.org/)
  * Good for: Water depth visualization.
  * 
  */
@@ -100,7 +100,7 @@ export const COLOURMAP_WATERDEPTH: Colourmap = {
 }
 
 /**
- * Salinity colourmap - "c16" pastel blue ramp from ParaView (CIELAB)
+ * Salinity colourmap ("c16" via https://sciviscolor.org/)
  */
 export const COLOURMAP_SALINITY: Colourmap = {
   name: 'salinity',
@@ -131,9 +131,9 @@ export const COLOURMAP_SALINITY: Colourmap = {
 }
 
 /**
- * Albedo colourmap - maps albedo values (0 to 1) to greyscale
- * Good for: Surface reflectivity visualization
- * 0.0 = black (very dark), 1.0 = white (very bright)
+ * Albedo colourmap, greyscale
+ * Dark blue underflow (should not happen)
+ * Magenta overflow (should not happen)
  */
 export const COLOURMAP_ALBEDO: Colourmap = {
   name: 'albedo',
@@ -141,22 +141,62 @@ export const COLOURMAP_ALBEDO: Colourmap = {
     new THREE.Vector3(0.0, 0.0, 0.0),   // Black - low albedo
     new THREE.Vector3(1.0, 1.0, 1.0),   // White - high albedo
   ],
-  underflowColor: new THREE.Vector3(0.0, 0.0, 0.0),
-  overflowColor: new THREE.Vector3(1.0, 1.0, 1.0),
+  underflowColor: new THREE.Vector3(0.0, 0.0, 0.5),
+  overflowColor: new THREE.Vector3(1.0, 0.0, 1.0),
 }
 
 /**
- * Ice thickness colourmap - blue gradient from no ice to thick ice
- * Good for: Visualizing ice sheet thickness and coverage
- * 0.0 = dark blue (no ice), 1.0 = white (thick ice)
+ * Ice thickness colourmap ("sd" via CCC-Tool, interpolationspace="lab")
+ * Replaces old "Vlt_turq2" with updated, smoother blue-turquoise colormap.
+ * Black underflow, black overflow (per XML <Above>/<Below>/<NaN>)
  */
 export const COLOURMAP_ICE: Colourmap = {
   name: 'ice',
   colors: [
-    new THREE.Vector3(0.0, 0.2, 0.4),   // Dark blue - no ice
-    new THREE.Vector3(0.2, 0.6, 0.8),   // Light blue - thin ice
-    new THREE.Vector3(0.7, 0.85, 0.95), // Pale blue - thick ice
-    new THREE.Vector3(1.0, 1.0, 1.0),   // White - very thick ice
+    new THREE.Vector3(0.3793034661181724, 0.34040789975053165, 0.7508803052488114),
+    new THREE.Vector3(0.3976325589792201, 0.36766544376408467, 0.7680401253342565),
+    new THREE.Vector3(0.4156228154081329, 0.3949957866583141, 0.7852253846352517),
+    new THREE.Vector3(0.43330864085682713, 0.42242270381844443, 0.8024358462287073),
+    new THREE.Vector3(0.4507187072297352, 0.4499637359687955, 0.8196713036101766),
+    new THREE.Vector3(0.4678771876257229, 0.47763189848429516, 0.8369315816810977),
+    new THREE.Vector3(0.4848046674251862, 0.5054368555932399, 0.8542165322366401),
+    new THREE.Vector3(0.5015188348032825, 0.5333857536594, 0.8715260300839889),
+    new THREE.Vector3(0.5040038984562412, 0.5375829917347249, 0.8741197228842384),
+    new THREE.Vector3(0.5170885938006982, 0.5525019141601941, 0.882853961753396),
+    new THREE.Vector3(0.5323785995494978, 0.5701277769082589, 0.893128744041837),
+    new THREE.Vector3(0.5475718497453869, 0.5878391347331349, 0.9034063154913805),
+    new THREE.Vector3(0.5626776403350616, 0.6056349913772506, 0.9136866720322696),
+    new THREE.Vector3(0.5777042443113116, 0.6235143659268424, 0.9239698128904126),
+    new THREE.Vector3(0.5926590543077891, 0.6414762936102514, 0.9342557402918829),
+    new THREE.Vector3(0.6075487011892828, 0.6595198263679894, 0.9445444591913483),
+    new THREE.Vector3(0.6223791533395194, 0.6776440332366411, 0.954835977022395),
+    new THREE.Vector3(0.637155800305016, 0.6958480005809768, 0.9651303034679236),
+    new THREE.Vector3(0.6518835236673065, 0.7141308322024855, 0.9754274502489376),
+    new THREE.Vector3(0.6580562820012059, 0.7218336643657571, 0.979753528291785),
+    new THREE.Vector3(0.6643195737343167, 0.726026782802202, 0.9807763715297279),
+    new THREE.Vector3(0.6750628468312442, 0.7332708714853562, 0.9825348979380667),
+    new THREE.Vector3(0.6857382783269689, 0.7405326716817371, 0.9842869193968725),
+    new THREE.Vector3(0.6963495956269842, 0.7478120120517, 0.9860324105350652),
+    new THREE.Vector3(0.7069002683726267, 0.7551087252401065, 0.9877713461126013),
+    new THREE.Vector3(0.7173935316224211, 0.7624226477436774, 0.9895037010164395),
+    new THREE.Vector3(0.7278324064630498, 0.7697536197837083, 0.9912294502565687),
+    new THREE.Vector3(0.7350553804708115, 0.7748574819978237, 0.9924246896404804),
+    new THREE.Vector3(0.7384989166061473, 0.7776590922595487, 0.9926091935075861),
+    new THREE.Vector3(0.7497324708884542, 0.7868564831508208, 0.9932046273064109),
+    new THREE.Vector3(0.7608904882492469, 0.7960787031666257, 0.993785870239586),
+    new THREE.Vector3(0.7719768150767568, 0.8053254722820444, 0.9943528124573499),
+    new THREE.Vector3(0.782995041680365, 0.8145965185193306, 0.9949053436427951),
+    new THREE.Vector3(0.7939485245964756, 0.8238915776110411, 0.9954433529918155),
+    new THREE.Vector3(0.8048404064940475, 0.8332103926803731, 0.9959667291928435),
+    new THREE.Vector3(0.8156736339858098, 0.8425527139376939, 0.9964753604063591),
+    new THREE.Vector3(0.8264509736063077, 0.8519182983923415, 0.9969691342441632),
+    new THREE.Vector3(0.837175026180444, 0.8613069095788173, 0.9974479377484154),
+    new THREE.Vector3(0.8478482397748167, 0.87071831729655, 0.9979116573704113),
+    new THREE.Vector3(0.8584729213976448, 0.8801522973624692, 0.9983601789491005),
+    new THREE.Vector3(0.8690512475907817, 0.8896086313756596, 0.9987933876893348),
+    new THREE.Vector3(0.8795852740383322, 0.8990871064934212, 0.9992111681398302),
+    new THREE.Vector3(0.8900769443002639, 0.9085875152181073, 0.9996134041708363),
+    new THREE.Vector3(0.9005281293207135, 0.9181095973202068, 0.9999999849571296)
   ],
   underflowColor: new THREE.Vector3(0.0, 0.0, 0.0),
   overflowColor: new THREE.Vector3(1.0, 1.0, 1.0),
@@ -179,7 +219,7 @@ export function getColourmap(name: string): Colourmap | null {
 /**
  * Get the appropriate colourmap for a visualization mode
  */
-export function getColourmapForMode(mode: 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'albedo' | 'iceThickness'): Colourmap {
+export function getColourmapForMode(mode: 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness'): Colourmap {
   switch (mode) {
     case 'temperature':
       return COLOURMAP_FAST
@@ -189,8 +229,6 @@ export function getColourmapForMode(mode: 'temperature' | 'elevation' | 'waterDe
       return COLOURMAP_WATERDEPTH
     case 'salinity':
       return COLOURMAP_SALINITY
-    case 'albedo':
-      return COLOURMAP_GREYSCALE
     case 'iceThickness':
       return COLOURMAP_ICE
     default:

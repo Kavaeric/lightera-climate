@@ -8,40 +8,22 @@ export class TerrainDataLoader {
   /**
    * Generate procedurally created terrain using a seed
    * Useful for testing and creating varied terrain without image data
-   * @param seaLevel - Elevation at which water fills up to (default 0m)
    */
   generateProcedural(
     cellCount: number,
     cellLatLons: Array<{ lat: number; lon: number }>,
-    seed: number = 42,
-    seaLevel: number = 0
+    seed: number = 42
   ): TerrainConfig {
-    return createSimpleProcedural(cellCount, seed, cellLatLons, seaLevel)
+    return createSimpleProcedural(cellCount, seed, cellLatLons)
   }
 
   /**
-   * Load terrain from pre-computed cell arrays
-   * Assumes arrays are already in the correct order (indexed by cell index)
+   * Load terrain from pre-computed elevation array
+   * Assumes array is already in the correct order (indexed by cell index)
    */
-  loadFromArrays(
-    elevation: number[],
-    waterDepth: number[],
-    salinity: number[],
-    baseAlbedo: number[]
-  ): TerrainConfig {
-    if (
-      elevation.length !== waterDepth.length ||
-      waterDepth.length !== salinity.length ||
-      salinity.length !== baseAlbedo.length
-    ) {
-      throw new Error('All terrain arrays must have the same length')
-    }
-
+  loadFromArrays(elevation: number[]): TerrainConfig {
     return {
       elevation,
-      waterDepth,
-      salinity,
-      baseAlbedo,
     }
   }
 
@@ -61,14 +43,10 @@ export class TerrainDataLoader {
     options: {
       elevationScale?: number // meters per pixel value (default: 1)
       seaLevel?: number // pixel value for sea level (default: 128 for 8-bit)
-      waterAlbedo?: number // albedo for water (default: 0.06)
-      landAlbedo?: number // albedo for land (default: 0.3)
     } = {}
   ): Promise<TerrainConfig> {
     const elevationScale = options.elevationScale ?? 1
     const seaLevel = options.seaLevel ?? 128
-    const waterAlbedo = options.waterAlbedo ?? 0.06
-    const landAlbedo = options.landAlbedo ?? 0.3
 
     // Get image data
     let imageData: ImageData
@@ -84,9 +62,6 @@ export class TerrainDataLoader {
 
     // Resample image to geodesic grid
     const elevation = new Float32Array(cellCount)
-    const waterDepth = new Float32Array(cellCount)
-    const salinity = new Float32Array(cellCount)
-    const baseAlbedo = new Float32Array(cellCount)
 
     const { width, height, data } = imageData
 
@@ -105,28 +80,11 @@ export class TerrainDataLoader {
       // Convert pixel value to elevation
       // Assume 0-255 range, where seaLevel = 0m
       const normalizedValue = (pixelValue - seaLevel) / 128 // Normalize to roughly -1 to 1
-      const elevationM = normalizedValue * elevationScale
-
-      if (elevationM < 0) {
-        // Underwater (ocean)
-        elevation[i] = elevationM
-        waterDepth[i] = Math.abs(elevationM) + 100 // Add some base ocean depth
-        salinity[i] = 35 // Ocean salinity
-        baseAlbedo[i] = waterAlbedo
-      } else {
-        // Land
-        elevation[i] = elevationM
-        waterDepth[i] = 0
-        salinity[i] = 0
-        baseAlbedo[i] = landAlbedo
-      }
+      elevation[i] = normalizedValue * elevationScale
     }
 
     return {
       elevation: Array.from(elevation),
-      waterDepth: Array.from(waterDepth),
-      salinity: Array.from(salinity),
-      baseAlbedo: Array.from(baseAlbedo),
     }
   }
 

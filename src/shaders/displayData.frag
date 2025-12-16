@@ -58,13 +58,13 @@ void main() {
   // Select the appropriate channel based on visualisation mode
   float value;
   if (dataChannel == 0) {
-    value = data.r;  // Temperature or elevation
+    value = data.r;  // Temperature, elevation, or ice thickness
   } else if (dataChannel == 1) {
-    value = data.g;  // Water depth
+    value = data.g;  // Unused (water thermal mass is internal state)
   } else if (dataChannel == 2) {
-    value = data.b;  // Salinity
+    value = data.b;  // Water depth
   } else {
-    value = data.a;  // Albedo
+    value = data.a;  // Salinity
   }
 
   // Normalize to [0, 1]

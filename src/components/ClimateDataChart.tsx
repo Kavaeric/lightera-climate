@@ -6,6 +6,9 @@ interface ClimateDataPoint {
   temperature: number
   humidity: number
   pressure: number
+  waterDepth: number
+  iceThickness: number
+  salinity: number
 }
 
 interface ClimateDataChartProps {
@@ -32,6 +35,19 @@ export function ClimateDataChart({ data, cellIndex, cellLatLon, onClose }: Clima
     const max = Math.max(...temps)
     const avg = temps.reduce((a, b) => a + b, 0) / temps.length
     return { min, max, avg }
+  }, [data])
+
+  // Calculate hydrology stats
+  const hydrologyStats = useMemo(() => {
+    if (data.length === 0) return { waterDepthMax: 0, iceThicknessMax: 0, salinityAvg: 0 }
+    const waterDepths = data.map((d) => d.waterDepth)
+    const iceThicknesses = data.map((d) => d.iceThickness)
+    const salinities = data.map((d) => d.salinity)
+    return {
+      waterDepthMax: Math.max(...waterDepths),
+      iceThicknessMax: Math.max(...iceThicknesses),
+      salinityAvg: salinities.reduce((a, b) => a + b, 0) / salinities.length,
+    }
   }, [data])
 
   if (cellIndex === null) return null
@@ -90,6 +106,20 @@ export function ClimateDataChart({ data, cellIndex, cellLatLon, onClose }: Clima
         </div>
         <div>
           Max: <strong>{stats.max.toFixed(1)}K</strong> ({(stats.max - 273.15).toFixed(1)}°C)
+        </div>
+      </div>
+
+      <br />
+
+      <div style={{ display: 'flex', gap: 16, fontSize: 16 }}>
+        <div>
+          Water depth: <strong>{hydrologyStats.waterDepthMax.toFixed(3)}m</strong>
+        </div>
+        <div>
+          Ice thickness: <strong>{hydrologyStats.iceThicknessMax.toFixed(3)}m</strong>
+        </div>
+        <div>
+          Salinity: <strong>{hydrologyStats.salinityAvg.toFixed(1)} PSU</strong>
         </div>
       </div>
 

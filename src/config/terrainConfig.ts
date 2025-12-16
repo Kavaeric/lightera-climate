@@ -4,66 +4,39 @@
  */
 
 export interface TerrainConfig {
-  // Elevation data (one value per geodesic cell)
+  // Elevation data (one value per geodesic cell) - STATIC, never changes
   elevation: number[] // meters - height above/below sea level (negative = underwater)
-
-  // Water properties (one value per geodesic cell)
-  waterDepth: number[] // meters - depth of water column (0 = land, >0 = water present)
-  // Note: For oceans, total depth = max(0, -elevation) + waterDepth
-  // For lakes: elevation is positive, waterDepth > 0
-
-  salinity: number[] // PSU (Practical Salinity Units, 0-50)
-  // Typical values: 0 = freshwater/lakes, 35 = ocean, 50+ = hypersaline
-
-  // Surface properties
-  baseAlbedo: number[] // 0-1 - terrain reflectivity before biome effects
-  // Typical values: rock=0.15, sand=0.40, ice=0.80, water=0.06
-  // This is terrain input; biome-derived albedo blends with this in Phase 3
-
-  // Optional: Ice thickness (can be computed by climate model or supplied)
-  iceThickness?: number[] // meters - ice/snow cover (0 = no ice)
 }
 
 /**
- * Validate that terrain config has correct array lengths
+ * Validate that terrain config has correct array length
  */
 export function validateTerrainConfig(terrain: TerrainConfig, expectedLength: number): boolean {
   if (terrain.elevation.length !== expectedLength) return false
-  if (terrain.waterDepth.length !== expectedLength) return false
-  if (terrain.salinity.length !== expectedLength) return false
-  if (terrain.baseAlbedo.length !== expectedLength) return false
-  if (terrain.iceThickness && terrain.iceThickness.length !== expectedLength) return false
   return true
 }
 
 /**
- * Create a default flat Earth-like terrain (all land, no water)
+ * Create a default flat terrain (all at sea level)
  * Useful for testing and as a fallback
  */
 export function createDefaultTerrain(cellCount: number): TerrainConfig {
   return {
     elevation: new Array(cellCount).fill(0),
-    waterDepth: new Array(cellCount).fill(0),
-    salinity: new Array(cellCount).fill(0),
-    baseAlbedo: new Array(cellCount).fill(0.3), // Earth average
   }
 }
 
 /**
  * Create a simple procedural terrain with continents and oceans
- * Uses a sine-based function for predictable, varied terrain
- * Water depth is calculated as max(0, seaLevel - elevation)
+ * Uses Perlin-like noise for natural-looking elevation
+ * NOTE: Hydrology initialization (water depth, salinity, ice) is handled separately
  */
 export function createSimpleProcedural(
   cellCount: number,
   seed: number,
-  cellLatLons: Array<{ lat: number; lon: number }>,
-  seaLevel: number = 0 // meters - elevation above which is land
+  cellLatLons: Array<{ lat: number; lon: number }>
 ): TerrainConfig {
   const elevation = new Float32Array(cellCount)
-  const waterDepth = new Float32Array(cellCount)
-  const salinity = new Float32Array(cellCount)
-  const baseAlbedo = new Float32Array(cellCount)
 
   // Perlin-like noise using value noise interpolation
   const perlin = (x: number, y: number): number => {
@@ -123,27 +96,9 @@ export function createSimpleProcedural(
 
     // Map height [-1, 1] to actual elevation range
     elevation[i] = minElevation + ((heightNorm + 1) / 2) * (maxElevation - minElevation)
-
-    // Calculate water depth as difference between sea level and ground elevation
-    const depth = seaLevel - elevation[i]
-    waterDepth[i] = Math.max(0, depth)
-
-    // Set albedo and salinity based on whether it's water or land
-    if (waterDepth[i] > 0) {
-      // Ocean or water body
-      salinity[i] = 35 // Standard ocean salinity
-      baseAlbedo[i] = 0.06 // Water albedo
-    } else {
-      // Land - default airless body albedo
-      salinity[i] = 0 // No salt on land
-      baseAlbedo[i] = 0.1 // Typical albedo of airless world (Moon, Mercury)
-    }
   }
 
   return {
     elevation: Array.from(elevation),
-    waterDepth: Array.from(waterDepth),
-    salinity: Array.from(salinity),
-    baseAlbedo: Array.from(baseAlbedo),
   }
 }

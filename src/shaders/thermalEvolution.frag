@@ -8,8 +8,9 @@ uniform sampler2D cellPositions;       // Cell lat/lon positions
 uniform sampler2D neighbourIndices1;   // Neighbours 0,1,2
 uniform sampler2D neighbourIndices2;   // Neighbours 3,4,5
 uniform sampler2D neighbourCounts;     // Number of neighbours (5 or 6)
-uniform sampler2D terrainData;         // Terrain data [elevation, waterDepth, salinity, baseAlbedo]
-uniform sampler2D hydrologyData;       // Hydrology data [iceThickness, waterThermalMass, reserved, reserved]
+uniform sampler2D terrainData;         // Terrain data [elevation, reserved, reserved, reserved]
+uniform sampler2D hydrologyData;       // Hydrology data [iceThickness, waterThermalMass, waterDepth, reserved]
+uniform sampler2D surfaceData;         // Surface data [effectiveAlbedo, reserved, reserved, reserved]
 
 // Physical constants
 const float STEFAN_BOLTZMANN = 5.670374419e-8; // W/(m²·K⁴)
@@ -94,12 +95,9 @@ void main() {
   // Read cell position
   vec2 cellLatLon = texture2D(cellPositions, vUv).rg; // [lat, lon] in degrees
 
-  // Read terrain data
+  // Read terrain data (elevation only - other properties stored in hydrology/surface layers)
   vec4 terrain = texture2D(terrainData, vUv);
   float elevation = terrain.r;        // meters (signed)
-  float waterDepth = terrain.g;       // meters (unsigned, 0 = land)
-  float salinity = terrain.b;         // PSU (0-50)
-  float baseAlbedo = terrain.a;       // 0-1, terrain reflectivity
 
   // Calculate subsolar point based on orbital position and axial tilt
   float subsolarLat = calculateSubsolarLatitude(baseSubsolarPoint.x, axialTilt, yearProgress);
@@ -108,31 +106,19 @@ void main() {
   // Calculate incoming solar flux
   float Q_solar = calculateSolarFlux(cellLatLon.x, cellLatLon.y, subsolarPoint);
 
-  // Read hydrology state early to compute dynamic albedo
+  // Read hydrology state for heat capacity calculations
   vec4 hydro = texture2D(hydrologyData, vUv);
   float iceThickness = hydro.r;           // meters
   float waterThermalMass = hydro.g;       // 0-1 normalized indicator
+  float waterDepth = hydro.b;             // meters (dynamic, evolves with evaporation)
 
-  // Determine actual surface albedo based on phase state
-  // Ice and water have much higher albedo than rock
-  float hasWater = step(0.01, waterDepth);  // 1.0 if waterDepth > 0.01m
-  float hasIce = step(0.01, iceThickness);   // 1.0 if iceThickness > 0.01m
+  // Determine phase state (needed for heat capacity selection)
+  float hasWater = step(0.01, waterDepth);      // 1.0 if waterDepth > 0.01m
+  float hasIce = step(0.01, iceThickness);       // 1.0 if iceThickness > 0.01m
 
-  // Albedo values (realistic):
-  // - Rock/land: baseAlbedo (typically 0.1-0.3)
-  // - Water (liquid): 0.06-0.10 (low, most light absorbed)
-  // - Ice/snow: 0.6-0.9 (very high, most light reflected)
-  float effectiveAlbedo = baseAlbedo;
-
-  if (hasWater > 0.5) {
-    if (hasIce > 0.5) {
-      // Ice-covered water: high albedo (freshly frozen sea ice is 0.6-0.7)
-      effectiveAlbedo = 0.65;
-    } else {
-      // Liquid water: low albedo (0.06)
-      effectiveAlbedo = 0.06;
-    }
-  }
+  // Read surface properties (effective albedo computed by surface layer)
+  vec4 surface = texture2D(surfaceData, vUv);
+  float effectiveAlbedo = surface.r;      // 0-1, albedo from surface layer shader
 
   // Account for per-cell albedo (fraction of light reflected)
   Q_solar = Q_solar * (1.0 - effectiveAlbedo);
@@ -186,28 +172,26 @@ void main() {
 
   // Determine effective heat capacity based on phase state (hydrology already read above)
   // Three cases:
-  // 1. Rock/land: C = surfaceHeatCapacity (2.16e6 J/(m²·K))
-  // 2. Liquid water: C = 4186 * 1000 * waterDepth (very high, ~1.67e10 for 4km ocean)
-  // 3. Ice: C = 2100 * 917 * iceThickness (intermediate, ~1.93e6 per meter)
+  // 1. Rock/land: C = surfaceHeatCapacity (2.16e6 J/(m²·K)) - represents ~100-150m crust
+  // 2. Liquid water: C = 4186 * 1000 * min(waterDepth, 150m) - capped at crust depth
+  // 3. Ice: C = 2100 * 917 * min(iceThickness, 150m) - capped at crust depth
+  // This prevents unrealistic heat capacities from very deep water while still providing thermal inertia
+
+  const float CRUST_DEPTH = 150.0;  // meters - approximate depth of thermal crust being simulated
 
   // Heat capacities for different phases
-  float C_rock = surfaceHeatCapacity;                          // Rock: 2.16e6
-  float C_water = 4186.0 * 1000.0 * waterDepth;              // Liquid water: very high
-  float C_ice = 2100.0 * 917.0 * iceThickness;               // Ice: intermediate
+  float C_rock = surfaceHeatCapacity;                                    // Rock: 2.16e6
+  float C_water = 4186.0 * 1000.0 * min(waterDepth, CRUST_DEPTH);     // Liquid water: capped at crust depth
+  float C_ice = 2100.0 * 917.0 * min(iceThickness, CRUST_DEPTH);      // Ice: capped at crust depth
 
-  // Select heat capacity based on current phase
+  // Select heat capacity based on current phase (branch-free)
+  // Default to rock, blend to water or ice based on presence
+  float hasIce_factor = hasIce * hasWater;  // Only true if both water and ice present
+  float hasLiquidWater_factor = (1.0 - hasIce) * hasWater;  // Only true if water present but not ice
+
   float effectiveHeatCapacity = C_rock;
-
-  if (hasWater > 0.5) {
-    // Water is present, check if frozen or liquid
-    if (hasIce > 0.5) {
-      // Ice layer present: use ice heat capacity
-      effectiveHeatCapacity = C_ice;
-    } else {
-      // Liquid water: use liquid heat capacity
-      effectiveHeatCapacity = C_water;
-    }
-  }
+  effectiveHeatCapacity = mix(effectiveHeatCapacity, C_ice, hasIce_factor);
+  effectiveHeatCapacity = mix(effectiveHeatCapacity, C_water, hasLiquidWater_factor);
 
   // Temperature change: dT/dt = dQ / C
   // Where C is heat capacity per unit area [J/(m²·K)]
