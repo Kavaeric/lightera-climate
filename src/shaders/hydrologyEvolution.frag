@@ -38,78 +38,58 @@ void main() {
   // T_freeze = 273.15 - 0.054 * salinity (degrees K depression per PSU)
   float freezingPoint = WATER_FREEZE_POINT - 0.054 * salinity;
 
-  // Determine if water is present (from terrain)
-  float hasWater = step(0.01, waterDepth);  // 1.0 if waterDepth > 0.01m
-
-  // ===== ICE DYNAMICS =====
+  // ===== ICE DYNAMICS (Branch-free) =====
   // Based on Stefan's problem: ice growth/melting driven by temperature difference
   // from freezing point, limited by latent heat and thermal conductivity
+  // Uses smooth step and mix operations to avoid GPU branch divergence
 
-  float newIceThickness = iceThickness;
-  float newWaterThermalMass = waterThermalMass;
+  float tempDifference = freezingPoint - T;  // Positive when below freezing, negative when above
 
-  if (hasWater > 0.5) {
-    // Water is present at this location
-    float tempDifference = freezingPoint - T;  // Positive when below freezing, negative when above
+  // Compute freezing rate (when tempDifference > 0.1)
+  float normalizedFreezeDiff = clamp(tempDifference / 20.0, 0.0, 1.0);
+  float insulationFactor = exp(-iceThickness / 5.0);  // 5m e-folding depth
+  float freezeRate = MAX_FREEZE_RATE * normalizedFreezeDiff * insulationFactor;
 
-    if (tempDifference > 0.1) {
-      // FREEZING: Temperature below freezing point
-      // Ice growth rate scales with how far below freezing we are
-      // Rate increases with temperature difference (colder = faster freezing)
-      // Rate decreases with existing ice thickness (insulation effect)
+  // Smooth transition into freezing (threshold at 0.1K)
+  float freezingWeight = smoothstep(-0.05, 0.15, tempDifference);
 
-      // Normalized temperature difference (0 to 1): how far below freezing, capped at 20K
-      float normalizedTempDiff = min(tempDifference / 20.0, 1.0);
+  // Compute melting rate (when tempDifference < -0.1)
+  float normalizedMeltDiff = clamp(-tempDifference / 10.0, 0.0, 1.0);
+  float meltRate = MAX_MELT_RATE * normalizedMeltDiff;
 
-      // Insulation factor: thicker ice slows freezing (exponential decay)
-      float insulationFactor = exp(-iceThickness / 5.0);  // 5m e-folding depth
+  // Smooth transition into melting (threshold at -0.1K)
+  float meltingWeight = smoothstep(0.15, -0.05, tempDifference);
 
-      // Physical freezing rate from Stefan's problem:
-      // dh/dt = k * dT / (L * rho_ice)
-      // Simplified: rate proportional to temperature difference and insulation
-      float freezeRate = MAX_FREEZE_RATE * normalizedTempDiff * insulationFactor;
+  // Compute sublimation rate (when T < ICE_SUBLIMATION_TEMP)
+  float sublimationWeight = step(T, ICE_SUBLIMATION_TEMP);
+  float sublimationRate = 0.01 * sublimationWeight;
 
-      newIceThickness = iceThickness + freezeRate;
-      newWaterThermalMass = 0.0;  // When freezing occurs, water is becoming ice
+  // Apply phase changes based on weights
+  // Freezing grows ice and reduces thermal mass
+  float iceDeltaFreeze = freezeRate * freezingWeight;
+  float thermalMassFreeze = mix(waterThermalMass, 0.0, freezingWeight);
 
-    } else if (tempDifference < -0.1) {
-      // MELTING: Temperature above freezing point
-      // Ice melting rate scales with how far above freezing we are
+  // Melting shrinks ice and increases thermal mass
+  float iceDeltaMelt = -meltRate * meltingWeight;
+  float thermalMassMelt = mix(thermalMassFreeze, 1.0, meltingWeight * step(0.01, iceThickness + iceDeltaFreeze + iceDeltaMelt));
 
-      // Normalized temperature difference (0 to 1): how far above freezing, capped at 10K
-      float normalizedTempDiff = min(-tempDifference / 10.0, 1.0);
+  // Sublimation (lowest priority, only at extreme cold)
+  float iceDeltaSublime = -sublimationRate;
 
-      // Melting rate increases with warmer temperatures
-      float meltRate = MAX_MELT_RATE * normalizedTempDiff;
+  // Combine all phase change rates (freezing takes precedence when both active)
+  float iceDelta = mix(iceDeltaMelt + iceDeltaSublime, iceDeltaFreeze, freezingWeight);
+  float newIceThickness = max(0.0, iceThickness + iceDelta);
 
-      newIceThickness = max(0.0, iceThickness - meltRate);
+  // Reset if no water present (land/rock) - water ablates ice
+  float hasWater = step(0.01, waterDepth);
+  newIceThickness *= hasWater;
 
-      // Return to liquid water when no ice remains
-      if (newIceThickness < 0.01) {
-        newIceThickness = 0.0;
-        newWaterThermalMass = 1.0;  // Back to liquid
-      }
+  // Thermal mass transitions
+  float newWaterThermalMass = mix(0.0, thermalMassMelt, hasWater);
 
-    } else if (T < ICE_SUBLIMATION_TEMP && iceThickness > 0.01) {
-      // SUBLIMATION: Very low temperatures (airless worlds)
-      // Ice directly converts to vapor at extremely cold temps
-      float sublimationRate = 0.01;  // Very slow, only at extreme cold
-      newIceThickness = max(0.0, iceThickness - sublimationRate);
-
-      if (newIceThickness < 0.01) {
-        newIceThickness = 0.0;
-        newWaterThermalMass = 0.0;  // Ice sublimated to vapor
-      }
-    }
-    // else: temperature near freezing with existing ice -> no change
-
-  } else {
-    // No water present at this location (land/rock)
-    // Ice can't form without water
-    // Any existing ice would sublimate away
-    newIceThickness = 0.0;
-    newWaterThermalMass = 0.0;
-  }
+  // When ice completely melts, return to liquid water
+  float hasIceNow = step(0.01, newIceThickness);
+  newWaterThermalMass = mix(1.0, newWaterThermalMass, hasIceNow);
 
   // Clamp values to valid ranges
   newIceThickness = clamp(newIceThickness, 0.0, 10000.0);
