@@ -106,7 +106,13 @@ void main() {
   // Compute evaporation rate (proportional to temperature above boiling point)
   // Normalize aggressively: 0K above boiling = 0% rate, 10K above = 100% rate
   float normalizedEvapDiff = clamp(waterBoilDifference / 10.0, 0.0, 1.0);
-  float evaporationRate = MAX_EVAPORATION_RATE * normalizedEvapDiff;
+
+  // Salty water evaporates slower than fresh water
+  // 0 PSU (fresh): 100% evaporation rate
+  // 35 PSU (ocean): ~65% evaporation rate
+  // 100+ PSU (hypersaline): ~0% evaporation rate
+  float salinityReductionFactor = 1.0 - (salinity / 100.0);
+  float evaporationRate = MAX_EVAPORATION_RATE * normalizedEvapDiff * salinityReductionFactor;
 
   // Smooth transition into evaporation (threshold at boiling point)
   // Smoothly ramp from 0 at -1K to 1 at +1K relative to boiling point
@@ -143,7 +149,12 @@ void main() {
   newWaterThermalMass = clamp(newWaterThermalMass, 0.0, 1.0);
   newWaterDepth = clamp(newWaterDepth, 0.0, 10000.0);
 
+  // Clear salinity if no water or ice present
+  // Salinity is tied to water, so when all water/ice is gone, reset to 0 for fresh water accumulation
+  float hasWaterOrIce = step(0.01, newWaterDepth + newIceThickness);
+  float newSalinity = mix(0.0, salinity, hasWaterOrIce);
+
   // Output new hydrology state
   // RGBA = [iceThickness, waterThermalMass, waterDepth, salinity]
-  gl_FragColor = vec4(newIceThickness, newWaterThermalMass, newWaterDepth, salinity);
+  gl_FragColor = vec4(newIceThickness, newWaterThermalMass, newWaterDepth, newSalinity);
 }
