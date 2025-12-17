@@ -121,7 +121,8 @@ function AppContent() {
   const [pendingPlanetConfig, setPendingPlanetConfig] = useState<PlanetConfig>(DEFAULT_PLANET_CONFIG)
   const [pendingSimulationConfig, setPendingSimulationConfig] = useState<SimulationConfig>(DEFAULT_SIMULATION_CONFIG)
   const [displayConfig, setDisplayConfig] = useState<DisplayConfig>(DEFAULT_DISPLAY_CONFIG)
-  const [seaLevel, setSeaLevel] = useState(0)
+  const [seaLevel] = useState(0)
+  // const [seaLevel, setSeaLevel] = useState(0)
   const [stepsPerFrame, setStepsPerFrame] = useState(500)
 
   // UI state
