@@ -13,11 +13,12 @@ import {
   COLOURMAP_WATERDEPTH,
   COLOURMAP_SALINITY,
   COLOURMAP_ICE,
+  COLOURMAP_ALBEDO,
 } from './colourmaps'
 import type { DisplayConfig } from './displayConfig'
 
 export interface VisualisationMode {
-  id: 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness'
+  id: 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo'
   name: string
   // Get the texture source for this visualisation
   getTextureSource: (simulation: TextureGridSimulation) => THREE.Texture
@@ -95,6 +96,19 @@ export const VISUALISATION_ICE_THICKNESS: VisualisationMode = {
 }
 
 /**
+ * Albedo visualisation mode
+ * Shows effective surface albedo computed from surface properties (rock/water/ice)
+ */
+export const VISUALISATION_ALBEDO: VisualisationMode = {
+  id: 'albedo',
+  name: 'Albedo (greyscale)',
+  getTextureSource: (simulation) => simulation.getSurfaceDataCurrent().texture,
+  dataChannel: 0, // Effective albedo in red channel
+  colourmap: COLOURMAP_ALBEDO,
+  getRange: (displayConfig) => displayConfig.albedoRange,
+}
+
+/**
  * Registry of all available visualisation modes
  * Maps mode ID to VisualisationMode configuration
  */
@@ -104,13 +118,14 @@ export const VISUALISATION_MODES: Record<string, VisualisationMode> = {
   waterDepth: VISUALISATION_WATER_DEPTH,
   salinity: VISUALISATION_SALINITY,
   iceThickness: VISUALISATION_ICE_THICKNESS,
+  albedo: VISUALISATION_ALBEDO,
 }
 
 /**
  * Get a visualisation mode by ID
  */
 export function getVisualisationMode(
-  id: 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness'
+  id: 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo'
 ): VisualisationMode {
   return VISUALISATION_MODES[id]
 }

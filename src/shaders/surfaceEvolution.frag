@@ -16,16 +16,17 @@ void main() {
   // Ice and water have much higher albedo than rock
   float hasWater = step(0.01, waterDepth);      // 1.0 if water present
   float hasIce = step(0.01, iceThickness);       // 1.0 if ice present
+  float hasWaterOrIce = max(hasWater, hasIce);   // 1.0 if water OR ice present
 
   // Albedo transitions:
-  // - No water: 0.2 (average rock/dirt)
+  // - No water/ice: 0.2 (average rock/dirt)
   // - Liquid water: 0.06 (absorbs most radiation)
-  // - Ice-covered water: 0.65 (reflects most radiation)
+  // - Ice-covered water or ice on land: 0.65 (reflects most radiation)
   float albedoRock = 0.2;
   float albedoWater = 0.06;
   float albedoIce = 0.65;
   float albedoWaterOrIce = mix(albedoWater, albedoIce, hasIce);
-  float effectiveAlbedo = mix(albedoRock, albedoWaterOrIce, hasWater);
+  float effectiveAlbedo = mix(albedoRock, albedoWaterOrIce, hasWaterOrIce);
 
   // Output surface properties
   // RGBA = [effectiveAlbedo, reserved, reserved, reserved]

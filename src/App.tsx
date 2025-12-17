@@ -358,7 +358,7 @@ function AppContent() {
               onChange={(e) => {
                 setDisplayConfig({
                   ...displayConfig,
-                  visualisationMode: e.target.value as 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness',
+                  visualisationMode: e.target.value as 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo',
                 })
               }}
             >
@@ -367,6 +367,7 @@ function AppContent() {
               <option value="waterDepth">Water depth</option>
               <option value="salinity">Salinity (greyscale)</option>
               <option value="iceThickness">Ice thickness</option>
+              <option value="albedo">Albedo (greyscale)</option>
             </select>
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
