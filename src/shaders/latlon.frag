@@ -1,7 +1,7 @@
 // Fragment shader for latitude/longitude grid lines
 // Reduces opacity for back-facing segments
 
-uniform vec3 color;
+uniform vec3 colour;
 uniform float opacity;
 uniform float backFaceOpacity;
 
@@ -19,6 +19,6 @@ void main() {
   // Use full opacity for front-facing, reduced opacity for back-facing
   float finalOpacity = facing > 0.0 ? opacity : opacity * backFaceOpacity;
   
-  gl_FragColor = vec4(color, finalOpacity);
+  gl_FragColor = vec4(colour, finalOpacity);
 }
 

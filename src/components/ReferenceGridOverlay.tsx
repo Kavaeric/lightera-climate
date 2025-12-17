@@ -7,7 +7,7 @@ interface ReferenceGridOverlayProps {
   radius?: number
   latitudeLines?: number  // Number of latitude lines (excluding equator)
   longitudeLines?: number // Number of longitude lines
-  color?: string
+  colour?: string
   visible?: boolean
   segments?: number
   frontOpacity?: number
@@ -22,7 +22,7 @@ export function ReferenceGridOverlay({
   radius = 1.0, // Same radius as sphere
   latitudeLines = 8, // Every 10 degrees
   longitudeLines = 24, // Every 15 degrees
-  color = '#ffffff',
+  colour = '#ffffff',
   visible = true,
   segments = 32,
   frontOpacity = 0.5,
@@ -109,12 +109,12 @@ export function ReferenceGridOverlay({
   }, [radius, latitudeLines, longitudeLines, segments])
 
   const material = useMemo(() => {
-    const colorVec = new THREE.Color(color)
+    const colourVec = new THREE.Color(colour)
     return new THREE.ShaderMaterial({
       vertexShader: latlonVertexShader,
       fragmentShader: latlonFragmentShader,
       uniforms: {
-        color: { value: new THREE.Vector3(colorVec.r, colorVec.g, colorVec.b) },
+        colour: { value: new THREE.Vector3(colourVec.r, colourVec.g, colourVec.b) },
         opacity: { value: frontOpacity },
         backFaceOpacity: { value: backOpacity },
         // cameraPosition is automatically provided by Three.js, no need to declare it
@@ -125,7 +125,7 @@ export function ReferenceGridOverlay({
       // linewidth is not supported by ShaderMaterial
       // Line width control would require geometry-based approach (expanding lines to quads)
     })
-  }, [color, frontOpacity, backOpacity])
+  }, [colour, frontOpacity, backOpacity])
 
   if (!visible) return null
 

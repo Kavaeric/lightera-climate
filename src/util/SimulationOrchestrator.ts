@@ -48,6 +48,7 @@ export class SimulationOrchestrator {
   private orbitIdx: number = 0
   private physicsStep: number = 0
   private controlState: ControlState = 'idle'
+  private pendingSteps: number = 0
 
   private milestoneCallbacks: ((milestone: Milestone) => void)[] = []
 
@@ -102,35 +103,84 @@ export class SimulationOrchestrator {
   }
 
   /**
-   * Execute a single physics step (for manual stepping)
-   * Returns true if a step was executed, false if simulation is complete
+   * Request a single physics step (for manual stepping)
+   * The step will be executed on the next render cycle
+   * Returns true if the step was queued, false if simulation is complete
    */
   stepOnce(): boolean {
     if (this.controlState === 'completed') {
       return false
     }
-
-    // Advance one physics step
-    this.physicsStep++
-
-    // Check if we've completed an orbit
-    if (this.physicsStep >= this.config.stepsPerOrbit) {
-      this.physicsStep = 0
-      this.orbitIdx++
-
-      // Emit orbit completion milestone
-      this.emitMilestone({
-        type: 'orbit_complete',
-        orbitIdx: this.orbitIdx,
-        physicsStep: this.physicsStep,
-      })
-    }
-
+    this.pendingSteps++
     return true
   }
 
   /**
+   * Request multiple physics steps
+   * The steps will be executed on the next render cycle
+   * Returns the number of steps queued
+   */
+  requestSteps(numSteps: number): number {
+    if (this.controlState === 'completed' || numSteps <= 0) {
+      return 0
+    }
+    this.pendingSteps += numSteps
+    return numSteps
+  }
+
+  /**
+   * Execute any pending steps that were requested via stepOnce() or requestSteps()
+   * This should be called from the render loop after rendering
+   * Returns the number of steps actually executed
+   */
+  executePendingSteps(): number {
+    if (this.pendingSteps === 0) {
+      return 0
+    }
+    const stepsToExecute = this.pendingSteps
+    this.pendingSteps = 0
+    return this.step(stepsToExecute)
+  }
+
+  /**
+   * Execute an arbitrary number of physics steps
+   * Can be called regardless of control state (unlike executeSteps which requires running)
+   * Returns the number of steps actually executed
+   */
+  step(numSteps: number): number {
+    if (this.controlState === 'completed' || numSteps <= 0) {
+      return 0
+    }
+
+    let executed = 0
+    for (let i = 0; i < numSteps; i++) {
+      // Advance one physics step
+      this.physicsStep++
+
+      // Check if we've completed an orbit
+      if (this.physicsStep >= this.config.stepsPerOrbit) {
+        this.physicsStep = 0
+        this.orbitIdx++
+
+        // Emit orbit completion milestone
+        this.emitMilestone({
+          type: 'orbit_complete',
+          orbitIdx: this.orbitIdx,
+          physicsStep: this.physicsStep,
+        })
+      }
+
+      // Advance executor state after tracking the step
+      this.executor.step()
+      executed++
+    }
+
+    return executed
+  }
+
+  /**
    * Execute multiple physics steps (for continuous running)
+   * Only works when control state is 'running'
    * Returns the number of steps actually executed
    */
   executeSteps(numSteps: number): number {
@@ -138,15 +188,7 @@ export class SimulationOrchestrator {
       return 0
     }
 
-    let executed = 0
-    for (let i = 0; i < numSteps; i++) {
-      if (!this.stepOnce()) {
-        break
-      }
-      executed++
-    }
-
-    return executed
+    return this.step(numSteps)
   }
 
   /**
@@ -156,7 +198,15 @@ export class SimulationOrchestrator {
     this.orbitIdx = 0
     this.physicsStep = 0
     this.controlState = 'idle'
+    this.pendingSteps = 0
     this.executor.reset()
+  }
+
+  /**
+   * Get the number of pending steps
+   */
+  getPendingSteps(): number {
+    return this.pendingSteps
   }
 
   /**

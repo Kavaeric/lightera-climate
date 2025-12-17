@@ -12,9 +12,10 @@ import { ClimateDataChart } from './components/ClimateDataChart'
 import { DEFAULT_PLANET_CONFIG, type PlanetConfig } from './config/planetConfig'
 import { DEFAULT_SIMULATION_CONFIG, type SimulationConfig } from './config/simulationConfig'
 import { DEFAULT_DISPLAY_CONFIG, type DisplayConfig } from './config/displayConfig'
-import { SimulationProvider, useSimulation } from './context/SimulationContext'
+import { SimulationProvider } from './context/SimulationContext'
+import { useSimulation } from './context/useSimulation'
 import { TerrainDataLoader } from './util/TerrainDataLoader'
-import { HydrologyInitializer } from './util/HydrologyInitializer'
+import { HydrologyInitialiser } from './util/HydrologyInitialiser'
 
 interface SceneProps {
   simulation: TextureGridSimulation
@@ -72,6 +73,7 @@ function Scene({ simulation, displayConfig, showLatLonGrid, hoveredCell, selecte
       {/* Lat/Lon grid overlay */}
       <ReferenceGridOverlay
         segments={displayConfig.gridSegments}
+        colour={displayConfig.gridColour}
         visible={showLatLonGrid}
         latitudeLines={displayConfig.latitudeLines}
         longitudeLines={displayConfig.longitudeLines}
@@ -133,7 +135,40 @@ function AppContent() {
   const [climateData, setClimateData] = useState<Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number }>>([])
 
   // Get active config and simulation state from context
-  const { activeSimulationConfig, simulationKey, simulationStatus, isRunning, newSimulation, play, pause, stepOnce } = useSimulation()
+  const { activeSimulationConfig, simulationKey, isRunning, newSimulation, play, pause, stepOnce, getOrchestrator } = useSimulation()
+
+  // Track simulation progress from orchestrator
+  const [simulationProgress, setSimulationProgress] = useState<{ orbitIdx: number; physicsStep: number } | null>(null)
+
+  // Poll orchestrator for progress updates
+  useEffect(() => {
+    let mounted = true
+
+    const updateProgress = () => {
+      if (!mounted) return
+      const orchestrator = getOrchestrator()
+      if (orchestrator) {
+        const progress = orchestrator.getProgress()
+        setSimulationProgress({
+          orbitIdx: progress.orbitIdx,
+          physicsStep: progress.physicsStep,
+        })
+      } else {
+        setSimulationProgress(null)
+      }
+    }
+
+    // Initial update
+    updateProgress()
+
+    // Update progress periodically - polling external system (orchestrator)
+    const intervalId = setInterval(updateProgress, 17) // Update every 17ms (60fps)
+
+    return () => {
+      mounted = false
+      clearInterval(intervalId)
+    }
+  }, [getOrchestrator, simulationKey, isRunning])
 
   // Create climate simulation - recreate only when activeSimulationConfig changes (i.e., on button click)
   const simulation = useMemo(() => {
@@ -146,7 +181,7 @@ function AppContent() {
 
     // Generate random terrain
     const terrainLoader = new TerrainDataLoader()
-    const hydrologyInit = new HydrologyInitializer()
+    const hydrologyInit = new HydrologyInitialiser()
 
     // Use simulationKey as seed for reproducible randomness
     const seed = simulationKey
@@ -162,8 +197,8 @@ function AppContent() {
     const terrain = terrainLoader.generateProcedural(cellCount, cellLatLons, seed)
     simulation.setTerrainData(terrain)
 
-    // Initialize hydrology from elevation (creates oceans below sea level)
-    const hydrology = hydrologyInit.initializeFromElevation(terrain.elevation, seaLevel)
+    // Initialise hydrology from elevation (creates oceans below sea level)
+    const hydrology = hydrologyInit.initialiseFromElevation(terrain.elevation, seaLevel)
     simulation.setHydrologyData(hydrology.waterDepth, hydrology.salinity, hydrology.iceThickness)
 
     console.log(`Generated new terrain with seed ${seed}, sea level ${seaLevel}m`)
@@ -339,7 +374,7 @@ function AppContent() {
             <button onClick={pause} disabled={!isRunning}>
               Pause
             </button>
-            <button onClick={stepOnce}>
+            <button onClick={stepOnce} disabled={isRunning}>
               Step once
             </button>
           </div>
@@ -347,7 +382,18 @@ function AppContent() {
         <hr style={{ margin: '8px 0', border: 'none', borderTop: '1px solid rgba(255,255,255,0.3)' }} />
         <section style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <h2>Status</h2>
-          <span>{simulationStatus}</span>
+          <span>{isRunning ? 'Running' : 'Paused'}</span>
+          {simulationProgress !== null ? (
+            <>
+              <span>Orbit {simulationProgress.orbitIdx}</span>
+              <span>Physics step {simulationProgress.physicsStep} of {activeSimulationConfig.stepsPerOrbit}</span>
+            </>
+          ) : (
+            <>
+              <span>Orbit -</span>
+              <span>Physics step - of {activeSimulationConfig.stepsPerOrbit}</span>
+            </>
+          )}
         </section>
         <hr style={{ margin: '8px 0', border: 'none', borderTop: '1px solid rgba(255,255,255,0.3)' }} />
         <section style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

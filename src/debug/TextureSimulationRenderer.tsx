@@ -27,9 +27,9 @@ export function TextureSimulationRenderer({
     new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
   )
   const materialRef = useRef<THREE.ShaderMaterial | null>(null)
-  const initializedRef = useRef(false)
+  const initialisedRef = useRef(false)
 
-  // Initialize the render-to-texture setup
+  // Initialise the render-to-texture setup
   useEffect(() => {
     const scene = sceneRef.current
 
@@ -56,7 +56,7 @@ export function TextureSimulationRenderer({
     const mesh = new THREE.Mesh(geometry, material)
     scene.add(mesh)
 
-    // Initialize render target with copy of initial state texture
+    // Initialise render target with copy of initial state texture
     const copyMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: copyFragmentShader,
@@ -78,7 +78,7 @@ export function TextureSimulationRenderer({
     copyMaterial.dispose()
     tempScene.clear()
 
-    initializedRef.current = true
+    initialisedRef.current = true
 
     return () => {
       geometry.dispose()
@@ -93,7 +93,7 @@ export function TextureSimulationRenderer({
 
   // Run simulation step with fixed timestep
   useFrame((_state, delta) => {
-    if (!initializedRef.current || !materialRef.current) return
+    if (!initialisedRef.current || !materialRef.current) return
 
     const material = materialRef.current
     const scene = sceneRef.current

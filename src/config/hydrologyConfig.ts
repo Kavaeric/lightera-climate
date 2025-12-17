@@ -45,7 +45,7 @@ export function createDefaultHydrology(cellCount: number): HydrologyConfig {
  * Initialise hydrology texture data for GPU
  * Called by TextureGridSimulation to create initial hydrology render target
  */
-export function initializeHydrologyData(
+export function initialiseHydrologyData(
   cellCount: number,
   waterDepth: number[]
 ): { iceThickness: Float32Array; waterThermalMass: Float32Array } {

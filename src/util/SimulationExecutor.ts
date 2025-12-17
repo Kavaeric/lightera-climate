@@ -146,8 +146,5 @@ export class SimulationExecutor {
     gl.setRenderTarget(null)
 
     simulation.swapClimateBuffers()
-
-    // Advance executor state
-    this.step()
   }
 }

@@ -107,7 +107,7 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
   }, [simulation, displayConfig])
 
   // Update texture uniform every frame to handle buffer swaps
-  // This ensures the visualization always shows the most recent simulation state
+  // This ensures the visualisation always shows the most recent simulation state
   useFrame(() => {
     if (material && material.uniforms.dataTex) {
       const mode = getVisualisationMode(displayConfig.visualisationMode)

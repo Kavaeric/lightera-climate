@@ -5,7 +5,7 @@ import { TextureGridSimulation } from '../util/TextureGridSimulation'
 import { SimulationOrchestrator } from '../util/SimulationOrchestrator'
 import type { PlanetConfig } from '../config/planetConfig'
 import type { SimulationConfig } from '../config/simulationConfig'
-import { useSimulation } from '../context/SimulationContext'
+import { useSimulation } from '../context/useSimulation'
 
 // Import shaders
 import fullscreenVertexShader from '../shaders/fullscreen.vert?raw'
@@ -45,11 +45,8 @@ export function ClimateSimulationEngine({
 }: ClimateSimulationEngineProps) {
   const { gl } = useThree()
   const {
-    setSimulationStatus,
     simulationKey,
-    isRunning,
-    shouldStepOnce,
-    clearStepOnce,
+    registerOrchestrator,
   } = useSimulation()
 
   const orchestratorRef = useRef<SimulationOrchestrator | null>(null)
@@ -73,9 +70,9 @@ export function ClimateSimulationEngine({
   const { stepsPerOrbit } = simulationConfig
   const thermalConductivity = groundConductivity
 
-  // Initialize GPU resources and orchestrator once per simulationKey
+  // Initialise GPU resources and orchestrator once per simulationKey
   useEffect(() => {
-    console.log('ClimateSimulationEngine: Initializing...')
+    console.log('ClimateSimulationEngine: Initialising...')
     console.log(`  Solar flux: ${solarFlux} W/m²`)
     console.log(`  Albedo: ${albedo}`)
     console.log(`  Steps per orbit: ${stepsPerOrbit}`)
@@ -173,14 +170,14 @@ export function ClimateSimulationEngine({
     mesh.frustumCulled = false
     scene.add(mesh)
 
-    // Initialize first climate target
+    // Initialise first climate target
     const firstTarget = simulation.getClimateDataCurrent()
     gl.setRenderTarget(firstTarget)
     gl.clear()
     gl.render(scene, camera)
     gl.setRenderTarget(null)
 
-    // Initialize hydrology render targets
+    // Initialise hydrology render targets
     const hydrologyInitMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: `
@@ -203,7 +200,7 @@ export function ClimateSimulationEngine({
     gl.setRenderTarget(null)
     hydrologyInitMaterial.dispose()
 
-    // Initialize surface data
+    // Initialise surface data
     const surfaceFirstTarget = simulation.getSurfaceDataNext()
     surfaceMaterial.uniforms.terrainData.value = simulation.terrainData
     surfaceMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture
@@ -244,15 +241,15 @@ export function ClimateSimulationEngine({
       if (milestone.type === 'orbit_complete') {
         const statusMsg = `Orbit ${milestone.orbitIdx}, Step ${milestone.physicsStep}/${stepsPerOrbit}`
         console.log(`  ${statusMsg}`)
-        setSimulationStatus(statusMsg)
       }
     })
 
     orchestratorRef.current = orchestrator
-    setSimulationStatus('Ready')
+    registerOrchestrator(orchestrator)
 
     // Cleanup
     return () => {
+      registerOrchestrator(null)
       if (gpuResourcesRef.current) {
         gpuResourcesRef.current.geometry.dispose()
         gpuResourcesRef.current.hydrologyMaterial.dispose()
@@ -269,9 +266,9 @@ export function ClimateSimulationEngine({
     simulation,
     planetConfig,
     simulationConfig,
-    setSimulationStatus,
     simulationKey,
     onSolveComplete,
+    registerOrchestrator,
     solarFlux,
     albedo,
     stepsPerOrbit,
@@ -296,25 +293,23 @@ export function ClimateSimulationEngine({
     let animationFrameId: number
 
     const simulationLoop = () => {
-      // Handle step once
-      if (shouldStepOnce) {
-        clearStepOnce()
-        const executor = orchestrator.getExecutor()
-        executor.renderStep(gl, simulation, gpuResources, gpuResources.mesh, gpuResources.scene, gpuResources.camera)
-        orchestrator.stepOnce()
+      const executor = orchestrator.getExecutor()
+      const progress = orchestrator.getProgress()
 
-        const progress = orchestrator.getProgress()
-        setSimulationStatus(`Orbit ${progress.orbitIdx}, Step ${progress.physicsStep}/${stepsPerOrbit}`)
+      // Handle pending steps (requested via stepOnce() or step())
+      const pendingSteps = orchestrator.getPendingSteps()
+      if (pendingSteps > 0) {
+        // Render first, then execute the pending steps
+        executor.renderStep(gl, simulation, gpuResources, gpuResources.mesh, gpuResources.scene, gpuResources.camera)
+        orchestrator.executePendingSteps()
       }
 
       // Handle continuous running
-      if (isRunning) {
+      if (progress.controlState === 'running') {
         // Execute multiple steps per frame for performance
-        const executor = orchestrator.getExecutor()
-
         for (let i = 0; i < stepsPerFrame; i++) {
           executor.renderStep(gl, simulation, gpuResources, gpuResources.mesh, gpuResources.scene, gpuResources.camera)
-          orchestrator.stepOnce()
+          orchestrator.step(1)
         }
       }
 
@@ -332,7 +327,7 @@ export function ClimateSimulationEngine({
     return () => {
       cancelAnimationFrame(animationFrameId)
     }
-  }, [gl, simulation, isRunning, shouldStepOnce, clearStepOnce, setSimulationStatus, stepsPerOrbit, stepsPerFrame])
+  }, [gl, simulation, registerOrchestrator, stepsPerOrbit, stepsPerFrame])
 
   return null
 }

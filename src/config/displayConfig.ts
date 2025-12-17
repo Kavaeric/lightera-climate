@@ -32,6 +32,7 @@ export interface DisplayConfig {
   overflowColour: [number, number, number] // Colour for temperatures above max (e.g., magenta)
 
   // Latitude/longitude grid overlay settings
+  gridColour: string // Hex colour code
   latitudeLines: number // Number of horizontal grid lines
   longitudeLines: number // Number of vertical grid lines
   gridSegments: number // Resolution of grid line rendering
@@ -55,6 +56,7 @@ export const DEFAULT_DISPLAY_CONFIG: DisplayConfig = {
   colourmap: 'fast',
   underflowColour: [0.0, 0.0, 0.2], // Navy blue for cold
   overflowColour: [1.0, 0.0, 1.0], // Magenta for hot
+  gridColour: '#ffffff', // White for latitude/longitude grid
   latitudeLines: 8, // ~10 degree spacing
   longitudeLines: 24, // ~15 degree spacing
   gridSegments: 48,

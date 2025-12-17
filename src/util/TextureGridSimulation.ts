@@ -76,7 +76,7 @@ export class TextureGridSimulation {
 
     // Create hydrology data storage (two render targets: current and next frame)
     this.hydrologyDataTargets = [this.createRenderTarget(), this.createRenderTarget()]
-    this.initializeHydrologyTargets()
+    this.initialiseHydrologyTargets()
 
     // Create surface data storage (two render targets: current and next frame)
     this.surfaceDataTargets = [this.createRenderTarget(), this.createRenderTarget()]
@@ -317,7 +317,7 @@ export class TextureGridSimulation {
    * Called during construction to set up initial ice/water state
    * The actual initialisation happens when the shader first runs
    */
-  private initializeHydrologyTargets(): void {
+  private initialiseHydrologyTargets(): void {
     // Hydrology targets start cleared to [0, 0, 0, 0] by WebGL
     // They will be properly initialised by setHydrologyData when terrain is loaded
   }

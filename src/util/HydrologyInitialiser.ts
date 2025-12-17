@@ -13,13 +13,13 @@ export interface HydrologyInitConfig {
  * Initialise hydrology state based on elevation
  * Creates oceans in low-elevation areas, freshwater lakes at higher elevations
  */
-export class HydrologyInitializer {
+export class HydrologyInitialiser {
   /**
    * Create oceans based on elevation threshold (seaLevel)
    * Areas below seaLevel get water with depth = seaLevel - elevation
    * Areas above seaLevel get no water
    */
-  initializeFromElevation(
+  initialiseFromElevation(
     elevation: number[],
     seaLevel: number = 0
   ): HydrologyInitConfig {
@@ -52,7 +52,7 @@ export class HydrologyInitializer {
    * Create a default hydrology state (all zeros)
    * Useful for testing or completely dry planets
    */
-  createEmpty(cellCount: number): HydrologyInitConfig {
+  createEmptyHydrology(cellCount: number): HydrologyInitConfig {
     return {
       waterDepth: new Array(cellCount).fill(0),
       salinity: new Array(cellCount).fill(0),
