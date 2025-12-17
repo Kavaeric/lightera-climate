@@ -14,9 +14,6 @@ export class TextureGridSimulation {
   private textureWidth: number
   private textureHeight: number
 
-  // Number of time samples (e.g., 365 for daily averages over a year)
-  private timeSamples: number
-
   // Neighbour lookup textures (for future heat transport calculations)
   public neighbourIndices1: THREE.DataTexture // stores neighbours 0,1,2
   public neighbourIndices2: THREE.DataTexture // stores neighbours 3,4,5
@@ -30,13 +27,8 @@ export class TextureGridSimulation {
 
   // Hydrology data storage: TWO render targets (current and next frame)
   // Tracks ice and water phase transitions independently of climate
-  // Each render target RGBA = [iceThickness, waterThermalMass, waterDepth, reserved]
-  public hydrologyDataTargets: THREE.WebGLRenderTarget[]
-
-  // Hydrology data archive: array of render targets, one per time sample
-  // Captures hydrology state at each time sample for visualisation and analysis
   // Each render target RGBA = [iceThickness, waterThermalMass, waterDepth, salinity]
-  public hydrologyArchive: THREE.WebGLRenderTarget[]
+  public hydrologyDataTargets: THREE.WebGLRenderTarget[]
 
   // Hydrology initialisation data (temporary storage for setHydrologyData)
   private hydrologyInitData: { waterDepth: number[]; salinity: number[]; iceThickness: number[] } | null = null
@@ -46,7 +38,7 @@ export class TextureGridSimulation {
   // Each render target RGBA = [effectiveAlbedo, reserved, reserved, reserved]
   public surfaceDataTargets: THREE.WebGLRenderTarget[]
 
-  // Climate data storage: array of render targets, one per time sample
+  // Climate data storage: TWO render targets (current and next frame)
   // Each render target RGBA = [temperature, humidity, pressure, unused]
   public climateDataTargets: THREE.WebGLRenderTarget[]
 
@@ -54,7 +46,6 @@ export class TextureGridSimulation {
     this.grid = new Grid(config.resolution)
     this.cells = Array.from(this.grid)
     this.cellCount = this.cells.length
-    this.timeSamples = config.timeSamples
 
     // Calculate 2D texture dimensions (square or near-square, power-of-2)
     const sqrtCells = Math.sqrt(this.cellCount)
@@ -63,9 +54,10 @@ export class TextureGridSimulation {
     this.textureHeight = Math.ceil(this.cellCount / this.textureWidth)
     this.textureHeight = Math.pow(2, Math.ceil(Math.log2(this.textureHeight)))
 
-    const totalMemoryMB = (this.textureWidth * this.textureHeight * this.timeSamples * 4 * 4) / (1024 * 1024)
+    // Memory usage: 3 pairs of ping-pong buffers (hydrology, surface, climate)
+    const totalMemoryMB = (this.textureWidth * this.textureHeight * 6 * 4 * 4) / (1024 * 1024)
     console.log(
-      `TextureGridSimulation: ${this.cellCount} cells, ${this.timeSamples} time samples`
+      `TextureGridSimulation: ${this.cellCount} cells`
     )
     console.log(
       `Texture size: ${this.textureWidth}x${this.textureHeight}, Total memory: ${totalMemoryMB.toFixed(1)}MB`
@@ -86,20 +78,11 @@ export class TextureGridSimulation {
     this.hydrologyDataTargets = [this.createRenderTarget(), this.createRenderTarget()]
     this.initializeHydrologyTargets()
 
-    // Create hydrology archive (one render target per time sample for visualisation)
-    this.hydrologyArchive = []
-    for (let i = 0; i < this.timeSamples; i++) {
-      this.hydrologyArchive.push(this.createRenderTarget())
-    }
-
     // Create surface data storage (two render targets: current and next frame)
     this.surfaceDataTargets = [this.createRenderTarget(), this.createRenderTarget()]
 
-    // Create climate data storage (one render target per time sample)
-    this.climateDataTargets = []
-    for (let i = 0; i < this.timeSamples; i++) {
-      this.climateDataTargets.push(this.createRenderTarget())
-    }
+    // Create climate data storage (two render targets: current and next frame)
+    this.climateDataTargets = [this.createRenderTarget(), this.createRenderTarget()]
   }
 
   /**
@@ -470,24 +453,26 @@ export class TextureGridSimulation {
   }
 
   /**
-   * Get a specific hydrology archive render target by time sample index
+   * Get the current climate render target (for reading in shaders)
    */
-  getHydrologyArchiveTarget(timeSampleIndex: number): THREE.WebGLRenderTarget {
-    return this.hydrologyArchive[timeSampleIndex]
+  public getClimateDataCurrent(): THREE.WebGLRenderTarget {
+    return this.climateDataTargets[0]
   }
 
   /**
-   * Get a specific climate data render target by time sample index
+   * Get the next climate render target (for writing in shaders)
    */
-  getClimateDataTarget(timeSampleIndex: number): THREE.WebGLRenderTarget {
-    return this.climateDataTargets[timeSampleIndex]
+  public getClimateDataNext(): THREE.WebGLRenderTarget {
+    return this.climateDataTargets[1]
   }
 
   /**
-   * Get the number of time samples
+   * Swap climate buffers for next frame
    */
-  getTimeSamples(): number {
-    return this.timeSamples
+  public swapClimateBuffers(): void {
+    const temp = this.climateDataTargets[0]
+    this.climateDataTargets[0] = this.climateDataTargets[1]
+    this.climateDataTargets[1] = temp
   }
 
   /**
@@ -534,15 +519,14 @@ export class TextureGridSimulation {
   }
 
   /**
-   * Read back temperature value from GPU for a specific cell and time sample
+   * Read back current temperature value from GPU for a specific cell
    */
   async getTemperature(
     cellIndex: number,
-    timeSampleIndex: number,
     renderer: THREE.WebGLRenderer
   ): Promise<number> {
     const buffer = new Float32Array(4)
-    const target = this.climateDataTargets[timeSampleIndex]
+    const target = this.getClimateDataCurrent()
     const coords = this.indexTo2D(cellIndex)
 
     // Read a single pixel
@@ -552,51 +536,43 @@ export class TextureGridSimulation {
   }
 
   /**
-   * Read back all climate data for a specific cell across all time samples
+   * Read back current climate data for a specific cell
    */
   async getClimateDataForCell(
     cellIndex: number,
     renderer: THREE.WebGLRenderer
-  ): Promise<Array<{ temperature: number; humidity: number; pressure: number }>> {
+  ): Promise<{ temperature: number; humidity: number; pressure: number }> {
     const coords = this.indexTo2D(cellIndex)
     const buffer = new Float32Array(4)
-    const results: Array<{ temperature: number; humidity: number; pressure: number }> = []
 
-    for (let i = 0; i < this.timeSamples; i++) {
-      const target = this.climateDataTargets[i]
-      renderer.readRenderTargetPixels(target, coords.x, coords.y, 1, 1, buffer)
-      results.push({
-        temperature: buffer[0],
-        humidity: buffer[1],
-        pressure: buffer[2],
-      })
+    const target = this.getClimateDataCurrent()
+    renderer.readRenderTargetPixels(target, coords.x, coords.y, 1, 1, buffer)
+
+    return {
+      temperature: buffer[0],
+      humidity: buffer[1],
+      pressure: buffer[2],
     }
-
-    return results
   }
 
   /**
-   * Fetch hydrology data (water depth, ice thickness, salinity) for a specific cell across all time samples
+   * Read back current hydrology data (water depth, ice thickness, salinity) for a specific cell
    */
   async getHydrologyDataForCell(
     cellIndex: number,
     renderer: THREE.WebGLRenderer
-  ): Promise<Array<{ waterDepth: number; iceThickness: number; salinity: number }>> {
+  ): Promise<{ waterDepth: number; iceThickness: number; salinity: number }> {
     const coords = this.indexTo2D(cellIndex)
     const buffer = new Float32Array(4)
-    const results: Array<{ waterDepth: number; iceThickness: number; salinity: number }> = []
 
-    for (let i = 0; i < this.timeSamples; i++) {
-      const target = this.hydrologyArchive[i]
-      renderer.readRenderTargetPixels(target, coords.x, coords.y, 1, 1, buffer)
-      results.push({
-        iceThickness: buffer[0],       // R channel
-        waterDepth: buffer[2],         // B channel
-        salinity: buffer[3],           // A channel
-      })
+    const target = this.getHydrologyDataCurrent()
+    renderer.readRenderTargetPixels(target, coords.x, coords.y, 1, 1, buffer)
+
+    return {
+      iceThickness: buffer[0],       // R channel
+      waterDepth: buffer[2],         // B channel
+      salinity: buffer[3],           // A channel
     }
-
-    return results
   }
 
   dispose() {
@@ -606,9 +582,6 @@ export class TextureGridSimulation {
     this.cellPositions.dispose()
     this.terrainData.dispose()
     for (const target of this.hydrologyDataTargets) {
-      target.dispose()
-    }
-    for (const target of this.hydrologyArchive) {
       target.dispose()
     }
     for (const target of this.surfaceDataTargets) {

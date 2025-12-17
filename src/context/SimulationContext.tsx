@@ -15,7 +15,8 @@ interface SimulationContextType {
 
   // Simulation state
   simulationKey: number
-  shouldRunSimulation: boolean
+  isRunning: boolean
+  shouldStepOnce: boolean
 
   // Methods to update state
   setActiveSimulationConfig: (config: SimulationConfig) => void
@@ -23,8 +24,12 @@ interface SimulationContextType {
   setSimulationStatus: (status: string) => void
   setSimulationKey: (key: number | ((prev: number) => number)) => void
 
-  // Run simulation with given configs
-  runSimulation: (simConfig: SimulationConfig, planetConfig: PlanetConfig) => void
+  // Control methods
+  newSimulation: (simConfig: SimulationConfig, planetConfig: PlanetConfig) => void
+  play: () => void
+  pause: () => void
+  stepOnce: () => void
+  clearStepOnce: () => void
 }
 
 const SimulationContext = createContext<SimulationContextType | undefined>(undefined)
@@ -38,14 +43,34 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
   const [activePlanetConfig, setActivePlanetConfig] = useState<PlanetConfig>(DEFAULT_PLANET_CONFIG)
   const [simulationStatus, setSimulationStatus] = useState<string>('Ready')
   const [simulationKey, setSimulationKey] = useState(0)
-  const [shouldRunSimulation, setShouldRunSimulation] = useState(false)
+  const [isRunning, setIsRunning] = useState(false)
+  const [shouldStepOnce, setShouldStepOnce] = useState(false)
 
-  const runSimulation = (simConfig: SimulationConfig, planetConfig: PlanetConfig) => {
+  const newSimulation = (simConfig: SimulationConfig, planetConfig: PlanetConfig) => {
     setActiveSimulationConfig(simConfig)
     setActivePlanetConfig(planetConfig)
-    setSimulationStatus('Running...')
-    setShouldRunSimulation(true)
+    setSimulationStatus('Ready')
+    setIsRunning(false)
+    setShouldStepOnce(false)
     setSimulationKey((prev) => prev + 1)
+  }
+
+  const play = () => {
+    setIsRunning(true)
+    setSimulationStatus('Running...')
+  }
+
+  const pause = () => {
+    setIsRunning(false)
+    setSimulationStatus('Paused')
+  }
+
+  const stepOnce = () => {
+    setShouldStepOnce(true)
+  }
+
+  const clearStepOnce = () => {
+    setShouldStepOnce(false)
   }
 
   return (
@@ -55,12 +80,17 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
         activePlanetConfig,
         simulationStatus,
         simulationKey,
-        shouldRunSimulation,
+        isRunning,
+        shouldStepOnce,
         setActiveSimulationConfig,
         setActivePlanetConfig,
         setSimulationStatus,
         setSimulationKey,
-        runSimulation,
+        newSimulation,
+        play,
+        pause,
+        stepOnce,
+        clearStepOnce,
       }}
     >
       {children}

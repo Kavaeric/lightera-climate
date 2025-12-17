@@ -5,11 +5,9 @@
 export interface SimulationConfig {
   // Grid resolution
   resolution: number // geodesic subdivisions (e.g., 16 creates ~2,560 cells)
-  timeSamples: number // number of time samples to save per orbit (e.g., 60)
 
   // Solver parameters
-  iterations: number // number of orbits to simulate before saving (spin-up for equilibrium)
-  physicsStepsPerSample: number // sub-steps per time sample for numerical stability
+  stepsPerOrbit: number // physics steps per orbit (controls timestep granularity)
 }
 
 /**
@@ -18,8 +16,5 @@ export interface SimulationConfig {
  */
 export const DEFAULT_SIMULATION_CONFIG: SimulationConfig = {
   resolution: 16, // Geodesic subdivisions (128 creates too many cells and crashes)
-  // timeSamples: 730, // Save 365 * 2 temperature samples per orbit
-  timeSamples: 88, // Save 88 temperature samples per orbit
-  iterations: 128, // Run for 128 orbits to reach thermal equilibrium
-  physicsStepsPerSample: 1, // 2 physics steps between each saved sample
+  stepsPerOrbit: 1024, // Physics steps per orbit (controls timestep granularity)
 }

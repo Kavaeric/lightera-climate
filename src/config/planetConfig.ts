@@ -30,20 +30,19 @@ export interface PlanetConfig {
  * For comparison: Ocean water at 4000m depth = 1.674e10 J/(m²·K) (57x higher!)
  */
 export const DEFAULT_PLANET_CONFIG: PlanetConfig = {
-  // radius: 6371000, // Planet radius in metres (Earth: 6,371 km)
-  radius: 2439700, // Planet radius in metres (Mercury: 2,439.7 km)
-  // solarFlux: 1361, // Solar flux at the top of the atmosphere (W/m²)
-  solarFlux: 9159, // Solar flux at the top of the atmosphere (W/m²)
+  radius: 6371000, // Planet radius in metres (Earth: 6,371 km)
+  // radius: 2439700, // Planet radius in metres (Mercury: 2,439.7 km)
+  solarFlux: 1361, // Solar flux at the top of the atmosphere (W/m²)
+  // solarFlux: 9159, // Solar flux at the top of the atmosphere (W/m²)
   cosmicBackgroundTemp: 2.7, // Temperature of the cosmic background, usually 2.7K
-  // yearLength: 31540000, // 1 orbital year in seconds (Earth: 365.25 days)
-  yearLength: 88 * 60 * 60 * 24, // 88 days
+  yearLength: 365 * 60 * 60 * 24, // 365 days
   albedo: 0.10, // Albedo of the planet's surface (airless body)
   emissivity: 0.90, // Emissivity of rock surface
   surfaceHeatCapacity: 2.16e6, // Heat capacity of exposed rock (ρ=2700 kg/m³, c=800 J/kg·K, depth=1m)
   groundConductivity: 0.05, // Lateral heat conduction coefficient (0-1, 0 = no diffusion)
   subsolarPoint: { lat: 0, lon: 0 }, // Location of the equator and prime meridian
-  // rotationsPerYear: 365, // Number of rotations per orbit (0 = tidally locked)
-  rotationsPerYear: 88, // Number of rotations per orbit (0 = tidally locked)
-  // axialTilt: 23.44, // The angle of the planet's axis of rotation (Earth: 23.44°)
-  axialTilt: 0, // The angle of the planet's axis of rotation (0 = no tilt)
+  rotationsPerYear: 365, // Number of rotations per orbit (0 = tidally locked)
+  // rotationsPerYear: 88, // Number of rotations per orbit (0 = tidally locked)
+  axialTilt: 23.44, // The angle of the planet's axis of rotation (Earth: 23.44°)
+  // axialTilt: 0, // The angle of the planet's axis of rotation (0 = no tilt)
 }

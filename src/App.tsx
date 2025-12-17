@@ -13,7 +13,6 @@ import { DEFAULT_PLANET_CONFIG, type PlanetConfig } from './config/planetConfig'
 import { DEFAULT_SIMULATION_CONFIG, type SimulationConfig } from './config/simulationConfig'
 import { DEFAULT_DISPLAY_CONFIG, type DisplayConfig } from './config/displayConfig'
 import { SimulationProvider, useSimulation } from './context/SimulationContext'
-import type { TerrainConfig } from './config/terrainConfig'
 import { TerrainDataLoader } from './util/TerrainDataLoader'
 import { HydrologyInitializer } from './util/HydrologyInitializer'
 
@@ -25,9 +24,10 @@ interface SceneProps {
   selectedCell: number | null
   onHoverCell: (cellIndex: number | null) => void
   onCellClick: (cellIndex: number) => void
+  stepsPerFrame: number
 }
 
-function Scene({ simulation, displayConfig, showLatLonGrid, hoveredCell, selectedCell, onHoverCell, onCellClick }: SceneProps) {
+function Scene({ simulation, displayConfig, showLatLonGrid, hoveredCell, selectedCell, onHoverCell, onCellClick, stepsPerFrame }: SceneProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const highlightRef = useRef<THREE.Mesh>(null)
   const { activeSimulationConfig, activePlanetConfig } = useSimulation()
@@ -39,6 +39,7 @@ function Scene({ simulation, displayConfig, showLatLonGrid, hoveredCell, selecte
         simulation={simulation}
         planetConfig={activePlanetConfig}
         simulationConfig={activeSimulationConfig}
+        stepsPerFrame={stepsPerFrame}
       />
 
       {/* Visible geometry - pure data visualisation */}
@@ -100,11 +101,12 @@ function ClimateDataFetcher({
     const fetchData = async () => {
       const climateData = await simulation.getClimateDataForCell(cellIndex, gl)
       const hydrologyData = await simulation.getHydrologyDataForCell(cellIndex, gl)
-      const formattedData = climateData.map((d, i) => ({
-        day: i,
-        ...d,
-        ...hydrologyData[i],
-      }))
+      // Since we no longer store time series, just show current state as a single data point
+      const formattedData = [{
+        day: 0,
+        ...climateData,
+        ...hydrologyData,
+      }]
       onDataFetched(formattedData)
     }
 
@@ -119,29 +121,52 @@ function AppContent() {
   const [pendingPlanetConfig, setPendingPlanetConfig] = useState<PlanetConfig>(DEFAULT_PLANET_CONFIG)
   const [pendingSimulationConfig, setPendingSimulationConfig] = useState<SimulationConfig>(DEFAULT_SIMULATION_CONFIG)
   const [displayConfig, setDisplayConfig] = useState<DisplayConfig>(DEFAULT_DISPLAY_CONFIG)
-  const [terrainConfig, setTerrainConfig] = useState<TerrainConfig | null>(null)
+  const [seaLevel, setSeaLevel] = useState(0)
+  const [stepsPerFrame, setStepsPerFrame] = useState(500)
+
+  // UI state
+  const [showLatLonGrid, setShowLatLonGrid] = useState(true)
+  const [hoveredCell, setHoveredCell] = useState<number | null>(null)
+  const [selectedCell, setSelectedCell] = useState<number | null>(null)
+  const [selectedCellLatLon, setSelectedCellLatLon] = useState<{ lat: number; lon: number } | null>(null)
+  const [climateData, setClimateData] = useState<Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number }>>([])
 
   // Get active config and simulation state from context
-  const { activeSimulationConfig, simulationKey, simulationStatus, runSimulation } = useSimulation()
+  const { activeSimulationConfig, simulationKey, simulationStatus, isRunning, newSimulation, play, pause, stepOnce } = useSimulation()
 
   // Create climate simulation - recreate only when activeSimulationConfig changes (i.e., on button click)
   const simulation = useMemo(() => {
     return new TextureGridSimulation(activeSimulationConfig)
   }, [activeSimulationConfig])
 
-  // Load terrain and apply to simulation
+  // Generate terrain and hydrology when simulation is created
   useEffect(() => {
-    if (terrainConfig && simulation) {
-      simulation.setTerrainData(terrainConfig)
-    }
-  }, [terrainConfig, simulation])
+    if (!simulation) return
 
-  const [showLatLonGrid, setShowLatLonGrid] = useState(true)
-  const [hoveredCell, setHoveredCell] = useState<number | null>(null)
-  const [selectedCell, setSelectedCell] = useState<number | null>(null)
-  const [selectedCellLatLon, setSelectedCellLatLon] = useState<{ lat: number; lon: number } | null>(null)
-  const [climateData, setClimateData] = useState<Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number }>>([])
-  const [seaLevel, setSeaLevel] = useState(0)
+    // Generate random terrain
+    const terrainLoader = new TerrainDataLoader()
+    const hydrologyInit = new HydrologyInitializer()
+
+    // Use simulationKey as seed for reproducible randomness
+    const seed = simulationKey
+    const cellCount = simulation.getCellCount()
+
+    // Get cell lat/lons
+    const cellLatLons: Array<{ lat: number; lon: number }> = []
+    for (let i = 0; i < cellCount; i++) {
+      cellLatLons.push(simulation.getCellLatLon(i))
+    }
+
+    // Generate procedural terrain
+    const terrain = terrainLoader.generateProcedural(cellCount, cellLatLons, seed)
+    simulation.setTerrainData(terrain)
+
+    // Initialize hydrology from elevation (creates oceans below sea level)
+    const hydrology = hydrologyInit.initializeFromElevation(terrain.elevation, seaLevel)
+    simulation.setHydrologyData(hydrology.waterDepth, hydrology.salinity, hydrology.iceThickness)
+
+    console.log(`Generated new terrain with seed ${seed}, sea level ${seaLevel}m`)
+  }, [simulation, simulationKey, seaLevel])
 
   const handleCellClick = useCallback((cellIndex: number) => {
     setSelectedCell(cellIndex)
@@ -177,6 +202,7 @@ function AppContent() {
           selectedCell={selectedCell}
           onHoverCell={setHoveredCell}
           onCellClick={handleCellClick}
+          stepsPerFrame={stepsPerFrame}
         />
 
         {/* Climate data fetcher - needs to be inside Canvas to access gl context */}
@@ -186,73 +212,6 @@ function AppContent() {
       {/* Info panel */}
       <div style={{ position: 'absolute', width: '280px', height: '100dvh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', color: 'white', background: 'rgba(0,0,0,0.5)', padding: '12px', fontFamily: 'monospace' }}>
         <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <h2>Terrain settings</h2>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span>Sea level (metres)</span>
-            <input
-              type="number"
-              value={seaLevel}
-              onChange={(e) => {
-                const val = parseInt(e.target.value);
-                setSeaLevel(isNaN(val) ? seaLevel : val);
-              }}
-            />
-          </label>
-          <button
-            onClick={async () => {
-              // Generate procedural terrain with a random seed
-              const terrainLoader = new TerrainDataLoader()
-              const hydrologyInit = new HydrologyInitializer()
-              const cellLatLons = Array.from({ length: simulation.getCellCount() }, (_, i) => {
-                const cell = simulation.getCellLatLon(i)
-                return { lat: cell.lat, lon: cell.lon }
-              })
-              const seed = Math.floor(Math.random() * 1000000)
-              const terrain = terrainLoader.generateProcedural(simulation.getCellCount(), cellLatLons, seed)
-              const hydrology = hydrologyInit.initializeFromElevation(terrain.elevation, seaLevel)
-              setTerrainConfig(terrain)
-              simulation.setHydrologyData(hydrology.waterDepth, hydrology.salinity, hydrology.iceThickness)
-              console.log(`Generated procedural terrain with seed ${seed}, seaLevel=${seaLevel}m`)
-            }}
-          >
-            Generate procedural terrain
-          </button>
-          <button
-            onClick={() => {
-              // Create file input for image upload
-              const input = document.createElement('input')
-              input.type = 'file'
-              input.accept = 'image/png,image/jpeg'
-              input.onchange = async (e) => {
-                const file = (e.target as HTMLInputElement).files?.[0]
-                if (!file) return
-                try {
-                  const terrainLoader = new TerrainDataLoader()
-                  const hydrologyInit = new HydrologyInitializer()
-                  const cellLatLons = Array.from({ length: simulation.getCellCount() }, (_, i) => {
-                    const cell = simulation.getCellLatLon(i)
-                    return { lat: cell.lat, lon: cell.lon }
-                  })
-                  const url = URL.createObjectURL(file)
-                  const terrain = await terrainLoader.loadFromHeightmap(url, simulation.getCellCount(), cellLatLons, {
-                    elevationScale: 1000, // metres per pixel value
-                    seaLevel: 128, // pixel value for sea level (8-bit image)
-                  })
-                  const hydrology = hydrologyInit.initializeFromElevation(terrain.elevation, seaLevel)
-                  setTerrainConfig(terrain)
-                  simulation.setHydrologyData(hydrology.waterDepth, hydrology.salinity, hydrology.iceThickness)
-                  URL.revokeObjectURL(url)
-                  console.log('Loaded heightmap from file')
-                } catch (err) {
-                  console.error('Failed to load heightmap:', err)
-                }
-              }
-              input.click()
-            }}
-          >
-            Load heightmap from file
-          </button>
-          <br />
           <h2>Simulation settings</h2>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <span>Resolution</span>
@@ -266,24 +225,13 @@ function AppContent() {
             />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span>Time samples per orbit</span>
+            <span>Physics steps per orbit</span>
             <input
               type="number"
-              value={pendingSimulationConfig.timeSamples}
+              value={pendingSimulationConfig.stepsPerOrbit}
               onChange={(e) => {
                 const val = parseInt(e.target.value);
-                setPendingSimulationConfig({ ...pendingSimulationConfig, timeSamples: isNaN(val) ? pendingSimulationConfig.timeSamples : val });
-              }}
-            />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span>Iterations</span>
-            <input
-              type="number"
-              value={pendingSimulationConfig.iterations}
-              onChange={(e) => {
-                const val = parseInt(e.target.value);
-                setPendingSimulationConfig({ ...pendingSimulationConfig, iterations: isNaN(val) ? pendingSimulationConfig.iterations : val });
+                setPendingSimulationConfig({ ...pendingSimulationConfig, stepsPerOrbit: isNaN(val) ? pendingSimulationConfig.stepsPerOrbit : val });
               }}
             />
           </label>
@@ -358,15 +306,42 @@ function AppContent() {
           </label>
           <button
             onClick={() => {
-              // Apply pending configs to active configs and restart simulation
-              runSimulation(pendingSimulationConfig, pendingPlanetConfig)
+              // Create new simulation with configs (doesn't start running)
+              newSimulation(pendingSimulationConfig, pendingPlanetConfig)
               setSelectedCell(null)
               setSelectedCellLatLon(null)
               setClimateData([])
             }}
           >
-            Run simulation
+            New simulation
           </button>
+        </section>
+        <hr style={{ margin: '8px 0', border: 'none', borderTop: '1px solid rgba(255,255,255,0.3)' }} />
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <h2>Controls</h2>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>Steps per frame</span>
+            <input
+              type="number"
+              min="1"
+              value={stepsPerFrame}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                setStepsPerFrame(isNaN(val) ? stepsPerFrame : Math.max(1, val));
+              }}
+            />
+          </label>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={play} disabled={isRunning}>
+              Play
+            </button>
+            <button onClick={pause} disabled={!isRunning}>
+              Pause
+            </button>
+            <button onClick={stepOnce}>
+              Step once
+            </button>
+          </div>
         </section>
         <hr style={{ margin: '8px 0', border: 'none', borderTop: '1px solid rgba(255,255,255,0.3)' }} />
         <section style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

@@ -36,7 +36,7 @@ export interface VisualisationMode {
 export const VISUALISATION_TEMPERATURE: VisualisationMode = {
   id: 'temperature',
   name: 'Temperature',
-  getTextureSource: (simulation) => simulation.getClimateDataTarget(0).texture,
+  getTextureSource: (simulation) => simulation.getClimateDataCurrent().texture,
   dataChannel: 0, // Temperature in red channel
   colourmap: COLOURMAP_FAST,
   getRange: (displayConfig) => displayConfig.temperatureRange,
@@ -62,7 +62,7 @@ export const VISUALISATION_ELEVATION: VisualisationMode = {
 export const VISUALISATION_WATER_DEPTH: VisualisationMode = {
   id: 'waterDepth',
   name: 'Water depth',
-  getTextureSource: (simulation) => simulation.getHydrologyArchiveTarget(0).texture,
+  getTextureSource: (simulation) => simulation.getHydrologyDataCurrent().texture,
   dataChannel: 2, // Water depth in blue channel
   colourmap: COLOURMAP_WATERDEPTH,
   getRange: (displayConfig) => displayConfig.waterDepthRange,
@@ -75,7 +75,7 @@ export const VISUALISATION_WATER_DEPTH: VisualisationMode = {
 export const VISUALISATION_SALINITY: VisualisationMode = {
   id: 'salinity',
   name: 'Salinity (greyscale)',
-  getTextureSource: (simulation) => simulation.getHydrologyArchiveTarget(0).texture,
+  getTextureSource: (simulation) => simulation.getHydrologyDataCurrent().texture,
   dataChannel: 3, // Salinity in alpha channel
   colourmap: COLOURMAP_SALINITY,
   getRange: (displayConfig) => displayConfig.salinityRange,
@@ -88,7 +88,7 @@ export const VISUALISATION_SALINITY: VisualisationMode = {
 export const VISUALISATION_ICE_THICKNESS: VisualisationMode = {
   id: 'iceThickness',
   name: 'Ice thickness',
-  getTextureSource: (simulation) => simulation.getHydrologyArchiveTarget(0).texture,
+  getTextureSource: (simulation) => simulation.getHydrologyDataCurrent().texture,
   dataChannel: 0, // Ice thickness in red channel
   colourmap: COLOURMAP_ICE,
   getRange: (displayConfig) => displayConfig.iceThicknessRange,

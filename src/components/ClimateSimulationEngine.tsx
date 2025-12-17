@@ -2,6 +2,7 @@ import { useRef, useEffect } from 'react'
 import { useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { TextureGridSimulation } from '../util/TextureGridSimulation'
+import { SimulationOrchestrator } from '../util/SimulationOrchestrator'
 import type { PlanetConfig } from '../config/planetConfig'
 import type { SimulationConfig } from '../config/simulationConfig'
 import { useSimulation } from '../context/SimulationContext'
@@ -16,48 +17,45 @@ interface ClimateSimulationEngineProps {
   simulation: TextureGridSimulation
   planetConfig: PlanetConfig
   simulationConfig: SimulationConfig
+  stepsPerFrame: number
   onSolveComplete?: () => void
 }
 
-interface SimState {
-  initialized: boolean
-  complete: boolean
-  scene?: THREE.Scene
-  camera?: THREE.OrthographicCamera
-  geometry?: THREE.BufferGeometry
-  hydrologyMaterial?: THREE.ShaderMaterial
-  surfaceMaterial?: THREE.ShaderMaterial
-  thermalMaterial?: THREE.ShaderMaterial
-  copyMaterial?: THREE.ShaderMaterial
-  blankRenderTarget?: THREE.WebGLRenderTarget
-  mesh?: THREE.Mesh
-  timeSamples: number
-  physicsStepsPerSample: number  // Physics substeps between saved samples (for numerical stability)
-  dt: number
-  yearLength: number
-  subsolarPoint: { lat: number; lon: number }
-  rotationsPerYear: number
-  orbitIdx: number
-  sampleIdx: number
-  physicsStep: number  // Current substep within the current sample
-  currentTargetIndex: number  // Index into climateDataTargets for reading previous state
-  nextTargetIndex: number  // Index into climateDataTargets for writing next state
+interface GPUResources {
+  scene: THREE.Scene
+  camera: THREE.OrthographicCamera
+  geometry: THREE.BufferGeometry
+  hydrologyMaterial: THREE.ShaderMaterial
+  surfaceMaterial: THREE.ShaderMaterial
+  thermalMaterial: THREE.ShaderMaterial
+  blankRenderTarget: THREE.WebGLRenderTarget
+  mesh: THREE.Mesh
 }
 
 /**
- * Component that solves the climate simulation using GPU shaders
- * Runs ~10 steps per frame to maintain responsive UI
+ * Component that manages the climate simulation
+ * Uses SimulationOrchestrator for control flow and SimulationExecutor for physics
  */
 export function ClimateSimulationEngine({
   simulation,
   planetConfig,
   simulationConfig,
+  stepsPerFrame,
   onSolveComplete,
 }: ClimateSimulationEngineProps) {
   const { gl } = useThree()
-  const { setSimulationStatus, simulationKey, shouldRunSimulation } = useSimulation()
+  const {
+    setSimulationStatus,
+    simulationKey,
+    isRunning,
+    shouldStepOnce,
+    clearStepOnce,
+  } = useSimulation()
 
-  // Extract values from config objects for clarity
+  const orchestratorRef = useRef<SimulationOrchestrator | null>(null)
+  const gpuResourcesRef = useRef<GPUResources | null>(null)
+
+  // Extract values from config objects
   const {
     radius,
     solarFlux,
@@ -72,68 +70,40 @@ export function ClimateSimulationEngine({
     groundConductivity,
   } = planetConfig
 
-  const { iterations } = simulationConfig
+  const { stepsPerOrbit } = simulationConfig
   const thermalConductivity = groundConductivity
-  const stateRef = useRef<SimState>({
-    initialized: false,
-    complete: false,
-    timeSamples: 0,
-    physicsStepsPerSample: 1,
-    dt: 0,
-    yearLength,
-    subsolarPoint,
-    rotationsPerYear,
-    orbitIdx: 0,
-    sampleIdx: 0,
-    physicsStep: 0,
-    currentTargetIndex: 0,
-    nextTargetIndex: 1,
-  })
 
-  // Initialise GPU resources once
+  // Initialize GPU resources and orchestrator once per simulationKey
   useEffect(() => {
-    const state = stateRef.current
-    if (state.initialized) return
-    state.initialized = true
-
-    console.log('ClimateSolver: Starting physics-based climate calculation...')
+    console.log('ClimateSimulationEngine: Initializing...')
     console.log(`  Solar flux: ${solarFlux} W/m²`)
     console.log(`  Albedo: ${albedo}`)
-    console.log(`  Iterations: ${iterations}`)
+    console.log(`  Steps per orbit: ${stepsPerOrbit}`)
 
-    const timeSamples = simulation.getTimeSamples()
-    // Use a reasonable default for physics substeps (12 gives good numerical stability)
-    // This can be made configurable later if needed
-    const physicsStepsPerSample = 12
-    const timePerSample = yearLength / timeSamples
-    const dt = timePerSample / physicsStepsPerSample
-
-    state.timeSamples = timeSamples
-    state.physicsStepsPerSample = physicsStepsPerSample
-    state.dt = dt
-
-    console.log(`  Time per sample: ${timePerSample.toFixed(1)}s`)
-    console.log(`  Time-stepping through climate evolution...`)
-    console.log(`  Total simulation time: ${(iterations * yearLength / 86400).toFixed(1)} days`)
+    const dt = yearLength / stepsPerOrbit
+    console.log(`  Timestep: ${dt.toFixed(1)}s`)
 
     // Create scene and materials
     const scene = new THREE.Scene()
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
     const geometry = new THREE.PlaneGeometry(2, 2)
 
-    // Create a blank render target for texture uniforms
-    // This prevents WebGL feedback loop errors from null or mismatched texture types
-    const blankRenderTarget = new THREE.WebGLRenderTarget(simulation.getTextureWidth(), simulation.getTextureHeight(), {
-      minFilter: THREE.NearestFilter,
-      magFilter: THREE.NearestFilter,
-      format: THREE.RGBAFormat,
-      type: THREE.FloatType,
-      wrapS: THREE.ClampToEdgeWrapping,
-      wrapT: THREE.ClampToEdgeWrapping,
-    })
+    // Create blank render target for texture uniforms
+    const blankRenderTarget = new THREE.WebGLRenderTarget(
+      simulation.getTextureWidth(),
+      simulation.getTextureHeight(),
+      {
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
+        format: THREE.RGBAFormat,
+        type: THREE.FloatType,
+        wrapS: THREE.ClampToEdgeWrapping,
+        wrapT: THREE.ClampToEdgeWrapping,
+      }
+    )
     const blankTexture = blankRenderTarget.texture
 
-    // Create hydrology material for ice/water phase transitions
+    // Create hydrology material
     const hydrologyMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: hydrologyEvolutionFragmentShader,
@@ -144,16 +114,17 @@ export function ClimateSimulationEngine({
       },
     })
 
-    // Create surface material for computing effective albedo from terrain + hydrology
+    // Create surface material
     const surfaceMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: surfaceEvolutionFragmentShader,
       uniforms: {
         terrainData: { value: simulation.terrainData },
-        hydrologyData: { value: blankTexture }, // Initialise with blank texture, will be set before each render
+        hydrologyData: { value: blankTexture },
       },
     })
 
+    // Create thermal material
     const thermalMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: thermalEvolutionFragmentShader,
@@ -164,8 +135,8 @@ export function ClimateSimulationEngine({
         neighbourIndices2: { value: simulation.neighbourIndices2 },
         neighbourCounts: { value: simulation.neighbourCounts },
         terrainData: { value: simulation.terrainData },
-        hydrologyData: { value: blankTexture }, // Initialise with blank texture, will be set before each render
-        surfaceData: { value: blankTexture }, // Initialise with blank texture, will be set before each render
+        hydrologyData: { value: blankTexture },
+        surfaceData: { value: blankTexture },
         baseSubsolarPoint: { value: new THREE.Vector2(subsolarPoint.lat, subsolarPoint.lon) },
         axialTilt: { value: axialTilt },
         yearProgress: { value: 0 },
@@ -182,7 +153,7 @@ export function ClimateSimulationEngine({
       },
     })
 
-    // Create a simple initialisation material
+    // Create initialization material
     const initMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: `
@@ -197,20 +168,19 @@ export function ClimateSimulationEngine({
       },
     })
 
-    // Create mesh with init material first (avoids compiling expensive thermal shader prematurely)
+    // Create mesh
     const mesh = new THREE.Mesh(geometry, initMaterial)
     mesh.frustumCulled = false
     scene.add(mesh)
 
-    // Initialise first climate target with cosmic background temperature
-    const firstTarget = simulation.getClimateDataTarget(0)
+    // Initialize first climate target
+    const firstTarget = simulation.getClimateDataCurrent()
     gl.setRenderTarget(firstTarget)
-    gl.clear()  // Clear the render target before rendering
+    gl.clear()
     gl.render(scene, camera)
-    gl.setRenderTarget(null)  // CRITICAL: Reset render target after initialisation
+    gl.setRenderTarget(null)
 
-    // Initialise hydrology render targets from initial data
-    // Create an initialisation material for copying the hydrology data texture to render targets
+    // Initialize hydrology render targets
     const hydrologyInitMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: `
@@ -226,24 +196,14 @@ export function ClimateSimulationEngine({
       },
     })
 
-    // Render initial hydrology to both working render targets (current and next)
     mesh.material = hydrologyInitMaterial
     gl.setRenderTarget(simulation.getHydrologyDataCurrent())
     gl.clear()
     gl.render(scene, camera)
     gl.setRenderTarget(null)
-
-    // Also initialise the archive target for visualisation
-    const archiveTarget = simulation.getHydrologyArchiveTarget(0)
-    gl.setRenderTarget(archiveTarget)
-    gl.clear()
-    gl.render(scene, camera)
-    gl.setRenderTarget(null)
-
     hydrologyInitMaterial.dispose()
 
-    // Initialise surface data by running surface shader once
-    // Surface reads from terrain (static) and initial hydrology
+    // Initialize surface data
     const surfaceFirstTarget = simulation.getSurfaceDataNext()
     surfaceMaterial.uniforms.terrainData.value = simulation.terrainData
     surfaceMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture
@@ -252,226 +212,127 @@ export function ClimateSimulationEngine({
     gl.clear()
     gl.render(scene, camera)
     gl.setRenderTarget(null)
-
-    // Swap surface buffers so current has initialised data
     simulation.swapSurfaceBuffers()
 
-    // Now dispose init material and attach the simulation materials
+    // Dispose init material and attach thermal material
     initMaterial.dispose()
     mesh.material = thermalMaterial
 
-    state.scene = scene
-    state.camera = camera
-    state.geometry = geometry
-    state.hydrologyMaterial = hydrologyMaterial
-    state.surfaceMaterial = surfaceMaterial
-    state.thermalMaterial = thermalMaterial
-    state.blankRenderTarget = blankRenderTarget
-    state.mesh = mesh
-    state.currentTargetIndex = 0
-    state.nextTargetIndex = 1
-  }, [gl, simulation, planetConfig, simulationConfig, setSimulationStatus, simulationKey, shouldRunSimulation, onSolveComplete])
+    // Store GPU resources
+    gpuResourcesRef.current = {
+      scene,
+      camera,
+      geometry,
+      hydrologyMaterial,
+      surfaceMaterial,
+      thermalMaterial,
+      blankRenderTarget,
+      mesh,
+    }
 
-  // Run simulation in independent animation loop (not Three Fiber's useFrame)
+    // Create orchestrator
+    const orchestrator = new SimulationOrchestrator({
+      dt,
+      yearLength,
+      subsolarPoint,
+      rotationsPerYear,
+      stepsPerOrbit,
+    })
+
+    // Register milestone callbacks
+    orchestrator.onMilestone((milestone) => {
+      if (milestone.type === 'orbit_complete') {
+        const statusMsg = `Orbit ${milestone.orbitIdx}, Step ${milestone.physicsStep}/${stepsPerOrbit}`
+        console.log(`  ${statusMsg}`)
+        setSimulationStatus(statusMsg)
+      }
+    })
+
+    orchestratorRef.current = orchestrator
+    setSimulationStatus('Ready')
+
+    // Cleanup
+    return () => {
+      if (gpuResourcesRef.current) {
+        gpuResourcesRef.current.geometry.dispose()
+        gpuResourcesRef.current.hydrologyMaterial.dispose()
+        gpuResourcesRef.current.surfaceMaterial.dispose()
+        gpuResourcesRef.current.thermalMaterial.dispose()
+        gpuResourcesRef.current.blankRenderTarget.dispose()
+        gpuResourcesRef.current.scene.clear()
+      }
+      gpuResourcesRef.current = null
+      orchestratorRef.current = null
+    }
+  }, [
+    gl,
+    simulation,
+    planetConfig,
+    simulationConfig,
+    setSimulationStatus,
+    simulationKey,
+    onSolveComplete,
+    solarFlux,
+    albedo,
+    stepsPerOrbit,
+    yearLength,
+    subsolarPoint,
+    rotationsPerYear,
+    cosmicBackgroundTemp,
+    surfaceHeatCapacity,
+    axialTilt,
+    thermalConductivity,
+    radius,
+    emissivity,
+  ])
+
+  // Simulation loop
   useEffect(() => {
-    if (!stateRef.current.initialized || !shouldRunSimulation) return
+    const orchestrator = orchestratorRef.current
+    const gpuResources = gpuResourcesRef.current
 
-    // Reset state when simulation key changes
-    stateRef.current.complete = false
-    stateRef.current.orbitIdx = 0
-    stateRef.current.sampleIdx = 0
-    stateRef.current.physicsStep = 0
-    stateRef.current.currentTargetIndex = 0
-    stateRef.current.nextTargetIndex = 1
+    if (!orchestrator || !gpuResources) return
 
     let animationFrameId: number
-    let lastFrameTime = performance.now()
-    let frameCount = 0
-    let frameTimeSum = 0
 
     const simulationLoop = () => {
-      const state = stateRef.current
-      if (state.complete) return
+      // Handle step once
+      if (shouldStepOnce) {
+        clearStepOnce()
+        const executor = orchestrator.getExecutor()
+        executor.renderStep(gl, simulation, gpuResources, gpuResources.mesh, gpuResources.scene, gpuResources.camera)
+        orchestrator.stepOnce()
 
-      // Measure frame time for adaptive stepping
-      const now = performance.now()
-      const frameTime = now - lastFrameTime
-      lastFrameTime = now
-      frameCount++
-      frameTimeSum += frameTime
-
-      // Log average frame time every 60 frames
-      if (frameCount % 60 === 0) {
-        const avgFrameTime = frameTimeSum / 60
-        console.log(`Avg frame time: ${avgFrameTime.toFixed(2)}ms (${(1000 / avgFrameTime).toFixed(1)} fps)`)
-        frameTimeSum = 0
+        const progress = orchestrator.getProgress()
+        setSimulationStatus(`Orbit ${progress.orbitIdx}, Step ${progress.physicsStep}/${stepsPerOrbit}`)
       }
 
-      // UI pacing parameter: how many physics steps to compute per animation frame
-      // Increase for faster simulation (fewer total frames), decrease for finer progress updates
-      // With physics substeps + samples, each frame completes multiple time samples
-      const stepsPerFrame = Math.max(500, Math.floor(state.timeSamples * state.physicsStepsPerSample / 2))
-      const { scene, camera, geometry, hydrologyMaterial, surfaceMaterial, thermalMaterial, mesh } = state
-      if (!scene || !camera || !geometry || !hydrologyMaterial || !surfaceMaterial || !thermalMaterial || !mesh) {
-        animationFrameId = requestAnimationFrame(simulationLoop)
-        return
-      }
+      // Handle continuous running
+      if (isRunning) {
+        // Execute multiple steps per frame for performance
+        const executor = orchestrator.getExecutor()
 
-      // Execute stepsPerFrame physics steps
-      for (let step = 0; step < stepsPerFrame; step++) {
-        // Calculate current state
-        const totalSteps = (state.orbitIdx * state.timeSamples * state.physicsStepsPerSample) +
-                          (state.sampleIdx * state.physicsStepsPerSample) +
-                          state.physicsStep
-        const totalTime = totalSteps * state.dt
-        const yearProgress = (totalTime % state.yearLength) / state.yearLength
-        const rotationDegrees = yearProgress * state.rotationsPerYear * 360
-        const currentSubsolarLon = (state.subsolarPoint.lon + rotationDegrees) % 360
-
-        thermalMaterial.uniforms.baseSubsolarPoint.value.set(state.subsolarPoint.lat, currentSubsolarLon)
-        thermalMaterial.uniforms.yearProgress.value = yearProgress
-
-        // Read from current climate target for temperature
-        const sourceTarget = simulation.getClimateDataTarget(state.currentTargetIndex)
-        const destTarget = simulation.getClimateDataTarget(state.nextTargetIndex)
-
-        // ===== STEP 1: Update hydrology (ice formation/melting) =====
-        // Hydrology reads: previous hydrology state, current temperature
-        // Hydrology writes: new hydrology state
-        const hydrologyCurrent = simulation.getHydrologyDataCurrent()
-        const hydrologyNext = simulation.getHydrologyDataNext()
-
-        hydrologyMaterial.uniforms.previousHydrology.value = hydrologyCurrent.texture
-        hydrologyMaterial.uniforms.currentTemperature.value = sourceTarget.texture
-
-        mesh.material = hydrologyMaterial
-        gl.setRenderTarget(hydrologyNext)
-        gl.render(scene, camera)
-
-        // Unbind the render target to avoid feedback loop
-        gl.setRenderTarget(null)
-
-        // Swap hydrology buffers for next step
-        simulation.swapHydrologyBuffers()
-
-        // ===== STEP 2: Update surface properties (effective albedo) =====
-        // Surface reads: terrain data (static), updated hydrology
-        // Surface writes: effective albedo
-        const surfaceNext = simulation.getSurfaceDataNext()
-
-        surfaceMaterial.uniforms.terrainData.value = simulation.terrainData
-        // After swap, newly computed hydrology is in current buffer
-        surfaceMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture
-
-        mesh.material = surfaceMaterial
-        gl.setRenderTarget(surfaceNext)
-        gl.render(scene, camera)
-
-        // Unbind the render target to avoid feedback loop
-        gl.setRenderTarget(null)
-
-        // Swap surface buffers for next step
-        simulation.swapSurfaceBuffers()
-
-        // ===== STEP 3: Update thermal (temperature evolution) =====
-        // Thermal reads: previous temperature, current hydrology (now updated), surface properties, terrain
-        // Thermal writes: new temperature
-        // After swaps, newly computed data is in current buffers
-        thermalMaterial.uniforms.previousTemperature.value = sourceTarget.texture
-        thermalMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture
-        thermalMaterial.uniforms.surfaceData.value = simulation.getSurfaceDataCurrent().texture
-
-        mesh.material = thermalMaterial
-        gl.setRenderTarget(destTarget)
-        gl.render(scene, camera)
-
-        // Advance to next physics step
-        state.physicsStep++
-
-        // Rotate indices for next step
-        state.currentTargetIndex = state.nextTargetIndex
-        state.nextTargetIndex = (state.nextTargetIndex + 1) % state.timeSamples
-
-        if (state.physicsStep >= state.physicsStepsPerSample) {
-          state.physicsStep = 0
-
-          // Archive current hydrology state to the archive texture for this sample
-          const archiveTarget = simulation.getHydrologyArchiveTarget(state.sampleIdx)
-
-          // Create a simple copy material if it doesn't exist
-          if (!state.copyMaterial) {
-            state.copyMaterial = new THREE.ShaderMaterial({
-              vertexShader: fullscreenVertexShader,
-              fragmentShader: `
-                precision highp float;
-                uniform sampler2D sourceTexture;
-                varying vec2 vUv;
-                void main() {
-                  gl_FragColor = texture2D(sourceTexture, vUv);
-                }
-              `,
-              uniforms: {
-                sourceTexture: { value: null },
-              },
-            })
-          }
-
-          // Copy current hydrology to archive
-          state.copyMaterial.uniforms.sourceTexture.value = simulation.getHydrologyDataCurrent().texture
-          mesh.material = state.copyMaterial
-          gl.setRenderTarget(archiveTarget)
-          gl.render(scene, camera)
-          gl.setRenderTarget(null)
-
-          state.sampleIdx++
-
-          if (state.sampleIdx >= state.timeSamples) {
-            state.sampleIdx = 0
-            state.orbitIdx++
-
-            const statusMsg = `Orbit ${state.orbitIdx}/${iterations}...`
-            console.log(`  ${statusMsg}`)
-            setSimulationStatus(statusMsg)
-
-            if (state.orbitIdx >= iterations) {
-              // Done!
-              state.complete = true
-
-              if (state.geometry) state.geometry.dispose()
-              if (state.hydrologyMaterial) state.hydrologyMaterial.dispose()
-              if (state.surfaceMaterial) state.surfaceMaterial.dispose()
-              if (state.thermalMaterial) state.thermalMaterial.dispose()
-              if (state.copyMaterial) state.copyMaterial.dispose()
-              if (state.blankRenderTarget) state.blankRenderTarget.dispose()
-              if (state.scene) state.scene.clear()
-
-              gl.setRenderTarget(null)
-
-              const completeMsg = 'Simulation completed!'
-              console.log('ClimateSolver: Climate calculation complete!')
-              setSimulationStatus(completeMsg)
-              onSolveComplete?.()
-              return
-            }
-          }
+        for (let i = 0; i < stepsPerFrame; i++) {
+          executor.renderStep(gl, simulation, gpuResources, gpuResources.mesh, gpuResources.scene, gpuResources.camera)
+          orchestrator.stepOnce()
         }
       }
 
-      // Restore render target to canvas (null = render to default framebuffer)
+      // Restore render target to canvas
       gl.setRenderTarget(null)
 
       // Schedule next frame
       animationFrameId = requestAnimationFrame(simulationLoop)
     }
 
-    // Start the simulation loop
+    // Start loop
     animationFrameId = requestAnimationFrame(simulationLoop)
 
     // Cleanup
     return () => {
       cancelAnimationFrame(animationFrameId)
     }
-  }, [gl, simulation, iterations, setSimulationStatus, simulationKey, shouldRunSimulation, onSolveComplete])
+  }, [gl, simulation, isRunning, shouldStepOnce, clearStepOnce, setSimulationStatus, stepsPerOrbit, stepsPerFrame])
 
   return null
 }

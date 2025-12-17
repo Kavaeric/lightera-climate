@@ -1,5 +1,6 @@
 import { useMemo, forwardRef } from 'react'
 import * as THREE from 'three'
+import { useFrame } from '@react-three/fiber'
 import { Grid } from '../simulation/geometry/geodesic'
 import { TextureGridSimulation } from '../util/TextureGridSimulation'
 import type { DisplayConfig } from '../config/displayConfig'
@@ -82,6 +83,8 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
     const mode = getVisualisationMode(displayConfig.visualisationMode)
 
     // Get data source texture and range from visualisation mode
+    // IMPORTANT: We get the texture reference here, but we need to update it
+    // in a useEffect because the texture reference changes when buffers swap
     const sourceTexture = mode.getTextureSource(simulation)
     const valueRange = mode.getRange(displayConfig)
 
@@ -102,6 +105,16 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
 
     return shaderMaterial
   }, [simulation, displayConfig])
+
+  // Update texture uniform every frame to handle buffer swaps
+  // This ensures the visualization always shows the most recent simulation state
+  useFrame(() => {
+    if (material && material.uniforms.dataTex) {
+      const mode = getVisualisationMode(displayConfig.visualisationMode)
+      const currentTexture = mode.getTextureSource(simulation)
+      material.uniforms.dataTex.value = currentTexture
+    }
+  })
 
     return (
       <mesh ref={ref} geometry={geometry} material={material}>
