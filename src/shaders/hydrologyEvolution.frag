@@ -99,7 +99,6 @@ void main() {
   // ===== WATER EVAPORATION (Vacuum environment) =====
   // In vacuum (no atmospheric pressure), water boils at ~0°C (273.15K)
   // Exposed surface water above boiling point evaporates rapidly
-  // Uses branch-free approach with smoothstep for smooth transitions
 
   float waterBoilDifference = T - WATER_BOIL_POINT_VACUUM;  // Positive when above boiling point
 

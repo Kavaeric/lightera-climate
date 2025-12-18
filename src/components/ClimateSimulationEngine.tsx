@@ -33,6 +33,38 @@ interface GPUResources {
 }
 
 /**
+ * Validates that GPU resources were created successfully
+ * This is a lightweight check - actual validation happens during first render
+ */
+function validateGPUResources(
+  gl: THREE.WebGLRenderer,
+  resources: GPUResources
+): void {
+  // Check that materials were created
+  if (!resources.hydrologyMaterial || !resources.surfaceMaterial || !resources.thermalMaterial) {
+    throw new Error('GPU materials were not created')
+  }
+
+  // Check that shader programs will compile (lightweight check)
+  const glContext = gl.getContext()
+
+  // Clear any existing errors
+  while (glContext.getError() !== glContext.NO_ERROR) {
+    // Drain error queue
+  }
+
+  // Force shader compilation
+  gl.compile(resources.scene, resources.camera)
+
+  // Check for compilation errors
+  const error = glContext.getError()
+  if (error !== glContext.NO_ERROR) {
+    console.warn(`WebGL warning during shader compilation: ${error}`)
+    // Don't throw - this may be a false positive
+  }
+}
+
+/**
  * Component that manages the climate simulation
  * Uses SimulationOrchestrator for control flow and SimulationExecutor for physics
  */
@@ -47,6 +79,8 @@ export function ClimateSimulationEngine({
   const {
     simulationKey,
     registerOrchestrator,
+    setError,
+    pause,
   } = useSimulation()
 
   const orchestratorRef = useRef<SimulationOrchestrator | null>(null)
@@ -79,6 +113,15 @@ export function ClimateSimulationEngine({
 
     const dt = yearLength / stepsPerOrbit
     console.log(`  Timestep: ${dt.toFixed(1)}s`)
+
+    // Error handler for GPU operations
+    const handleGPUError = (error: Error) => {
+      console.error('[ClimateSimulationEngine] GPU error:', error)
+      setError(error)
+      pause()
+    }
+
+    try {
 
     // Create scene and materials
     const scene = new THREE.Scene()
@@ -227,6 +270,12 @@ export function ClimateSimulationEngine({
       mesh,
     }
 
+    // Validate GPU resources were created successfully
+    // This happens AFTER all textures are initialized
+    console.log('ClimateSimulationEngine: Validating GPU resources...')
+    validateGPUResources(gl, gpuResourcesRef.current)
+    console.log('ClimateSimulationEngine: GPU resources validated successfully')
+
     // Create orchestrator
     const orchestrator = new SimulationOrchestrator({
       dt,
@@ -234,7 +283,7 @@ export function ClimateSimulationEngine({
       subsolarPoint,
       rotationsPerYear,
       stepsPerOrbit,
-    })
+    }, handleGPUError)
 
     // Register milestone callbacks
     orchestrator.onMilestone((milestone) => {
@@ -261,6 +310,17 @@ export function ClimateSimulationEngine({
       gpuResourcesRef.current = null
       orchestratorRef.current = null
     }
+    } catch (error) {
+      console.error('[ClimateSimulationEngine] Initialization failed:', error)
+      handleGPUError(error instanceof Error ? error : new Error(String(error)))
+
+      // Cleanup on error
+      return () => {
+        registerOrchestrator(null)
+        gpuResourcesRef.current = null
+        orchestratorRef.current = null
+      }
+    }
   }, [
     gl,
     simulation,
@@ -281,7 +341,35 @@ export function ClimateSimulationEngine({
     thermalConductivity,
     radius,
     emissivity,
+    setError,
+    pause,
   ])
+
+  // WebGL context loss handling
+  useEffect(() => {
+    const canvas = gl.domElement
+
+    const handleContextLost = (event: Event) => {
+      event.preventDefault()
+      console.error('[ClimateSimulationEngine] WebGL context lost')
+      pause()
+      setError(new Error('WebGL context lost. The GPU may be under heavy load or the browser tab was backgrounded for too long.'))
+    }
+
+    const handleContextRestored = () => {
+      console.log('[ClimateSimulationEngine] WebGL context restored')
+      // Context restored, but we need to reinitialize - increment simulationKey to trigger recreation
+      setError(new Error('WebGL context was restored. Please create a new simulation.'))
+    }
+
+    canvas.addEventListener('webglcontextlost', handleContextLost)
+    canvas.addEventListener('webglcontextrestored', handleContextRestored)
+
+    return () => {
+      canvas.removeEventListener('webglcontextlost', handleContextLost)
+      canvas.removeEventListener('webglcontextrestored', handleContextRestored)
+    }
+  }, [gl, pause, setError])
 
   // Simulation loop
   useEffect(() => {
@@ -300,15 +388,21 @@ export function ClimateSimulationEngine({
       const pendingSteps = orchestrator.getPendingSteps()
       if (pendingSteps > 0) {
         // Render first, then execute the pending steps
-        executor.renderStep(gl, simulation, gpuResources, gpuResources.mesh, gpuResources.scene, gpuResources.camera)
-        orchestrator.executePendingSteps()
+        const success = executor.renderStep(gl, simulation, gpuResources, gpuResources.mesh, gpuResources.scene, gpuResources.camera)
+        if (success) {
+          orchestrator.executePendingSteps()
+        }
       }
 
       // Handle continuous running
       if (progress.controlState === 'running') {
         // Execute multiple steps per frame for performance
         for (let i = 0; i < stepsPerFrame; i++) {
-          executor.renderStep(gl, simulation, gpuResources, gpuResources.mesh, gpuResources.scene, gpuResources.camera)
+          const success = executor.renderStep(gl, simulation, gpuResources, gpuResources.mesh, gpuResources.scene, gpuResources.camera)
+          if (!success) {
+            // Stop execution on error
+            break
+          }
           orchestrator.step(1)
         }
       }
@@ -327,7 +421,7 @@ export function ClimateSimulationEngine({
     return () => {
       cancelAnimationFrame(animationFrameId)
     }
-  }, [gl, simulation, registerOrchestrator, stepsPerOrbit, stepsPerFrame])
+  }, [gl, simulation, stepsPerFrame])
 
   return null
 }

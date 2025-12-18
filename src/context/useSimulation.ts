@@ -11,6 +11,7 @@ export interface SimulationContextType {
   // Simulation state
   simulationKey: number
   isRunning: boolean
+  error: Error | null
 
   // Methods to update state
   setActiveSimulationConfig: (config: SimulationConfig) => void
@@ -23,6 +24,10 @@ export interface SimulationContextType {
   pause: () => void
   stepOnce: () => void
   step: (numSteps: number) => void
+
+  // Error handling
+  setError: (error: Error | null) => void
+  clearError: () => void
 
   // Orchestrator access
   registerOrchestrator: (orchestrator: SimulationOrchestrator | null) => void

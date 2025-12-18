@@ -30,9 +30,11 @@ export interface ExecutorState {
 export class SimulationExecutor {
   private config: ExecutorConfig
   private state: ExecutorState
+  private onError?: (error: Error) => void
 
-  constructor(config: ExecutorConfig) {
+  constructor(config: ExecutorConfig, onError?: (error: Error) => void) {
     this.config = config
+    this.onError = onError
     this.state = {
       totalTime: 0,
       yearProgress: 0,
@@ -79,6 +81,7 @@ export class SimulationExecutor {
   /**
    * Render a single physics step to GPU
    * This is the actual physics computation on the GPU
+   * Returns true on success, false if an error occurred
    */
   renderStep(
     gl: THREE.WebGLRenderer,
@@ -91,60 +94,70 @@ export class SimulationExecutor {
     mesh: THREE.Mesh,
     scene: THREE.Scene,
     camera: THREE.OrthographicCamera
-  ): void {
-    const { hydrologyMaterial, surfaceMaterial, thermalMaterial } = materials
+  ): boolean {
+    try {
+      const { hydrologyMaterial, surfaceMaterial, thermalMaterial } = materials
 
-    // Update thermal material uniforms with current orbital state
-    thermalMaterial.uniforms.baseSubsolarPoint.value.set(
-      this.config.subsolarPoint.lat,
-      this.state.currentSubsolarLon
-    )
-    thermalMaterial.uniforms.yearProgress.value = this.state.yearProgress
+      // Update thermal material uniforms with current orbital state
+      thermalMaterial.uniforms.baseSubsolarPoint.value.set(
+        this.config.subsolarPoint.lat,
+        this.state.currentSubsolarLon
+      )
+      thermalMaterial.uniforms.yearProgress.value = this.state.yearProgress
 
-    // Get ping-pong buffers
-    const climateSource = simulation.getClimateDataCurrent()
-    const climateDest = simulation.getClimateDataNext()
+      // Get ping-pong buffers
+      const climateSource = simulation.getClimateDataCurrent()
+      const climateDest = simulation.getClimateDataNext()
 
-    // ===== STEP 1: Update hydrology (ice formation/melting) =====
-    const hydrologyCurrent = simulation.getHydrologyDataCurrent()
-    const hydrologyNext = simulation.getHydrologyDataNext()
+      // ===== STEP 1: Update hydrology (ice formation/melting) =====
+      const hydrologyCurrent = simulation.getHydrologyDataCurrent()
+      const hydrologyNext = simulation.getHydrologyDataNext()
 
-    hydrologyMaterial.uniforms.previousHydrology.value = hydrologyCurrent.texture
-    hydrologyMaterial.uniforms.currentTemperature.value = climateSource.texture
+      hydrologyMaterial.uniforms.previousHydrology.value = hydrologyCurrent.texture
+      hydrologyMaterial.uniforms.currentTemperature.value = climateSource.texture
 
-    mesh.material = hydrologyMaterial
-    gl.setRenderTarget(hydrologyNext)
-    gl.clear()
-    gl.render(scene, camera)
-    gl.setRenderTarget(null)
+      mesh.material = hydrologyMaterial
+      gl.setRenderTarget(hydrologyNext)
+      gl.clear()
+      gl.render(scene, camera)
+      gl.setRenderTarget(null)
 
-    simulation.swapHydrologyBuffers()
+      simulation.swapHydrologyBuffers()
 
-    // ===== STEP 2: Update surface properties (effective albedo) =====
-    const surfaceNext = simulation.getSurfaceDataNext()
+      // ===== STEP 2: Update surface properties (effective albedo) =====
+      const surfaceNext = simulation.getSurfaceDataNext()
 
-    surfaceMaterial.uniforms.terrainData.value = simulation.terrainData
-    surfaceMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture
+      surfaceMaterial.uniforms.terrainData.value = simulation.terrainData
+      surfaceMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture
 
-    mesh.material = surfaceMaterial
-    gl.setRenderTarget(surfaceNext)
-    gl.clear()
-    gl.render(scene, camera)
-    gl.setRenderTarget(null)
+      mesh.material = surfaceMaterial
+      gl.setRenderTarget(surfaceNext)
+      gl.clear()
+      gl.render(scene, camera)
+      gl.setRenderTarget(null)
 
-    simulation.swapSurfaceBuffers()
+      simulation.swapSurfaceBuffers()
 
-    // ===== STEP 3: Update thermal (temperature evolution) =====
-    thermalMaterial.uniforms.previousTemperature.value = climateSource.texture
-    thermalMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture
-    thermalMaterial.uniforms.surfaceData.value = simulation.getSurfaceDataCurrent().texture
+      // ===== STEP 3: Update thermal (temperature evolution) =====
+      thermalMaterial.uniforms.previousTemperature.value = climateSource.texture
+      thermalMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture
+      thermalMaterial.uniforms.surfaceData.value = simulation.getSurfaceDataCurrent().texture
 
-    mesh.material = thermalMaterial
-    gl.setRenderTarget(climateDest)
-    gl.clear()
-    gl.render(scene, camera)
-    gl.setRenderTarget(null)
+      mesh.material = thermalMaterial
+      gl.setRenderTarget(climateDest)
+      gl.clear()
+      gl.render(scene, camera)
+      gl.setRenderTarget(null)
 
-    simulation.swapClimateBuffers()
+      simulation.swapClimateBuffers()
+
+      return true
+    } catch (error) {
+      console.error('[SimulationExecutor] GPU render step failed:', error)
+      if (this.onError) {
+        this.onError(error instanceof Error ? error : new Error(String(error)))
+      }
+      return false
+    }
   }
 }

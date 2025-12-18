@@ -52,9 +52,9 @@ export class SimulationOrchestrator {
 
   private milestoneCallbacks: ((milestone: Milestone) => void)[] = []
 
-  constructor(config: OrchestratorConfig) {
+  constructor(config: OrchestratorConfig, errorCallback?: (error: Error) => void) {
     this.config = config
-    this.executor = new SimulationExecutor(config)
+    this.executor = new SimulationExecutor(config, errorCallback)
   }
 
   /**

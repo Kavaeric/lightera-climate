@@ -16,11 +16,16 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
   const [activePlanetConfig, setActivePlanetConfig] = useState<PlanetConfig>(DEFAULT_PLANET_CONFIG)
   const [simulationKey, setSimulationKey] = useState(0)
   const [isRunning, setIsRunning] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
   const orchestratorRef = useRef<SimulationOrchestrator | null>(null)
 
   // Helper to sync isRunning from orchestrator (single source of truth)
   const syncIsRunning = useCallback(() => {
     setIsRunning(orchestratorRef.current?.isRunning() ?? false)
+  }, [])
+
+  const clearError = useCallback(() => {
+    setError(null)
   }, [])
 
   const newSimulation = (simConfig: SimulationConfig, planetConfig: PlanetConfig) => {
@@ -64,6 +69,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
         activePlanetConfig,
         simulationKey,
         isRunning,
+        error,
         setActiveSimulationConfig,
         setActivePlanetConfig,
         setSimulationKey,
@@ -72,6 +78,8 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
         pause,
         stepOnce,
         step,
+        setError,
+        clearError,
         registerOrchestrator,
         getOrchestrator,
       }}

@@ -135,7 +135,7 @@ function AppContent() {
   const [climateData, setClimateData] = useState<Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number }>>([])
 
   // Get active config and simulation state from context
-  const { activeSimulationConfig, simulationKey, isRunning, newSimulation, play, pause, stepOnce, getOrchestrator } = useSimulation()
+  const { activeSimulationConfig, simulationKey, isRunning, error, clearError, newSimulation, play, pause, stepOnce, getOrchestrator } = useSimulation()
 
   // Track simulation progress from orchestrator
   const [simulationProgress, setSimulationProgress] = useState<{ orbitIdx: number; physicsStep: number } | null>(null)
@@ -221,6 +221,45 @@ function AppContent() {
 
   return (
     <main style={{ width: '100vw', height: '100vh', background: 'black' }}>
+      {/* Error banner */}
+      {error && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          background: 'rgba(220, 38, 38, 0.95)',
+          color: 'white',
+          padding: '16px',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px',
+          fontFamily: 'monospace',
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
+        }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>⚠ Simulation Error</div>
+            <div style={{ fontSize: '14px', opacity: 0.9 }}>{error.message}</div>
+          </div>
+          <button
+            onClick={() => clearError()}
+            style={{
+              background: 'rgba(255, 255, 255, 0.2)',
+              border: '1px solid rgba(255, 255, 255, 0.4)',
+              color: 'white',
+              padding: '8px 16px',
+              cursor: 'pointer',
+              fontFamily: 'monospace',
+              borderRadius: '4px',
+            }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       <Canvas camera={{ position: [2, 1, 2], fov: 60 }} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
         <OrbitControls enablePan={false} />
 
@@ -343,6 +382,7 @@ function AppContent() {
           <button
             onClick={() => {
               // Create new simulation with configs (doesn't start running)
+              clearError()
               newSimulation(pendingSimulationConfig, pendingPlanetConfig)
               setSelectedCell(null)
               setSelectedCellLatLon(null)

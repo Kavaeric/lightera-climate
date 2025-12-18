@@ -177,10 +177,10 @@ void main() {
   // 3. Ice: C = 2100 * 917 * min(iceThickness, 150m) - capped at crust depth
   // This prevents unrealistic heat capacities from very deep water while still providing thermal inertia
 
-  const float CRUST_DEPTH = 150.0;  // metres - approximate depth of thermal crust being simulated
+  const float CRUST_DEPTH = 150.0;  // approximate depth of thermal crust being simulated in metres
 
   // Heat capacities for different phases
-  float C_rock = surfaceHeatCapacity;                                    // Rock: 2.16e6
+  float C_rock = surfaceHeatCapacity;                                 // Rock: 2.16e6 J/(m²·K)
   float C_water = 4186.0 * 1000.0 * min(waterDepth, CRUST_DEPTH);     // Liquid water: capped at crust depth
   float C_ice = 2100.0 * 917.0 * min(iceThickness, CRUST_DEPTH);      // Ice: capped at crust depth
 
