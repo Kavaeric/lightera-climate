@@ -3,6 +3,7 @@ import { useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { TextureGridSimulation } from '../util/TextureGridSimulation'
 import { SimulationOrchestrator } from '../util/SimulationOrchestrator'
+import { SimulationRecorder } from '../util/SimulationRecorder'
 import type { PlanetConfig } from '../config/planetConfig'
 import type { SimulationConfig } from '../config/simulationConfig'
 import { useSimulation } from '../context/useSimulation'
@@ -18,6 +19,7 @@ interface ClimateSimulationEngineProps {
   planetConfig: PlanetConfig
   simulationConfig: SimulationConfig
   stepsPerFrame: number
+  samplesPerOrbit: number
   onSolveComplete?: () => void
 }
 
@@ -73,18 +75,21 @@ export function ClimateSimulationEngine({
   planetConfig,
   simulationConfig,
   stepsPerFrame,
+  samplesPerOrbit,
   onSolveComplete,
 }: ClimateSimulationEngineProps) {
   const { gl } = useThree()
   const {
     simulationKey,
     registerOrchestrator,
+    registerRecorder,
     setError,
     pause,
   } = useSimulation()
 
   const orchestratorRef = useRef<SimulationOrchestrator | null>(null)
   const gpuResourcesRef = useRef<GPUResources | null>(null)
+  const recorderRef = useRef<SimulationRecorder | null>(null)
 
   // Extract values from config objects
   const {
@@ -296,9 +301,25 @@ export function ClimateSimulationEngine({
     orchestratorRef.current = orchestrator
     registerOrchestrator(orchestrator)
 
+    // Create simulation recorder
+    const recorder = new SimulationRecorder(
+      {
+        samplesPerOrbit,
+        stepsPerOrbit,
+      },
+      simulation,
+      gl
+    )
+    recorderRef.current = recorder
+    registerRecorder(recorder)
+    
+    // Reset recorder when simulation starts (in case of reuse)
+    recorder.reset()
+
     // Cleanup
     return () => {
       registerOrchestrator(null)
+      registerRecorder(null)
       if (gpuResourcesRef.current) {
         gpuResourcesRef.current.geometry.dispose()
         gpuResourcesRef.current.hydrologyMaterial.dispose()
@@ -307,8 +328,12 @@ export function ClimateSimulationEngine({
         gpuResourcesRef.current.blankRenderTarget.dispose()
         gpuResourcesRef.current.scene.clear()
       }
+      if (recorderRef.current) {
+        recorderRef.current.dispose()
+      }
       gpuResourcesRef.current = null
       orchestratorRef.current = null
+      recorderRef.current = null
     }
     } catch (error) {
       console.error('[ClimateSimulationEngine] Initialization failed:', error)
@@ -317,8 +342,13 @@ export function ClimateSimulationEngine({
       // Cleanup on error
       return () => {
         registerOrchestrator(null)
+        registerRecorder(null)
+        if (recorderRef.current) {
+          recorderRef.current.dispose()
+        }
         gpuResourcesRef.current = null
         orchestratorRef.current = null
+        recorderRef.current = null
       }
     }
   }, [
@@ -329,9 +359,11 @@ export function ClimateSimulationEngine({
     simulationKey,
     onSolveComplete,
     registerOrchestrator,
+    registerRecorder,
     solarFlux,
     albedo,
     stepsPerOrbit,
+    samplesPerOrbit,
     yearLength,
     subsolarPoint,
     rotationsPerYear,
@@ -383,14 +415,23 @@ export function ClimateSimulationEngine({
     const simulationLoop = () => {
       const executor = orchestrator.getExecutor()
       const progress = orchestrator.getProgress()
+      const recorder = recorderRef.current
 
       // Handle pending steps (requested via stepOnce() or step())
       const pendingSteps = orchestrator.getPendingSteps()
       if (pendingSteps > 0) {
-        // Render first, then execute the pending steps
-        const success = executor.renderStep(gl, simulation, gpuResources, gpuResources.mesh, gpuResources.scene, gpuResources.camera)
-        if (success) {
-          orchestrator.executePendingSteps()
+        // Execute pending steps one at a time so recorder can track each step
+        for (let i = 0; i < pendingSteps; i++) {
+          const success = executor.renderStep(gl, simulation, gpuResources, gpuResources.mesh, gpuResources.scene, gpuResources.camera)
+          if (!success) {
+            break
+          }
+          orchestrator.step(1)
+          // Notify recorder after each step
+          if (recorder) {
+            const stepProgress = orchestrator.getProgress()
+            recorder.onPhysicsStep(stepProgress.physicsStep, stepProgress.orbitIdx)
+          }
         }
       }
 
@@ -404,6 +445,11 @@ export function ClimateSimulationEngine({
             break
           }
           orchestrator.step(1)
+          // Notify recorder after each step
+          if (recorder) {
+            const stepProgress = orchestrator.getProgress()
+            recorder.onPhysicsStep(stepProgress.physicsStep, stepProgress.orbitIdx)
+          }
         }
       }
 

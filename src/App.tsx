@@ -26,9 +26,10 @@ interface SceneProps {
   onHoverCell: (cellIndex: number | null) => void
   onCellClick: (cellIndex: number) => void
   stepsPerFrame: number
+  samplesPerOrbit: number
 }
 
-function Scene({ simulation, displayConfig, showLatLonGrid, hoveredCell, selectedCell, onHoverCell, onCellClick, stepsPerFrame }: SceneProps) {
+function Scene({ simulation, displayConfig, showLatLonGrid, hoveredCell, selectedCell, onHoverCell, onCellClick, stepsPerFrame, samplesPerOrbit }: SceneProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const highlightRef = useRef<THREE.Mesh>(null)
   const { activeSimulationConfig, activePlanetConfig } = useSimulation()
@@ -41,6 +42,7 @@ function Scene({ simulation, displayConfig, showLatLonGrid, hoveredCell, selecte
         planetConfig={activePlanetConfig}
         simulationConfig={activeSimulationConfig}
         stepsPerFrame={stepsPerFrame}
+        samplesPerOrbit={samplesPerOrbit}
       />
 
       {/* Visible geometry - pure data visualisation */}
@@ -93,6 +95,7 @@ function ClimateDataFetcher({
   onDataFetched: (data: Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number }>) => void
 }) {
   const { gl } = useThree()
+  const { getRecorder } = useSimulation()
 
   useEffect(() => {
     if (cellIndex === null) {
@@ -101,9 +104,31 @@ function ClimateDataFetcher({
     }
 
     const fetchData = async () => {
+      const recorder = getRecorder()
+      
+      // Try to get complete orbit data from recorder
+      if (recorder && recorder.hasCompleteOrbit()) {
+        const temperatures = await recorder.getCompleteOrbitTemperatureForCell(cellIndex)
+        
+        if (temperatures && temperatures.length > 0) {
+          // Format as time series data (sample index as "day")
+          const formattedData = temperatures.map((temp, index) => ({
+            day: index,
+            temperature: temp,
+            humidity: 0, // Not recorded yet
+            pressure: 0, // Not recorded yet
+            waterDepth: 0, // Not recorded yet
+            iceThickness: 0, // Not recorded yet
+            salinity: 0, // Not recorded yet
+          }))
+          onDataFetched(formattedData)
+          return
+        }
+      }
+
+      // Fallback: show current state if no complete orbit available
       const climateData = await simulation.getClimateDataForCell(cellIndex, gl)
       const hydrologyData = await simulation.getHydrologyDataForCell(cellIndex, gl)
-      // Since we no longer store time series, just show current state as a single data point
       const formattedData = [{
         day: 0,
         ...climateData,
@@ -113,7 +138,7 @@ function ClimateDataFetcher({
     }
 
     fetchData()
-  }, [cellIndex, simulation, gl, onDataFetched])
+  }, [cellIndex, simulation, gl, onDataFetched, getRecorder])
 
   return null // Don't render anything in the Canvas
 }
@@ -126,6 +151,7 @@ function AppContent() {
   const [seaLevel] = useState(0)
   // const [seaLevel, setSeaLevel] = useState(0)
   const [stepsPerFrame, setStepsPerFrame] = useState(500)
+  const [samplesPerOrbit, setSamplesPerOrbit] = useState(50)
 
   // UI state
   const [showLatLonGrid, setShowLatLonGrid] = useState(true)
@@ -278,6 +304,7 @@ function AppContent() {
           onHoverCell={setHoveredCell}
           onCellClick={handleCellClick}
           stepsPerFrame={stepsPerFrame}
+          samplesPerOrbit={samplesPerOrbit}
         />
 
         {/* Climate data fetcher - needs to be inside Canvas to access gl context */}
@@ -307,6 +334,18 @@ function AppContent() {
               onChange={(e) => {
                 const val = parseInt(e.target.value);
                 setPendingSimulationConfig({ ...pendingSimulationConfig, stepsPerOrbit: isNaN(val) ? pendingSimulationConfig.stepsPerOrbit : val });
+              }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>Samples per orbit</span>
+            <input
+              type="number"
+              min="1"
+              value={samplesPerOrbit}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                setSamplesPerOrbit(isNaN(val) ? samplesPerOrbit : Math.max(1, val));
               }}
             />
           </label>

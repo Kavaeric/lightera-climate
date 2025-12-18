@@ -6,6 +6,7 @@ import { DEFAULT_PLANET_CONFIG } from '../config/planetConfig'
 import { DEFAULT_SIMULATION_CONFIG } from '../config/simulationConfig'
 import { SimulationContext } from './useSimulation'
 import type { SimulationOrchestrator } from '../util/SimulationOrchestrator'
+import type { SimulationRecorder } from '../util/SimulationRecorder'
 
 interface SimulationProviderProps {
   children: ReactNode
@@ -18,6 +19,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
   const [isRunning, setIsRunning] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const orchestratorRef = useRef<SimulationOrchestrator | null>(null)
+  const recorderRef = useRef<SimulationRecorder | null>(null)
 
   // Helper to sync isRunning from orchestrator (single source of truth)
   const syncIsRunning = useCallback(() => {
@@ -62,6 +64,14 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
     return orchestratorRef.current
   }, [])
 
+  const registerRecorder = useCallback((recorder: SimulationRecorder | null) => {
+    recorderRef.current = recorder
+  }, [])
+
+  const getRecorder = useCallback(() => {
+    return recorderRef.current
+  }, [])
+
   return (
     <SimulationContext.Provider
       value={{
@@ -82,6 +92,8 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
         clearError,
         registerOrchestrator,
         getOrchestrator,
+        registerRecorder,
+        getRecorder,
       }}
     >
       {children}

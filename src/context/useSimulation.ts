@@ -2,6 +2,7 @@ import { useContext, createContext } from 'react'
 import type { PlanetConfig } from '../config/planetConfig'
 import type { SimulationConfig } from '../config/simulationConfig'
 import type { SimulationOrchestrator } from '../util/SimulationOrchestrator'
+import type { SimulationRecorder } from '../util/SimulationRecorder'
 
 export interface SimulationContextType {
   // Active configuration (only updated when simulation runs)
@@ -32,6 +33,10 @@ export interface SimulationContextType {
   // Orchestrator access
   registerOrchestrator: (orchestrator: SimulationOrchestrator | null) => void
   getOrchestrator: () => SimulationOrchestrator | null
+
+  // Recorder access
+  registerRecorder: (recorder: SimulationRecorder | null) => void
+  getRecorder: () => SimulationRecorder | null
 }
 
 export const SimulationContext = createContext<SimulationContextType | undefined>(undefined)

@@ -130,7 +130,7 @@ export function ClimateDataChart({ data, cellIndex, cellLatLon, onClose }: Clima
         yScale={{ type: 'linear', domain: [100, 500] }}
       >
         <Grid columns={false} numTicks={4} />
-        <Axis orientation="bottom" label="Sample index" numTicks={6} />
+        <Axis orientation="bottom" label="Sample" numTicks={6} />
         <Axis orientation="left" label="Temperature (K)" numTicks={5} />
         <LineSeries
           dataKey="temperature"
