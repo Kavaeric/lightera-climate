@@ -13,4 +13,3 @@ void main() {
   vec4 current = texture2D(currentTex, vUv);
   gl_FragColor = mix(previous, current, interpolationFactor);
 }
-

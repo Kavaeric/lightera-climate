@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
 import { XYChart, Axis, Grid, LineSeries } from '@visx/xychart'
+import { useDisplayConfig } from '../context/useDisplayConfig'
+
 
 interface ClimateDataPoint {
   day: number
@@ -9,6 +11,7 @@ interface ClimateDataPoint {
   waterDepth: number
   iceThickness: number
   salinity: number
+  albedo: number
 }
 
 interface ClimateDataChartProps {
@@ -19,6 +22,8 @@ interface ClimateDataChartProps {
 }
 
 export function ClimateDataChart({ data, cellIndex, cellLatLon, onClose }: ClimateDataChartProps) {
+  const { displayConfig } = useDisplayConfig()
+
   const accessors = useMemo(
     () => ({
       xAccessor: (d: ClimateDataPoint) => d.day,
@@ -39,15 +44,20 @@ export function ClimateDataChart({ data, cellIndex, cellLatLon, onClose }: Clima
 
   // Calculate hydrology stats
   const hydrologyStats = useMemo(() => {
-    if (data.length === 0) return { waterDepthMax: 0, iceThicknessMax: 0, salinityAvg: 0 }
-    const waterDepths = data.map((d) => d.waterDepth)
-    const iceThicknesses = data.map((d) => d.iceThickness)
-    const salinities = data.map((d) => d.salinity)
+    if (data.length === 0) return { waterDepthMax: 0, iceThicknessMax: 0 }
+    const waterDepths = data.map((d) => d.waterDepth).filter((d) => d > 0)
+    const iceThicknesses = data.map((d) => d.iceThickness).filter((d) => d > 0)
     return {
-      waterDepthMax: Math.max(...waterDepths),
-      iceThicknessMax: Math.max(...iceThicknesses),
-      salinityAvg: salinities.reduce((a, b) => a + b, 0) / salinities.length,
+      waterDepthMax: waterDepths.length > 0 ? Math.max(...waterDepths) : 0,
+      iceThicknessMax: iceThicknesses.length > 0 ? Math.max(...iceThicknesses) : 0,
     }
+  }, [data])
+
+  // Calculate albedo (current value, not time-series)
+  const albedo = useMemo(() => {
+    if (data.length === 0) return 0
+    // Albedo is the same for all samples (current state), so just get the first one
+    return data[0]?.albedo ?? 0
   }, [data])
 
   if (cellIndex === null) return null
@@ -113,13 +123,13 @@ export function ClimateDataChart({ data, cellIndex, cellLatLon, onClose }: Clima
 
       <div style={{ display: 'flex', gap: 16, fontSize: 16 }}>
         <div>
-          Water depth: <strong>{hydrologyStats.waterDepthMax.toFixed(3)} m</strong>
+          Water depth: <strong>{hydrologyStats.waterDepthMax.toFixed(1)} m</strong>
         </div>
         <div>
-          Ice thickness: <strong>{hydrologyStats.iceThicknessMax.toFixed(3)} m</strong>
+          Ice thickness: <strong>{hydrologyStats.iceThicknessMax.toFixed(1)} m</strong>
         </div>
         <div>
-          Salinity: <strong>{hydrologyStats.salinityAvg.toFixed(1)} PSU</strong>
+          Albedo: <strong>{albedo.toFixed(2)}</strong>
         </div>
       </div>
 
@@ -127,11 +137,11 @@ export function ClimateDataChart({ data, cellIndex, cellLatLon, onClose }: Clima
       <XYChart
         height={240}
         xScale={{ type: 'linear' }}
-        yScale={{ type: 'linear', domain: [100, 500] }}
+        yScale={{ type: 'linear', domain: [displayConfig.temperatureRange.min, displayConfig.temperatureRange.max] }}
       >
-        <Grid columns={false} numTicks={4} />
-        <Axis orientation="bottom" label="Sample" numTicks={6} />
-        <Axis orientation="left" label="Temperature (K)" numTicks={5} />
+        <Grid columns={false}/>
+        <Axis orientation="bottom" label="Sample"/>
+        <Axis orientation="left" label="Temperature (K)"/>
         <LineSeries
           dataKey="temperature"
           data={data}

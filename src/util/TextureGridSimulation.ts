@@ -575,6 +575,24 @@ export class TextureGridSimulation {
     }
   }
 
+  /**
+   * Read back current surface data (effective albedo) for a specific cell
+   */
+  async getSurfaceDataForCell(
+    cellIndex: number,
+    renderer: THREE.WebGLRenderer
+  ): Promise<{ albedo: number }> {
+    const coords = this.indexTo2D(cellIndex)
+    const buffer = new Float32Array(4)
+
+    const target = this.getSurfaceDataCurrent()
+    renderer.readRenderTargetPixels(target, coords.x, coords.y, 1, 1, buffer)
+
+    return {
+      albedo: buffer[0], // R channel = effectiveAlbedo
+    }
+  }
+
   dispose() {
     this.neighbourIndices1.dispose()
     this.neighbourIndices2.dispose()

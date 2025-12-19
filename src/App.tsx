@@ -11,15 +11,15 @@ import { ClimateSimulationEngine } from './components/ClimateSimulationEngine'
 import { ClimateDataChart } from './components/ClimateDataChart'
 import { DEFAULT_PLANET_CONFIG, type PlanetConfig } from './config/planetConfig'
 import { DEFAULT_SIMULATION_CONFIG, type SimulationConfig } from './config/simulationConfig'
-import { DEFAULT_DISPLAY_CONFIG, type DisplayConfig } from './config/displayConfig'
 import { SimulationProvider } from './context/SimulationContext'
+import { DisplayConfigProvider } from './context/DisplayConfigProvider'
 import { useSimulation } from './context/useSimulation'
+import { useDisplayConfig } from './context/useDisplayConfig'
 import { TerrainDataLoader } from './util/TerrainDataLoader'
 import { HydrologyInitialiser } from './util/HydrologyInitialiser'
 
 interface SceneProps {
   simulation: TextureGridSimulation
-  displayConfig: DisplayConfig
   showLatLonGrid: boolean
   hoveredCell: number | null
   selectedCell: number | null
@@ -29,10 +29,11 @@ interface SceneProps {
   samplesPerOrbit: number
 }
 
-function Scene({ simulation, displayConfig, showLatLonGrid, hoveredCell, selectedCell, onHoverCell, onCellClick, stepsPerFrame, samplesPerOrbit }: SceneProps) {
+function Scene({ simulation, showLatLonGrid, hoveredCell, selectedCell, onHoverCell, onCellClick, stepsPerFrame, samplesPerOrbit }: SceneProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const highlightRef = useRef<THREE.Mesh>(null)
   const { activeSimulationConfig, activePlanetConfig } = useSimulation()
+  const { displayConfig } = useDisplayConfig()
 
   return (
     <>
@@ -92,7 +93,7 @@ function ClimateDataFetcher({
 }: {
   simulation: TextureGridSimulation
   cellIndex: number | null
-  onDataFetched: (data: Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number }>) => void
+  onDataFetched: (data: Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number }>) => void
 }) {
   const { gl } = useThree()
   const { getRecorder } = useSimulation()
@@ -106,20 +107,26 @@ function ClimateDataFetcher({
     const fetchData = async () => {
       const recorder = getRecorder()
       
-      // Try to get complete orbit data from recorder
+      // Always get current hydrology and surface data (not time-series, just current state)
+      const hydrologyData = await simulation.getHydrologyDataForCell(cellIndex, gl)
+      const surfaceData = await simulation.getSurfaceDataForCell(cellIndex, gl)
+      
+      // Try to get complete orbit temperature data from recorder
       if (recorder && recorder.hasCompleteOrbit()) {
         const temperatures = await recorder.getCompleteOrbitTemperatureForCell(cellIndex)
         
         if (temperatures && temperatures.length > 0) {
           // Format as time series data (sample index as "day")
+          // Use current hydrology and surface data for all samples (since it's not time-series)
           const formattedData = temperatures.map((temp, index) => ({
             day: index,
             temperature: temp,
             humidity: 0, // Not recorded yet
             pressure: 0, // Not recorded yet
-            waterDepth: 0, // Not recorded yet
-            iceThickness: 0, // Not recorded yet
-            salinity: 0, // Not recorded yet
+            waterDepth: hydrologyData.waterDepth,
+            iceThickness: hydrologyData.iceThickness,
+            salinity: hydrologyData.salinity,
+            albedo: surfaceData.albedo,
           }))
           onDataFetched(formattedData)
           return
@@ -128,11 +135,11 @@ function ClimateDataFetcher({
 
       // Fallback: show current state if no complete orbit available
       const climateData = await simulation.getClimateDataForCell(cellIndex, gl)
-      const hydrologyData = await simulation.getHydrologyDataForCell(cellIndex, gl)
       const formattedData = [{
         day: 0,
         ...climateData,
         ...hydrologyData,
+        ...surfaceData,
       }]
       onDataFetched(formattedData)
     }
@@ -147,7 +154,7 @@ function AppContent() {
   // UI configuration objects (mutable via input fields)
   const [pendingPlanetConfig, setPendingPlanetConfig] = useState<PlanetConfig>(DEFAULT_PLANET_CONFIG)
   const [pendingSimulationConfig, setPendingSimulationConfig] = useState<SimulationConfig>(DEFAULT_SIMULATION_CONFIG)
-  const [displayConfig, setDisplayConfig] = useState<DisplayConfig>(DEFAULT_DISPLAY_CONFIG)
+  const { displayConfig, setDisplayConfig } = useDisplayConfig()
   const [seaLevel] = useState(0)
   // const [seaLevel, setSeaLevel] = useState(0)
   const [stepsPerFrame, setStepsPerFrame] = useState(500)
@@ -158,7 +165,7 @@ function AppContent() {
   const [hoveredCell, setHoveredCell] = useState<number | null>(null)
   const [selectedCell, setSelectedCell] = useState<number | null>(null)
   const [selectedCellLatLon, setSelectedCellLatLon] = useState<{ lat: number; lon: number } | null>(null)
-  const [climateData, setClimateData] = useState<Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number }>>([])
+  const [climateData, setClimateData] = useState<Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number }>>([])
 
   // Get active config and simulation state from context
   const { activeSimulationConfig, simulationKey, isRunning, error, clearError, newSimulation, play, pause, stepOnce, getOrchestrator } = useSimulation()
@@ -241,7 +248,7 @@ function AppContent() {
     setClimateData([])
   }, [])
 
-  const handleDataFetched = useCallback((data: Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number }>) => {
+  const handleDataFetched = useCallback((data: Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number }>) => {
     setClimateData(data)
   }, [])
 
@@ -297,7 +304,6 @@ function AppContent() {
         <Scene
           key={simulationKey}
           simulation={simulation}
-          displayConfig={displayConfig}
           showLatLonGrid={showLatLonGrid}
           hoveredCell={hoveredCell}
           selectedCell={selectedCell}
@@ -420,7 +426,7 @@ function AppContent() {
           </label>
           <button
             onClick={() => {
-              // Create new simulation with configs (doesn't start running)
+              // Create new simulation with configs
               clearError()
               newSimulation(pendingSimulationConfig, pendingPlanetConfig)
               setSelectedCell(null)
@@ -596,7 +602,9 @@ function AppContent() {
 function App() {
   return (
     <SimulationProvider>
-      <AppContent />
+      <DisplayConfigProvider>
+        <AppContent />
+      </DisplayConfigProvider>
     </SimulationProvider>
   )
 }
