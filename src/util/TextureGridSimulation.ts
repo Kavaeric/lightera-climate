@@ -34,12 +34,8 @@ export class TextureGridSimulation {
   private hydrologyInitData: { waterDepth: number[]; salinity: number[]; iceThickness: number[] } | null = null
 
   // Surface data storage: TWO render targets (current and next frame)
-  // Computes surface properties from terrain + hydrology (albedo, etc)
-  // Each render target RGBA = [effectiveAlbedo, reserved, reserved, reserved]
-  public surfaceDataTargets: THREE.WebGLRenderTarget[]
-
-  // Climate data storage: TWO render targets (current and next frame)
-  // Each render target RGBA = [temperature, unused, unused, unused]
+  // Stores surface temperature and albedo together
+  // Each render target RGBA = [temperature, albedo, reserved, reserved]
   public climateDataTargets: THREE.WebGLRenderTarget[]
 
   constructor(config: SimulationConfig) {
@@ -54,8 +50,8 @@ export class TextureGridSimulation {
     this.textureHeight = Math.ceil(this.cellCount / this.textureWidth)
     this.textureHeight = Math.pow(2, Math.ceil(Math.log2(this.textureHeight)))
 
-    // Memory usage: 3 pairs of ping-pong buffers (hydrology, surface, climate)
-    const totalMemoryMB = (this.textureWidth * this.textureHeight * 6 * 4 * 4) / (1024 * 1024)
+    // Memory usage: 2 pairs of ping-pong buffers (hydrology, surface/climate)
+    const totalMemoryMB = (this.textureWidth * this.textureHeight * 4 * 4 * 4) / (1024 * 1024)
     console.log(
       `TextureGridSimulation: ${this.cellCount} cells`
     )
@@ -78,10 +74,8 @@ export class TextureGridSimulation {
     this.hydrologyDataTargets = [this.createRenderTarget(), this.createRenderTarget()]
     this.initialiseHydrologyTargets()
 
-    // Create surface data storage (two render targets: current and next frame)
-    this.surfaceDataTargets = [this.createRenderTarget(), this.createRenderTarget()]
-
-    // Create climate data storage (two render targets: current and next frame)
+    // Create surface/climate data storage (two render targets: current and next frame)
+    // Stores both temperature and albedo: RGBA = [temperature, albedo, reserved, reserved]
     this.climateDataTargets = [this.createRenderTarget(), this.createRenderTarget()]
   }
 
@@ -417,25 +411,26 @@ export class TextureGridSimulation {
 
   /**
    * Get the current surface render target (for reading in shaders)
+   * Alias for getClimateDataCurrent() - surface and climate data are now combined
    */
   public getSurfaceDataCurrent(): THREE.WebGLRenderTarget {
-    return this.surfaceDataTargets[0]
+    return this.getClimateDataCurrent()
   }
 
   /**
    * Get the next surface render target (for writing in shaders)
+   * Alias for getClimateDataNext() - surface and climate data are now combined
    */
   public getSurfaceDataNext(): THREE.WebGLRenderTarget {
-    return this.surfaceDataTargets[1]
+    return this.getClimateDataNext()
   }
 
   /**
    * Swap surface buffers for next frame
+   * Alias for swapClimateBuffers() - surface and climate data are now combined
    */
   public swapSurfaceBuffers(): void {
-    const temp = this.surfaceDataTargets[0]
-    this.surfaceDataTargets[0] = this.surfaceDataTargets[1]
-    this.surfaceDataTargets[1] = temp
+    this.swapClimateBuffers()
   }
 
   /**
@@ -453,21 +448,23 @@ export class TextureGridSimulation {
   }
 
   /**
-   * Get the current climate render target (for reading in shaders)
+   * Get the current surface/climate render target (for reading in shaders)
+   * Format: RGBA = [temperature, albedo, reserved, reserved]
    */
   public getClimateDataCurrent(): THREE.WebGLRenderTarget {
     return this.climateDataTargets[0]
   }
 
   /**
-   * Get the next climate render target (for writing in shaders)
+   * Get the next surface/climate render target (for writing in shaders)
+   * Format: RGBA = [temperature, albedo, reserved, reserved]
    */
   public getClimateDataNext(): THREE.WebGLRenderTarget {
     return this.climateDataTargets[1]
   }
 
   /**
-   * Swap climate buffers for next frame
+   * Swap surface/climate buffers for next frame
    */
   public swapClimateBuffers(): void {
     const temp = this.climateDataTargets[0]
@@ -583,11 +580,13 @@ export class TextureGridSimulation {
     const coords = this.indexTo2D(cellIndex)
     const buffer = new Float32Array(4)
 
-    const target = this.getSurfaceDataCurrent()
+    // Surface data (temperature + albedo) is now stored in climate texture
+    // R = temperature, G = albedo
+    const target = this.getClimateDataCurrent()
     renderer.readRenderTargetPixels(target, coords.x, coords.y, 1, 1, buffer)
 
     return {
-      albedo: buffer[0], // R channel = effectiveAlbedo
+      albedo: buffer[1], // G channel = effectiveAlbedo
     }
   }
 
@@ -612,9 +611,6 @@ export class TextureGridSimulation {
     this.cellPositions.dispose()
     this.terrainData.dispose()
     for (const target of this.hydrologyDataTargets) {
-      target.dispose()
-    }
-    for (const target of this.surfaceDataTargets) {
       target.dispose()
     }
     for (const target of this.climateDataTargets) {

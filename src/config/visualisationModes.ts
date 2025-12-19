@@ -110,8 +110,8 @@ export const VISUALISATION_ICE_THICKNESS: VisualisationMode = {
 export const VISUALISATION_ALBEDO: VisualisationMode = {
   id: 'albedo',
   name: 'Albedo (greyscale)',
-  getTextureSource: (simulation) => simulation.getSurfaceDataCurrent().texture,
-  dataChannel: 0, // Effective albedo in red channel
+  getTextureSource: (simulation) => simulation.getClimateDataCurrent().texture,
+  dataChannel: 1, // Effective albedo in green channel (temperature is in red channel)
   colourmap: COLOURMAP_ALBEDO,
   getRange: (displayConfig) => displayConfig.albedoRange,
 }

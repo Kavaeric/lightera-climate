@@ -10,9 +10,8 @@ import { useSimulation } from '../context/useSimulation'
 
 // Import shaders
 import fullscreenVertexShader from '../shaders/fullscreen.vert?raw'
-import thermalEvolutionFragmentShader from '../shaders/climate/thermalEvolution.frag?raw'
-import hydrologyEvolutionFragmentShader from '../shaders/climate/hydrologyEvolution.frag?raw'
 import surfaceEvolutionFragmentShader from '../shaders/climate/surfaceEvolution.frag?raw'
+import hydrologyEvolutionFragmentShader from '../shaders/climate/hydrologyEvolution.frag?raw'
 
 interface ClimateSimulationEngineProps {
   simulation: TextureGridSimulation
@@ -29,7 +28,6 @@ interface GPUResources {
   geometry: THREE.BufferGeometry
   hydrologyMaterial: THREE.ShaderMaterial
   surfaceMaterial: THREE.ShaderMaterial
-  thermalMaterial: THREE.ShaderMaterial
   blankRenderTarget: THREE.WebGLRenderTarget
   mesh: THREE.Mesh
 }
@@ -43,7 +41,7 @@ function validateGPUResources(
   resources: GPUResources
 ): void {
   // Check that materials were created
-  if (!resources.hydrologyMaterial || !resources.surfaceMaterial || !resources.thermalMaterial) {
+  if (!resources.hydrologyMaterial || !resources.surfaceMaterial) {
     throw new Error('GPU materials were not created')
   }
 
@@ -159,34 +157,22 @@ export function ClimateSimulationEngine({
       },
     })
 
-    // Create surface material
+    // Create combined surface/thermal material
     const surfaceMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: surfaceEvolutionFragmentShader,
       uniforms: {
-        terrainData: { value: simulation.terrainData },
-        hydrologyData: { value: blankTexture },
-      },
-    })
-
-    // Create thermal material
-    const thermalMaterial = new THREE.ShaderMaterial({
-      vertexShader: fullscreenVertexShader,
-      fragmentShader: thermalEvolutionFragmentShader,
-      uniforms: {
-        previousTemperature: { value: blankTexture },
+        previousSurfaceData: { value: blankTexture },
         cellPositions: { value: simulation.cellPositions },
         neighbourIndices1: { value: simulation.neighbourIndices1 },
         neighbourIndices2: { value: simulation.neighbourIndices2 },
         neighbourCounts: { value: simulation.neighbourCounts },
         terrainData: { value: simulation.terrainData },
         hydrologyData: { value: blankTexture },
-        surfaceData: { value: blankTexture },
         baseSubsolarPoint: { value: new THREE.Vector2(subsolarPoint.lat, subsolarPoint.lon) },
         axialTilt: { value: axialTilt },
         yearProgress: { value: 0 },
         solarFlux: { value: solarFlux },
-        albedo: { value: albedo },
         emissivity: { value: emissivity },
         surfaceHeatCapacity: { value: surfaceHeatCapacity },
         dt: { value: dt },
@@ -199,17 +185,20 @@ export function ClimateSimulationEngine({
     })
 
     // Create initialization material
+    // Initialize both temperature (R) and albedo (G) channels
     const initMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: `
         precision highp float;
         uniform float initTemp;
+        uniform float initAlbedo;
         void main() {
-          gl_FragColor = vec4(initTemp, 0.0, 0.0, 1.0);
+          gl_FragColor = vec4(initTemp, initAlbedo, 0.0, 0.0);
         }
       `,
       uniforms: {
         initTemp: { value: cosmicBackgroundTemp },
+        initAlbedo: { value: albedo },
       },
     })
 
@@ -248,20 +237,11 @@ export function ClimateSimulationEngine({
     gl.setRenderTarget(null)
     hydrologyInitMaterial.dispose()
 
-    // Initialise surface data
-    const surfaceFirstTarget = simulation.getSurfaceDataNext()
-    surfaceMaterial.uniforms.terrainData.value = simulation.terrainData
-    surfaceMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture
-    mesh.material = surfaceMaterial
-    gl.setRenderTarget(surfaceFirstTarget)
-    gl.clear()
-    gl.render(scene, camera)
-    gl.setRenderTarget(null)
-    simulation.swapSurfaceBuffers()
+    // Surface data (temperature + albedo) is already initialized above with initMaterial
+    // No separate surface initialization needed - it's computed in the combined shader
 
-    // Dispose init material and attach thermal material
+    // Dispose init material
     initMaterial.dispose()
-    mesh.material = thermalMaterial
 
     // Store GPU resources
     gpuResourcesRef.current = {
@@ -270,7 +250,6 @@ export function ClimateSimulationEngine({
       geometry,
       hydrologyMaterial,
       surfaceMaterial,
-      thermalMaterial,
       blankRenderTarget,
       mesh,
     }
@@ -324,7 +303,6 @@ export function ClimateSimulationEngine({
         gpuResourcesRef.current.geometry.dispose()
         gpuResourcesRef.current.hydrologyMaterial.dispose()
         gpuResourcesRef.current.surfaceMaterial.dispose()
-        gpuResourcesRef.current.thermalMaterial.dispose()
         gpuResourcesRef.current.blankRenderTarget.dispose()
         gpuResourcesRef.current.scene.clear()
       }
@@ -422,7 +400,10 @@ export function ClimateSimulationEngine({
       if (pendingSteps > 0) {
         // Execute pending steps one at a time so recorder can track each step
         for (let i = 0; i < pendingSteps; i++) {
-          const success = executor.renderStep(gl, simulation, gpuResources, gpuResources.mesh, gpuResources.scene, gpuResources.camera)
+          const success = executor.renderStep(gl, simulation, {
+            hydrologyMaterial: gpuResources.hydrologyMaterial,
+            surfaceMaterial: gpuResources.surfaceMaterial,
+          }, gpuResources.mesh, gpuResources.scene, gpuResources.camera)
           if (!success) {
             break
           }
@@ -439,7 +420,10 @@ export function ClimateSimulationEngine({
       if (progress.controlState === 'running') {
         // Execute multiple steps per frame for performance
         for (let i = 0; i < stepsPerFrame; i++) {
-          const success = executor.renderStep(gl, simulation, gpuResources, gpuResources.mesh, gpuResources.scene, gpuResources.camera)
+          const success = executor.renderStep(gl, simulation, {
+            hydrologyMaterial: gpuResources.hydrologyMaterial,
+            surfaceMaterial: gpuResources.surfaceMaterial,
+          }, gpuResources.mesh, gpuResources.scene, gpuResources.camera)
           if (!success) {
             // Stop execution on error
             break
