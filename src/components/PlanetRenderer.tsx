@@ -8,8 +8,8 @@ import { getVisualisationMode } from '../config/visualisationModes'
 import { buildDisplayShaderUniforms } from '../util/ShaderBuilder'
 
 // Import shaders
-import displayVertexShader from '../shaders/display.vert?raw'
-import displayDataFragmentShader from '../shaders/displayData.frag?raw'
+import displayVertexShader from '../shaders/display/display.vert?raw'
+import displayFragmentShader from '../shaders/display/display.frag?raw'
 
 interface PlanetRendererProps {
   subdivisions: number
@@ -82,7 +82,7 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
     // Get visualisation mode configuration
     const mode = getVisualisationMode(displayConfig.visualisationMode)
 
-    let shaderUniforms: Record<string, THREE.IUniform<any>>
+    let shaderUniforms: Record<string, THREE.IUniform<unknown>>
     let fragmentShader: string
 
     // Check if mode uses custom shader
@@ -102,7 +102,7 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
         valueRange.max,
         mode.dataChannel
       )
-      fragmentShader = displayDataFragmentShader
+      fragmentShader = displayFragmentShader
     }
 
     const shaderMaterial = new THREE.ShaderMaterial({

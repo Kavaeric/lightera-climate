@@ -87,6 +87,10 @@ const int iceThicknessColourmapLength = 10;
 const vec3 iceThicknessUnderflowColour = vec3(0.0, 0.2, 0.2);
 const vec3 iceThicknessOverflowColour = iceThicknessColourmap[iceThicknessColourmapLength - 1];
 
+// Colourmap sampling functions
+// These should be refactored into a generic function, when I figure out
+// how to stop it from complaining about the array sizes
+
 /**
  * Sample colour from elevation colourmap using normalised value [0, 1]
  */
@@ -174,10 +178,12 @@ void main() {
   // Sample colour from elevation colourmap or use overflow/underflow colours
   vec3 normalElevationColour = sampleElevationColourmap(normalisedElevation);
   
+  // Blend elevation colour with underflow/overflow colours
   vec3 elevationColour = elevationUnderflowColour * isUnderflow +
                 elevationOverflowColour * isOverflow +
                 normalElevationColour * isNormal;
 
+  // === Water depth ===
   // Sample water depth from hydrology texture (blue channel)
   float waterDepth = texture2D(hydrologyTex, vUv).b;
   
@@ -200,6 +206,7 @@ void main() {
   // Create a mask for water presence
   float hasWater = step(0.01, waterDepth);
 
+  // === Ice thickness ===
   // Sample ice thickness from hydrology texture (red channel)
   float iceThickness = texture2D(hydrologyTex, vUv).r;
   

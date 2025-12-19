@@ -16,7 +16,7 @@ import {
   COLOURMAP_ALBEDO,
 } from './colourmaps'
 import type { DisplayConfig } from './displayConfig'
-import terrainFragmentShader from '../shaders/terrain.frag?raw'
+import terrainFragmentShader from '../shaders/display/terrain.frag?raw'
 
 export interface VisualisationMode {
   id: 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo' | 'terrain'
@@ -35,7 +35,7 @@ export interface VisualisationMode {
   buildCustomUniforms?: (
     simulation: TextureGridSimulation,
     displayConfig: DisplayConfig
-  ) => Record<string, THREE.IUniform<any>>
+  ) => Record<string, THREE.IUniform<unknown>>
 }
 
 /**

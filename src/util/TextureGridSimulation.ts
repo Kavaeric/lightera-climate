@@ -39,7 +39,7 @@ export class TextureGridSimulation {
   public surfaceDataTargets: THREE.WebGLRenderTarget[]
 
   // Climate data storage: TWO render targets (current and next frame)
-  // Each render target RGBA = [temperature, humidity, pressure, unused]
+  // Each render target RGBA = [temperature, unused, unused, unused]
   public climateDataTargets: THREE.WebGLRenderTarget[]
 
   constructor(config: SimulationConfig) {
@@ -541,7 +541,7 @@ export class TextureGridSimulation {
   async getClimateDataForCell(
     cellIndex: number,
     renderer: THREE.WebGLRenderer
-  ): Promise<{ temperature: number; humidity: number; pressure: number }> {
+  ): Promise<{ temperature: number }> {
     const coords = this.indexTo2D(cellIndex)
     const buffer = new Float32Array(4)
 
@@ -550,8 +550,6 @@ export class TextureGridSimulation {
 
     return {
       temperature: buffer[0],
-      humidity: buffer[1],
-      pressure: buffer[2],
     }
   }
 

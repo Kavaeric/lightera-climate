@@ -203,6 +203,6 @@ void main() {
   // Enforce minimum temperature (cosmic background)
   T_new = max(T_new, cosmicBackgroundTemp);
 
-  // Output: RGBA = [temperature, humidity, pressure, unused]
+  // Output: RGBA = [temperature, unused, unused, unused]
   gl_FragColor = vec4(T_new, prevData.g, prevData.b, prevData.a);
 }

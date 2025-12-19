@@ -10,9 +10,9 @@ import { useSimulation } from '../context/useSimulation'
 
 // Import shaders
 import fullscreenVertexShader from '../shaders/fullscreen.vert?raw'
-import thermalEvolutionFragmentShader from '../shaders/thermalEvolution.frag?raw'
-import hydrologyEvolutionFragmentShader from '../shaders/hydrologyEvolution.frag?raw'
-import surfaceEvolutionFragmentShader from '../shaders/surfaceEvolution.frag?raw'
+import thermalEvolutionFragmentShader from '../shaders/climate/thermalEvolution.frag?raw'
+import hydrologyEvolutionFragmentShader from '../shaders/climate/hydrologyEvolution.frag?raw'
+import surfaceEvolutionFragmentShader from '../shaders/climate/surfaceEvolution.frag?raw'
 
 interface ClimateSimulationEngineProps {
   simulation: TextureGridSimulation

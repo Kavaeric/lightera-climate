@@ -6,8 +6,6 @@ import { useDisplayConfig } from '../context/useDisplayConfig'
 interface ClimateDataPoint {
   day: number
   temperature: number
-  humidity: number
-  pressure: number
   waterDepth: number
   iceThickness: number
   salinity: number

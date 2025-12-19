@@ -93,7 +93,7 @@ function ClimateDataFetcher({
 }: {
   simulation: TextureGridSimulation
   cellIndex: number | null
-  onDataFetched: (data: Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>) => void
+  onDataFetched: (data: Array<{ day: number; temperature: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>) => void
 }) {
   const { gl } = useThree()
   const { getRecorder } = useSimulation()
@@ -122,8 +122,6 @@ function ClimateDataFetcher({
           const formattedData = temperatures.map((temp, index) => ({
             day: index,
             temperature: temp,
-            humidity: 0, // Not recorded yet
-            pressure: 0, // Not recorded yet
             waterDepth: hydrologyData.waterDepth,
             iceThickness: hydrologyData.iceThickness,
             salinity: hydrologyData.salinity,
@@ -168,7 +166,7 @@ function AppContent() {
   const [hoveredCell, setHoveredCell] = useState<number | null>(null)
   const [selectedCell, setSelectedCell] = useState<number | null>(null)
   const [selectedCellLatLon, setSelectedCellLatLon] = useState<{ lat: number; lon: number } | null>(null)
-  const [climateData, setClimateData] = useState<Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>>([])
+  const [climateData, setClimateData] = useState<Array<{ day: number; temperature: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>>([])
 
   // Get active config and simulation state from context
   const { activeSimulationConfig, simulationKey, isRunning, error, clearError, newSimulation, play, pause, stepOnce, getOrchestrator } = useSimulation()
@@ -251,7 +249,7 @@ function AppContent() {
     setClimateData([])
   }, [])
 
-  const handleDataFetched = useCallback((data: Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>) => {
+  const handleDataFetched = useCallback((data: Array<{ day: number; temperature: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>) => {
     setClimateData(data)
   }, [])
 
