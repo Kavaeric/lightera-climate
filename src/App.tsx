@@ -93,7 +93,7 @@ function ClimateDataFetcher({
 }: {
   simulation: TextureGridSimulation
   cellIndex: number | null
-  onDataFetched: (data: Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number }>) => void
+  onDataFetched: (data: Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>) => void
 }) {
   const { gl } = useThree()
   const { getRecorder } = useSimulation()
@@ -107,9 +107,10 @@ function ClimateDataFetcher({
     const fetchData = async () => {
       const recorder = getRecorder()
       
-      // Always get current hydrology and surface data (not time-series, just current state)
+      // Always get current hydrology, surface, and terrain data (not time-series, just current state)
       const hydrologyData = await simulation.getHydrologyDataForCell(cellIndex, gl)
       const surfaceData = await simulation.getSurfaceDataForCell(cellIndex, gl)
+      const terrainData = simulation.getTerrainDataForCell(cellIndex)
       
       // Try to get complete orbit temperature data from recorder
       if (recorder && recorder.hasCompleteOrbit()) {
@@ -117,7 +118,7 @@ function ClimateDataFetcher({
         
         if (temperatures && temperatures.length > 0) {
           // Format as time series data (sample index as "day")
-          // Use current hydrology and surface data for all samples (since it's not time-series)
+          // Use current hydrology, surface, and terrain data for all samples (since it's not time-series)
           const formattedData = temperatures.map((temp, index) => ({
             day: index,
             temperature: temp,
@@ -127,6 +128,7 @@ function ClimateDataFetcher({
             iceThickness: hydrologyData.iceThickness,
             salinity: hydrologyData.salinity,
             albedo: surfaceData.albedo,
+            elevation: terrainData.elevation,
           }))
           onDataFetched(formattedData)
           return
@@ -140,6 +142,7 @@ function ClimateDataFetcher({
         ...climateData,
         ...hydrologyData,
         ...surfaceData,
+        ...terrainData,
       }]
       onDataFetched(formattedData)
     }
@@ -165,7 +168,7 @@ function AppContent() {
   const [hoveredCell, setHoveredCell] = useState<number | null>(null)
   const [selectedCell, setSelectedCell] = useState<number | null>(null)
   const [selectedCellLatLon, setSelectedCellLatLon] = useState<{ lat: number; lon: number } | null>(null)
-  const [climateData, setClimateData] = useState<Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number }>>([])
+  const [climateData, setClimateData] = useState<Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>>([])
 
   // Get active config and simulation state from context
   const { activeSimulationConfig, simulationKey, isRunning, error, clearError, newSimulation, play, pause, stepOnce, getOrchestrator } = useSimulation()
@@ -248,7 +251,7 @@ function AppContent() {
     setClimateData([])
   }, [])
 
-  const handleDataFetched = useCallback((data: Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number }>) => {
+  const handleDataFetched = useCallback((data: Array<{ day: number; temperature: number; humidity: number; pressure: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>) => {
     setClimateData(data)
   }, [])
 
@@ -490,10 +493,11 @@ function AppContent() {
               onChange={(e) => {
                 setDisplayConfig({
                   ...displayConfig,
-                  visualisationMode: e.target.value as 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo',
+                  visualisationMode: e.target.value as 'terrain' | 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo',
                 })
               }}
             >
+              <option value="terrain">Terrain</option>
               <option value="temperature">Temperature</option>
               <option value="elevation">Elevation (greyscale)</option>
               <option value="waterDepth">Water depth</option>

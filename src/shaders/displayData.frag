@@ -58,13 +58,13 @@ void main() {
   // Select the appropriate channel based on visualisation mode
   float value;
   if (dataChannel == 0) {
-    value = data.r;  // Temperature, elevation, or ice thickness
+    value = data.r;
   } else if (dataChannel == 1) {
-    value = data.g;  // Unused (water thermal mass is internal state)
+    value = data.g;
   } else if (dataChannel == 2) {
-    value = data.b;  // Water depth
+    value = data.b;
   } else {
-    value = data.a;  // Salinity
+    value = data.a;
   }
 
   // Normalise to [0, 1]

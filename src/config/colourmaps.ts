@@ -76,7 +76,6 @@ export const COLOURMAP_GREYSCALE: Colourmap = {
 
 /**
  * Water depth colourmap ("BlueB1" via https://sciviscolor.org/)
- * 
  */
 
 export const COLOURMAP_WATERDEPTH: Colourmap = {
@@ -145,9 +144,7 @@ export const COLOURMAP_ALBEDO: Colourmap = {
 }
 
 /**
- * Ice thickness colourmap ("sd" via CCC-Tool, interpolationspace="lab")
- * Replaces old "Vlt_turq2" with updated, smoother blue-turquoise colormap.
- * Black underflow, black overflow (per XML <Above>/<Below>/<NaN>)
+ * Ice thickness colourmap ("sd" via https://sciviscolor.org/)
  */
 export const COLOURMAP_ICE: Colourmap = {
   name: 'ice',

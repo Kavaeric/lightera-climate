@@ -1,4 +1,4 @@
-import { useMemo, forwardRef } from 'react'
+import { useMemo, forwardRef, useRef, useEffect } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 import { Grid } from '../simulation/geometry/geodesic'
@@ -77,42 +77,74 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
     return bufferGeometry
   }, [subdivisions, radius, simulation])
 
-  // Create shader material using unified display shader
+  // Create shader material - supports both unified and custom shaders
   const material = useMemo(() => {
     // Get visualisation mode configuration
     const mode = getVisualisationMode(displayConfig.visualisationMode)
 
-    // Get data source texture and range from visualisation mode
-    // IMPORTANT: We get the texture reference here, but we need to update it
-    // in a useEffect because the texture reference changes when buffers swap
-    const sourceTexture = mode.getTextureSource(simulation)
-    const valueRange = mode.getRange(displayConfig)
+    let shaderUniforms: Record<string, THREE.IUniform<any>>
+    let fragmentShader: string
 
-    // Build shader uniforms from visualisation mode configuration
-    const shaderUniforms = buildDisplayShaderUniforms(
-      sourceTexture,
-      mode.colourmap,
-      valueRange.min,
-      valueRange.max,
-      mode.dataChannel
-    )
+    // Check if mode uses custom shader
+    if (mode.customFragmentShader && mode.buildCustomUniforms) {
+      // Use custom shader and uniforms
+      fragmentShader = mode.customFragmentShader
+      shaderUniforms = mode.buildCustomUniforms(simulation, displayConfig)
+    } else {
+      // Use unified shader (existing behaviour)
+      const sourceTexture = mode.getTextureSource(simulation)
+      const valueRange = mode.getRange(displayConfig)
+
+      shaderUniforms = buildDisplayShaderUniforms(
+        sourceTexture,
+        mode.colourmap,
+        valueRange.min,
+        valueRange.max,
+        mode.dataChannel
+      )
+      fragmentShader = displayDataFragmentShader
+    }
 
     const shaderMaterial = new THREE.ShaderMaterial({
       uniforms: shaderUniforms,
       vertexShader: displayVertexShader,
-      fragmentShader: displayDataFragmentShader,
+      fragmentShader: fragmentShader,
     })
 
     return shaderMaterial
   }, [simulation, displayConfig])
 
+  // Store material ref for useFrame updates
+  const materialRef = useRef(material)
+  useEffect(() => {
+    materialRef.current = material
+  }, [material])
+
   // Update texture uniform every frame to handle buffer swaps
   // This ensures the visualisation always shows the most recent simulation state
   useFrame(() => {
-    if (material && material.uniforms.dataTex) {
-      const mode = getVisualisationMode(displayConfig.visualisationMode)
+    const currentMaterial = materialRef.current
+    if (!currentMaterial) return
+
+    const mode = getVisualisationMode(displayConfig.visualisationMode)
+    const uniforms = currentMaterial.uniforms
+
+    // Update texture uniform for unified shader
+    if (uniforms.dataTex) {
       const currentTexture = mode.getTextureSource(simulation)
-      material.uniforms.dataTex.value = currentTexture
+      uniforms.dataTex.value = currentTexture
+    }
+
+    // Update texture uniforms for custom shaders (e.g., terrainTex, hydrologyTex for terrain mode)
+    if (mode.buildCustomUniforms) {
+      // Update terrainTex if it exists (for terrain mode)
+      if (uniforms.terrainTex) {
+        uniforms.terrainTex.value = simulation.terrainData
+      }
+      // Update hydrologyTex if it exists (for terrain mode) - this changes every frame
+      if (uniforms.hydrologyTex) {
+        uniforms.hydrologyTex.value = simulation.getHydrologyDataCurrent().texture
+      }
     }
   })
 

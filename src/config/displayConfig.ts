@@ -4,7 +4,7 @@
 
 export interface DisplayConfig {
   // Visualisation mode - what to display on the planet
-  visualisationMode: 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo'
+  visualisationMode: 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo' | 'terrain'
 
   // Temperature display range for colour mapping
   temperatureRange: { min: number; max: number } // Kelvin
@@ -46,7 +46,7 @@ export interface DisplayConfig {
  * Matches the previous hardcoded values from planetConfig.displayRange
  */
 export const DEFAULT_DISPLAY_CONFIG: DisplayConfig = {
-  visualisationMode: 'temperature',
+  visualisationMode: 'terrain',
   temperatureRange: { min: 200, max: 350 }, // Kelvin colour scale range
   elevationRange: { min: -5000, max: 10000 }, // metres (ocean depth to highest mountains in procedural generation)
   waterDepthRange: { min: 0, max: 5000 }, // metres (dynamic water from hydrology - evolves with evaporation)

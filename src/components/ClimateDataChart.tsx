@@ -12,6 +12,7 @@ interface ClimateDataPoint {
   iceThickness: number
   salinity: number
   albedo: number
+  elevation: number
 }
 
 interface ClimateDataChartProps {
@@ -60,6 +61,13 @@ export function ClimateDataChart({ data, cellIndex, cellLatLon, onClose }: Clima
     return data[0]?.albedo ?? 0
   }, [data])
 
+  // Get elevation (static terrain data, same for all samples)
+  const elevation = useMemo(() => {
+    if (data.length === 0) return 0
+    // Elevation is static terrain data, same for all samples
+    return data[0]?.elevation ?? 0
+  }, [data])
+
   if (cellIndex === null) return null
 
   return (
@@ -68,7 +76,7 @@ export function ClimateDataChart({ data, cellIndex, cellLatLon, onClose }: Clima
         position: 'absolute',
         bottom: 10,
         right: 10,
-        width: 400,
+        width: '40%',
         background: 'rgba(0, 0, 0, 0.85)',
         border: '1px solid rgba(255, 255, 255, 0.3)',
         borderRadius: 4,
@@ -122,6 +130,9 @@ export function ClimateDataChart({ data, cellIndex, cellLatLon, onClose }: Clima
       <br />
 
       <div style={{ display: 'flex', gap: 16, fontSize: 16 }}>
+        <div>
+          Elevation: <strong>{elevation.toFixed(1)} m</strong>
+        </div>
         <div>
           Water depth: <strong>{hydrologyStats.waterDepthMax.toFixed(1)} m</strong>
         </div>

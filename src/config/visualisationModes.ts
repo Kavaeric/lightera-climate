@@ -16,9 +16,10 @@ import {
   COLOURMAP_ALBEDO,
 } from './colourmaps'
 import type { DisplayConfig } from './displayConfig'
+import terrainFragmentShader from '../shaders/terrain.frag?raw'
 
 export interface VisualisationMode {
-  id: 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo'
+  id: 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo' | 'terrain'
   name: string
   // Get the texture source for this visualisation
   getTextureSource: (simulation: TextureGridSimulation) => THREE.Texture
@@ -28,6 +29,13 @@ export interface VisualisationMode {
   colourmap: Colourmap
   // Get the display range (min/max values) for this visualisation mode
   getRange: (displayConfig: DisplayConfig) => { min: number; max: number }
+  // Optional: Custom fragment shader source (if provided, uses custom shader instead of unified)
+  customFragmentShader?: string
+  // Optional: Build uniforms for custom shader (if customFragmentShader is provided)
+  buildCustomUniforms?: (
+    simulation: TextureGridSimulation,
+    displayConfig: DisplayConfig
+  ) => Record<string, THREE.IUniform<any>>
 }
 
 /**
@@ -109,6 +117,35 @@ export const VISUALISATION_ALBEDO: VisualisationMode = {
 }
 
 /**
+ * Terrain visualisation mode
+ * Simple elevation heightmap with inlined colourmap
+ * Uses custom shader for flexibility - colourmap is hardcoded in terrain.frag
+ */
+export const VISUALISATION_TERRAIN: VisualisationMode = {
+  id: 'terrain',
+  name: 'Terrain',
+  getTextureSource: (simulation) => simulation.terrainData,
+  dataChannel: 0, // Elevation in red channel (not used by custom shader)
+  colourmap: COLOURMAP_GREYSCALE, // Not used - colourmap is inlined in shader
+  getRange: (displayConfig) => displayConfig.elevationRange,
+  customFragmentShader: terrainFragmentShader,
+  buildCustomUniforms: (simulation, displayConfig) => {
+    // Only pass the uniforms needed by terrain.frag
+    // Colourmap is inlined in the shader, so no colourmap uniforms needed
+    const elevationRange = displayConfig.elevationRange
+    const waterDepthRange = displayConfig.waterDepthRange
+    return {
+      terrainTex: { value: simulation.terrainData },
+      hydrologyTex: { value: simulation.getHydrologyDataCurrent().texture },
+      elevationMin: { value: elevationRange.min },
+      elevationMax: { value: elevationRange.max },
+      waterDepthMin: { value: waterDepthRange.min },
+      waterDepthMax: { value: waterDepthRange.max },
+    }
+  },
+}
+
+/**
  * Registry of all available visualisation modes
  * Maps mode ID to VisualisationMode configuration
  */
@@ -119,13 +156,14 @@ export const VISUALISATION_MODES: Record<string, VisualisationMode> = {
   salinity: VISUALISATION_SALINITY,
   iceThickness: VISUALISATION_ICE_THICKNESS,
   albedo: VISUALISATION_ALBEDO,
+  terrain: VISUALISATION_TERRAIN,
 }
 
 /**
  * Get a visualisation mode by ID
  */
 export function getVisualisationMode(
-  id: 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo'
+  id: 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo' | 'terrain'
 ): VisualisationMode {
   return VISUALISATION_MODES[id]
 }

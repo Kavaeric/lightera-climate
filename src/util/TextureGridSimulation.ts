@@ -593,6 +593,20 @@ export class TextureGridSimulation {
     }
   }
 
+  /**
+   * Read back terrain data (elevation) for a specific cell
+   * Note: Terrain data is static and stored in a DataTexture, not a render target
+   */
+  getTerrainDataForCell(cellIndex: number): { elevation: number } {
+    const coords = this.indexTo2D(cellIndex)
+    const dataIndex = this.coordsToDataIndex(coords.x, coords.y, 4)
+    const data = this.terrainData.image.data as Float32Array
+
+    return {
+      elevation: data[dataIndex + 0], // R channel = elevation (metres)
+    }
+  }
+
   dispose() {
     this.neighbourIndices1.dispose()
     this.neighbourIndices2.dispose()
