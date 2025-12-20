@@ -269,14 +269,6 @@ export function ClimateSimulationEngine({
       stepsPerOrbit,
     }, handleGPUError)
 
-    // Register milestone callbacks
-    orchestrator.onMilestone((milestone) => {
-      if (milestone.type === 'orbit_complete') {
-        const statusMsg = `Orbit ${milestone.orbitIdx}, Step ${milestone.physicsStep}/${stepsPerOrbit}`
-        console.log(`  ${statusMsg}`)
-      }
-    })
-
     orchestratorRef.current = orchestrator
     registerOrchestrator(orchestrator)
 
