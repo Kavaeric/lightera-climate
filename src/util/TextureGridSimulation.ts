@@ -645,12 +645,12 @@ export class TextureGridSimulation {
   }
 
   /**
-   * Read back current atmosphere data (atmospheric temperature) for a specific cell
+   * Read back current atmosphere data (atmospheric temperature and pressure) for a specific cell
    */
   async getAtmosphereDataForCell(
     cellIndex: number,
     renderer: THREE.WebGLRenderer
-  ): Promise<{ atmosphericTemperature: number }> {
+  ): Promise<{ atmosphericTemperature: number; atmosphericPressure: number }> {
     const coords = this.indexTo2D(cellIndex)
     const buffer = new Float32Array(4)
 
@@ -659,6 +659,7 @@ export class TextureGridSimulation {
 
     return {
       atmosphericTemperature: buffer[0], // R channel = atmosphericTemperature
+      atmosphericPressure: buffer[1], // G channel = P_local
     }
   }
 

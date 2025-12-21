@@ -7,6 +7,7 @@ interface ClimateDataPoint {
   day: number
   surfaceTemperature: number
   atmosphericTemperature: number
+  atmosphericPressure: number
   waterDepth: number
   iceThickness: number
   salinity: number
@@ -76,6 +77,13 @@ export function ClimateDataChart({ data, cellIndex, cellLatLon, onClose }: Clima
     if (data.length === 0) return 0
     // Elevation is static terrain data, same for all samples
     return data[0]?.elevation ?? 0
+  }, [data])
+
+  // Get atmospheric pressure (current value, not time-series)
+  const atmosphericPressure = useMemo(() => {
+    if (data.length === 0) return 0
+    // Atmospheric pressure is the same for all samples (current state), so just get the first one
+    return data[0]?.atmosphericPressure ?? 0
   }, [data])
 
   if (cellIndex === null) return null
@@ -188,6 +196,14 @@ export function ClimateDataChart({ data, cellIndex, cellLatLon, onClose }: Clima
         </div>
         <div>
           Albedo: <strong>{albedo.toFixed(2)}</strong>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 16, fontSize: 16, marginTop: 8 }}>
+        <div>
+          Atmospheric pressure: <strong>{(atmosphericPressure / 1000).toFixed(2)} kPa</strong>
+          <br />
+          <span style={{ fontSize: 14, opacity: 0.8 }}>({atmosphericPressure.toFixed(0)} Pa)</span>
         </div>
       </div>
 

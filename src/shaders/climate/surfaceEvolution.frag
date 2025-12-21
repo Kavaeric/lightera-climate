@@ -181,9 +181,10 @@ void main() {
   float avgNeighbourSurfaceTemp = neighbourSum / max(validNeighbours, 1.0);
   float dQ_conduction = thermalConductivity * (avgNeighbourSurfaceTemp - T_old);
 
-  // Read atmospheric temperature for atmosphere-surface heat exchange
+  // Read atmospheric temperature and pressure for atmosphere-surface heat exchange
   vec4 atmosData = texture2D(atmosphereData, vUv);
   float T_atmo = atmosData.r;
+  float P_local = atmosData.g;        // Local atmospheric pressure in Pa
 
   // Convective heat transfer between atmosphere and surface
   // Enhanced coupling for water/ice surfaces due to better thermal contact
@@ -212,14 +213,21 @@ void main() {
   float C_water = 4186.0 * 1000.0 * min(waterDepth, CRUST_DEPTH);     // Liquid water: capped at crust depth
   float C_ice = 2100.0 * 917.0 * min(iceThickness, CRUST_DEPTH);      // Ice: capped at crust depth
 
-  // Select heat capacity based on current phase (branch-free)
-  // Default to rock, blend to water or ice based on presence
-  float hasIce_factor = hasIce * hasWater;  // Only true if both water and ice present
-  float hasLiquidWater_factor = (1.0 - hasIce) * hasWater;  // Only true if water present but not ice
-
+  // Select heat capacity based on current phase
+  // When both ice and water are present, combine their heat capacities
+  // Otherwise use the appropriate single-phase heat capacity
   float effectiveHeatCapacity = C_rock;
-  effectiveHeatCapacity = mix(effectiveHeatCapacity, C_ice, hasIce_factor);
-  effectiveHeatCapacity = mix(effectiveHeatCapacity, C_water, hasLiquidWater_factor);
+  
+  if (hasIce > 0.0 && hasWater > 0.0) {
+    // Both ice and water present: combine heat capacities
+    effectiveHeatCapacity = C_ice + C_water;
+  } else if (hasIce > 0.0) {
+    // Only ice present
+    effectiveHeatCapacity = C_ice;
+  } else if (hasWater > 0.0) {
+    // Only water present
+    effectiveHeatCapacity = C_water;
+  }
 
   // Surface temperature change: dT/dt = dQ / C
   // Where C is heat capacity per unit area [J/(m²·K)]

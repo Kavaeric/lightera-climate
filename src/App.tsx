@@ -93,7 +93,7 @@ function ClimateDataFetcher({
 }: {
   simulation: TextureGridSimulation
   cellIndex: number | null
-  onDataFetched: (data: Array<{ day: number; surfaceTemperature: number; atmosphericTemperature: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>) => void
+  onDataFetched: (data: Array<{ day: number; surfaceTemperature: number; atmosphericTemperature: number; atmosphericPressure: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>) => void
 }) {
   const { gl } = useThree()
   const { getRecorder } = useSimulation()
@@ -124,6 +124,7 @@ function ClimateDataFetcher({
             day: index,
             surfaceTemperature: surfaceTemp,
             atmosphericTemperature: atmosphereData.atmosphericTemperature,
+            atmosphericPressure: atmosphereData.atmosphericPressure,
             waterDepth: hydrologyData.waterDepth,
             iceThickness: hydrologyData.iceThickness,
             salinity: hydrologyData.salinity,
@@ -169,7 +170,7 @@ function AppContent() {
   const [hoveredCell, setHoveredCell] = useState<number | null>(null)
   const [selectedCell, setSelectedCell] = useState<number | null>(null)
   const [selectedCellLatLon, setSelectedCellLatLon] = useState<{ lat: number; lon: number } | null>(null)
-  const [climateData, setClimateData] = useState<Array<{ day: number; surfaceTemperature: number; atmosphericTemperature: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>>([])
+  const [climateData, setClimateData] = useState<Array<{ day: number; surfaceTemperature: number; atmosphericTemperature: number; atmosphericPressure: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>>([])
 
   // Get active config and simulation state from context
   const { activeSimulationConfig, simulationKey, isRunning, error, clearError, newSimulation, play, pause, stepOnce, getOrchestrator } = useSimulation()
