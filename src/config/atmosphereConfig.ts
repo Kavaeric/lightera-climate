@@ -19,23 +19,6 @@ export interface AtmosphereConfig {
 }
 
 /**
- * Calculate total atmospheric pressure from composition
- */
-export function getTotalPressure(config: AtmosphereConfig): number {
-  return Object.values(config.composition).reduce((sum, pressure) => sum + pressure, 0)
-}
-
-/**
- * Get mole fraction of a gas (0-1)
- * Useful for display or calculations requiring fractions
- */
-export function getMoleFraction(config: AtmosphereConfig, gasName: string): number {
-  const totalPressure = getTotalPressure(config)
-  if (totalPressure === 0) return 0
-  return config.composition[gasName] / totalPressure
-}
-
-/**
  * Default Earth-like atmosphere
  * Sea level pressure ~101,325 Pa
  */
@@ -45,7 +28,7 @@ export const DEFAULT_ATMOSPHERE_CONFIG: AtmosphereConfig = {
     N2: 78084, // 78.084% of 101325 Pa
     O2: 20946, // 20.946% of 101325 Pa
     Ar: 934,   // 0.934% of 101325 Pa
-    CO2: 400,  // ~400 ppm = 0.04% of 101325 Pa
+    CO2: 300,  // ~400 ppm = 0.04% of 101325 Pa
     H2O: 0,    // Variable, starts at 0
   },
 }

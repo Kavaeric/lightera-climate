@@ -2,6 +2,13 @@
  * Simulation configuration - solver parameters and grid settings
  */
 
+/**
+ * Depth quantisation constant (meters)
+ * All elevation, water depth, and ice thickness values are quantised to this increment
+ * This prevents floating point drift and ensures depths are either meaningful or exactly zero
+ */
+export const DEPTH_QUANTUM = 0.1 // meters (10cm increments)
+
 export interface SimulationConfig {
   // Grid resolution
   resolution: number // geodesic subdivisions (e.g., 16 creates ~2,560 cells)

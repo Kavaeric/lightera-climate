@@ -107,7 +107,7 @@ export class SimulationRecorder {
     this.copyMesh = new THREE.Mesh(geometry, this.copyMaterial)
     this.copyScene.add(this.copyMesh)
 
-    // Initialize previous snapshot with current state
+    // Initialise previous snapshot with current state
     this.capturePreviousSnapshot()
   }
 
@@ -291,11 +291,11 @@ export class SimulationRecorder {
   }
 
   /**
-   * Read complete orbit temperature data for a specific cell
-   * Returns an array of temperature values, one per sample in the complete orbit
+   * Read complete orbit surface temperature data for a specific cell
+   * Returns an array of surface temperature values, one per sample in the complete orbit
    * Returns null if no complete orbit is available
    */
-  public async getCompleteOrbitTemperatureForCell(
+  public async getCompleteOrbitSurfaceTemperatureForCell(
     cellIndex: number
   ): Promise<number[] | null> {
     if (!this.hasCompleteOrbit() || this.completeOrbitStartIndex === null) {
@@ -307,7 +307,7 @@ export class SimulationRecorder {
     const pixelX = cellIndex % textureWidth
     const pixelY = Math.floor(cellIndex / textureWidth)
 
-    const temperatures: number[] = []
+    const surfaceTemperatures: number[] = []
     const buffer = new Float32Array(4)
 
     // Read from each sample in the complete orbit
@@ -316,10 +316,10 @@ export class SimulationRecorder {
       const target = this.ringBuffer[sampleIndex]
 
       this.gl.readRenderTargetPixels(target, pixelX, pixelY, 1, 1, buffer)
-      temperatures.push(buffer[0]) // R channel = temperature
+      surfaceTemperatures.push(buffer[0]) // R channel = surfaceTemperature
     }
 
-    return temperatures
+    return surfaceTemperatures
   }
 
   /**

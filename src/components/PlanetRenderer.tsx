@@ -19,7 +19,7 @@ interface PlanetRendererProps {
 }
 
 /**
- * Renders the 3D planet visualisation with temperature data from GPU texture
+ * Renders the 3D planet visualisation with surface temperature data from GPU texture
  * Pure data visualisation component - no interaction or selection logic
  * Highlighting is handled separately by CellHighlightOverlay
  * Each vertex has a UV coordinate pointing to its cell's pixel in the state texture
@@ -81,6 +81,10 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
   const material = useMemo(() => {
     // Get visualisation mode configuration
     const mode = getVisualisationMode(displayConfig.visualisationMode)
+    
+    if (!mode) {
+      throw new Error(`Visualisation mode '${displayConfig.visualisationMode}' not found`)
+    }
 
     let shaderUniforms: Record<string, THREE.IUniform<unknown>>
     let fragmentShader: string

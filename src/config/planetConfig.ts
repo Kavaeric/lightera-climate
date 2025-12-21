@@ -1,3 +1,6 @@
+import type { AtmosphereConfig } from './atmosphereConfig'
+import { DEFAULT_ATMOSPHERE_CONFIG } from './atmosphereConfig'
+
 /**
  * Planet configuration - physical parameters only
  * Separated from simulation and display parameters for clear separation of concerns
@@ -22,10 +25,13 @@ export interface PlanetConfig {
   subsolarPoint: { lat: number; lon: number } // degrees - where sun is directly overhead
   rotationsPerYear: number // rotations per orbit (e.g., 0 = tidally locked)
   axialTilt?: number // degrees (for future use with seasons)
+
+  // Atmospheric parameters
+  atmosphereConfig?: AtmosphereConfig // optional - if omitted, no atmosphere
 }
 
 /**
- * Default configuration for tidally locked airless world (Mercury-like)
+ * Default configuration for Earth-like planet with atmosphere
  * Heat capacity is for exposed rock with ~1m effective thermal skin depth
  * For comparison: Ocean water at 4000m depth = 1.674e10 J/(m²·K) (57x higher!)
  */
@@ -45,4 +51,5 @@ export const DEFAULT_PLANET_CONFIG: PlanetConfig = {
   // rotationsPerYear: 88, // Number of rotations per orbit (0 = tidally locked)
   axialTilt: 23.44, // The angle of the planet's axis of rotation (Earth: 23.44°)
   // axialTilt: 0, // The angle of the planet's axis of rotation (0 = no tilt)
+  atmosphereConfig: DEFAULT_ATMOSPHERE_CONFIG, // Earth-like atmosphere by default
 }

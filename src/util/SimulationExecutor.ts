@@ -88,6 +88,7 @@ export class SimulationExecutor {
     simulation: TextureGridSimulation,
     materials: {
       hydrologyMaterial: THREE.ShaderMaterial
+      atmosphereMaterial: THREE.ShaderMaterial
       surfaceMaterial: THREE.ShaderMaterial
     },
     mesh: THREE.Mesh,
@@ -95,9 +96,15 @@ export class SimulationExecutor {
     camera: THREE.OrthographicCamera
   ): boolean {
     try {
-      const { hydrologyMaterial, surfaceMaterial: surfaceMaterial } = materials
+      const { hydrologyMaterial, atmosphereMaterial, surfaceMaterial } = materials
 
-      // Update surface/thermal material uniforms with current orbital state
+      // Update material uniforms with current orbital state
+      atmosphereMaterial.uniforms.baseSubsolarPoint.value.set(
+        this.config.subsolarPoint.lat,
+        this.state.currentSubsolarLon
+      )
+      atmosphereMaterial.uniforms.yearProgress.value = this.state.yearProgress
+
       surfaceMaterial.uniforms.baseSubsolarPoint.value.set(
         this.config.subsolarPoint.lat,
         this.state.currentSubsolarLon
@@ -114,6 +121,7 @@ export class SimulationExecutor {
 
       hydrologyMaterial.uniforms.previousHydrology.value = hydrologyCurrent.texture
       hydrologyMaterial.uniforms.currentTemperature.value = surfaceSource.texture
+      hydrologyMaterial.uniforms.atmosphereData.value = simulation.getAtmosphereDataCurrent().texture
 
       mesh.material = hydrologyMaterial
       gl.setRenderTarget(hydrologyNext)
@@ -123,9 +131,25 @@ export class SimulationExecutor {
 
       simulation.swapHydrologyBuffers()
 
-      // ===== STEP 2: Update surface/thermal (albedo + temperature evolution) =====
+      // ===== STEP 2: Update atmosphere (IR absorption/transmission, thermal evolution) =====
+      const atmosphereCurrent = simulation.getAtmosphereDataCurrent()
+      const atmosphereNext = simulation.getAtmosphereDataNext()
+
+      atmosphereMaterial.uniforms.previousAtmosphere.value = atmosphereCurrent.texture
+      atmosphereMaterial.uniforms.previousSurfaceData.value = surfaceSource.texture
+
+      mesh.material = atmosphereMaterial
+      gl.setRenderTarget(atmosphereNext)
+      gl.clear()
+      gl.render(scene, camera)
+      gl.setRenderTarget(null)
+
+      simulation.swapAtmosphereBuffers()
+
+      // ===== STEP 3: Update surface/thermal (albedo + temperature evolution with atmospheric feedback) =====
       surfaceMaterial.uniforms.previousSurfaceData.value = surfaceSource.texture
       surfaceMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture
+      surfaceMaterial.uniforms.atmosphereData.value = simulation.getAtmosphereDataCurrent().texture
 
       mesh.material = surfaceMaterial
       gl.setRenderTarget(surfaceDest)

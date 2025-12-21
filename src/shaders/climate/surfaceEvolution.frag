@@ -3,13 +3,14 @@ precision highp float;
 varying vec2 vUv;
 
 // Input textures
-uniform sampler2D previousSurfaceData;  // Previous timestep: RGBA = [temperature, albedo, reserved, reserved]
+uniform sampler2D previousSurfaceData;  // Previous timestep: RGBA = [surfaceTemperature, albedo, reserved, reserved]
 uniform sampler2D cellPositions;        // Cell lat/lon positions
 uniform sampler2D neighbourIndices1;    // Neighbours 0,1,2
 uniform sampler2D neighbourIndices2;     // Neighbours 3,4,5
 uniform sampler2D neighbourCounts;      // Number of neighbours (5 or 6)
 uniform sampler2D terrainData;          // Terrain data [elevation, reserved, reserved, reserved]
 uniform sampler2D hydrologyData;         // Hydrology data [iceThickness, waterThermalMass, waterDepth, reserved]
+uniform sampler2D atmosphereData;        // Atmosphere data [atmosphereTemperature, reserved, reserved, reserved]
 
 // Physical constants
 const float STEFAN_BOLTZMANN = 5.670374419e-8; // W/(m²·K⁴)
@@ -20,6 +21,7 @@ uniform float axialTilt;              // degrees - planet's axial tilt (0 = no t
 uniform float yearProgress;           // 0-1 - current position in orbit (0 = vernal equinox, 0.5 = autumnal)
 uniform float solarFlux;               // W/m²
 uniform float emissivity;              // 0-1 - thermal emissivity
+uniform float atmosEmissivity;         // 0-1 - atmospheric emissivity (typically 1.0)
 uniform float surfaceHeatCapacity;    // J/(m²·K) - heat capacity per unit area
 uniform float dt;                      // timestep in seconds
 uniform float textureWidth;
@@ -86,9 +88,9 @@ vec2 cellIndexToUV(float cellIndex) {
 }
 
 void main() {
-  // Read previous surface data (temperature and albedo)
+  // Read previous surface data (surface temperature and albedo)
   vec4 prevData = texture2D(previousSurfaceData, vUv);
-  float T_old = prevData.r;  // Previous temperature
+  float T_old = prevData.r;  // Previous surface temperature
   float prevAlbedo = prevData.g;  // Previous albedo (for reference, but we'll recompute)
 
   // Read cell position
@@ -121,7 +123,7 @@ void main() {
   float albedoWaterOrIce = mix(albedoWater, albedoIce, hasIce);
   float effectiveAlbedo = mix(albedoRock, albedoWaterOrIce, hasWaterOrIce);
 
-  // ===== COMPUTE TEMPERATURE EVOLUTION =====
+  // ===== COMPUTE SURFACE TEMPERATURE EVOLUTION =====
   // Calculate subsolar point based on orbital position and axial tilt
   float subsolarLat = calculateSubsolarLatitude(baseSubsolarPoint.x, axialTilt, yearProgress);
   vec2 subsolarPoint = vec2(subsolarLat, baseSubsolarPoint.y);
@@ -132,11 +134,14 @@ void main() {
   // Account for per-cell albedo (fraction of light reflected)
   Q_solar = Q_solar * (1.0 - effectiveAlbedo);
 
-  // Calculate outgoing blackbody radiation
+  // Calculate outgoing blackbody radiation from surface
   // Q_out = emissivity * σ * T^4
+  // This radiation escapes to space (atmosphere is assumed transparent for simplicity)
   float Q_radiation = emissivity * STEFAN_BOLTZMANN * pow(T_old, 4.0);
 
   // Calculate net radiative heating rate
+  // Solar absorbed minus radiation to space
+  // Note: Atmospheric warming/cooling handled via convection term below
   float dQ_radiation = Q_solar - Q_radiation;
 
   // Lateral heat conduction (diffusion from neighbours)
@@ -144,7 +149,7 @@ void main() {
   vec3 neighbours1 = texture2D(neighbourIndices1, vUv).rgb;
   vec3 neighbours2 = texture2D(neighbourIndices2, vUv).rgb;
 
-  // Collect neighbour temperatures
+  // Collect neighbour surface temperatures
   float neighbourSum = 0.0;
   float validNeighbours = 0.0;
 
@@ -154,9 +159,9 @@ void main() {
     float isValid = step(0.0, neighbourIdx);
 
     vec2 neighbourUV = cellIndexToUV(neighbourIdx);
-    float neighbourTemp = texture2D(previousSurfaceData, neighbourUV).r;
+    float neighbourSurfaceTemp = texture2D(previousSurfaceData, neighbourUV).r;
 
-    neighbourSum += neighbourTemp * isValid;
+    neighbourSum += neighbourSurfaceTemp * isValid;
     validNeighbours += isValid;
   }
 
@@ -166,18 +171,32 @@ void main() {
     float isValid = step(0.0, neighbourIdx);
 
     vec2 neighbourUV = cellIndexToUV(neighbourIdx);
-    float neighbourTemp = texture2D(previousSurfaceData, neighbourUV).r;
+    float neighbourSurfaceTemp = texture2D(previousSurfaceData, neighbourUV).r;
 
-    neighbourSum += neighbourTemp * isValid;
+    neighbourSum += neighbourSurfaceTemp * isValid;
     validNeighbours += isValid;
   }
 
-  // Calculate conductive heat flux (simplified: assume constant thermal conductivity)
-  float avgNeighbourTemp = neighbourSum / max(validNeighbours, 1.0);
-  float dQ_conduction = thermalConductivity * (avgNeighbourTemp - T_old);
+  // Calculate conductive heat flux from neighbours (lateral heat conduction)
+  float avgNeighbourSurfaceTemp = neighbourSum / max(validNeighbours, 1.0);
+  float dQ_conduction = thermalConductivity * (avgNeighbourSurfaceTemp - T_old);
+
+  // Read atmospheric temperature for atmosphere-surface heat exchange
+  vec4 atmosData = texture2D(atmosphereData, vUv);
+  float T_atmo = atmosData.r;
+
+  // Convective heat transfer between atmosphere and surface
+  // Enhanced coupling for water/ice surfaces due to better thermal contact
+  // Same coupling constant as in atmosphere shader (10 W/(m·K))
+  // Positive when atmosphere is warmer (atmosphere heats surface)
+  // Negative when surface is warmer (surface heats atmosphere - energy loss)
+  const float ATMOS_COUPLING_ROCK = 10.0; // W/(m·K) - rock/ground
+  const float ATMOS_COUPLING_WATER = 25.0; // W/(m·K) - water/ice surfaces (enhanced)
+  float atmosCoupling = mix(ATMOS_COUPLING_ROCK, ATMOS_COUPLING_WATER, hasWaterOrIce);
+  float dQ_atmos_coupling = atmosCoupling * (T_atmo - T_old);
 
   // Total heating rate (W/m²)
-  float dQ_total = dQ_radiation + dQ_conduction;
+  float dQ_total = dQ_radiation + dQ_conduction + dQ_atmos_coupling;
 
   // Determine effective heat capacity based on phase state (hydrology already read above)
   // Three cases:
@@ -202,16 +221,16 @@ void main() {
   effectiveHeatCapacity = mix(effectiveHeatCapacity, C_ice, hasIce_factor);
   effectiveHeatCapacity = mix(effectiveHeatCapacity, C_water, hasLiquidWater_factor);
 
-  // Temperature change: dT/dt = dQ / C
+  // Surface temperature change: dT/dt = dQ / C
   // Where C is heat capacity per unit area [J/(m²·K)]
   float dT = (dQ_total / effectiveHeatCapacity) * dt;
 
-  // New temperature
+  // New surface temperature
   float T_new = T_old + dT;
 
-  // Enforce minimum temperature (cosmic background)
+  // Enforce minimum surface temperature (cosmic background)
   T_new = max(T_new, cosmicBackgroundTemp);
 
-  // Output: RGBA = [temperature, albedo, reserved, reserved]
+  // Output: RGBA = [surfaceTemperature, albedo, reserved, reserved]
   gl_FragColor = vec4(T_new, effectiveAlbedo, prevData.b, prevData.a);
 }

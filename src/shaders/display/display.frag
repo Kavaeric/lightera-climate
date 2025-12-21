@@ -4,7 +4,7 @@
 
 precision highp float;
 
-// Data source texture (temperature, elevation, water depth, or salinity)
+// Data source texture (surface temperature, elevation, water depth, or salinity)
 uniform sampler2D dataTex;
 
 // Value range for normalisation

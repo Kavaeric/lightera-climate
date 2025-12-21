@@ -1,11 +1,12 @@
 import * as THREE from 'three'
 import { Grid, GridCell } from '../simulation/geometry/geodesic'
 import type { SimulationConfig } from '../config/simulationConfig'
+import { DEPTH_QUANTUM } from '../config/simulationConfig'
 import type { TerrainConfig } from '../config/terrainConfig'
 
 /**
  * Climate simulation for a geodesic grid sphere
- * Stores climate data (temperature, etc.) over time for each cell
+ * Stores climate data (surface temperature, etc.) over time for each cell
  */
 export class TextureGridSimulation {
   private grid: Grid
@@ -35,8 +36,13 @@ export class TextureGridSimulation {
 
   // Surface data storage: TWO render targets (current and next frame)
   // Stores surface temperature and albedo together
-  // Each render target RGBA = [temperature, albedo, reserved, reserved]
+  // Each render target RGBA = [surfaceTemperature, albedo, reserved, reserved]
   public climateDataTargets: THREE.WebGLRenderTarget[]
+
+  // Atmosphere data storage: TWO render targets (current and next frame)
+  // Stores atmospheric temperature
+  // Each render target RGBA = [atmosphereTemperature, reserved, reserved, reserved]
+  public atmosphereDataTargets: THREE.WebGLRenderTarget[]
 
   constructor(config: SimulationConfig) {
     this.grid = new Grid(config.resolution)
@@ -75,8 +81,13 @@ export class TextureGridSimulation {
     this.initialiseHydrologyTargets()
 
     // Create surface/climate data storage (two render targets: current and next frame)
-    // Stores both temperature and albedo: RGBA = [temperature, albedo, reserved, reserved]
+    // Stores both surface temperature and albedo: RGBA = [surfaceTemperature, albedo, reserved, reserved]
     this.climateDataTargets = [this.createRenderTarget(), this.createRenderTarget()]
+
+    // Create atmosphere data storage (two render targets: current and next frame)
+    // Stores atmospheric temperature: RGBA = [atmosphereTemperature, reserved, reserved, reserved]
+    this.atmosphereDataTargets = [this.createRenderTarget(), this.createRenderTarget()]
+    this.initialiseAtmosphereTargets()
   }
 
   /**
@@ -297,7 +308,10 @@ export class TextureGridSimulation {
       const coords = this.indexTo2D(i)
       const dataIndex = this.coordsToDataIndex(coords.x, coords.y, 4)
 
-      data[dataIndex + 0] = terrain.elevation[i] // R = elevation
+      // Quantise elevation to 0.1m increments to match water/ice depths
+      const quantisedElevation = Math.round(terrain.elevation[i] / DEPTH_QUANTUM) * DEPTH_QUANTUM
+
+      data[dataIndex + 0] = quantisedElevation // R = elevation (quantised)
       data[dataIndex + 1] = 0 // G = reserved
       data[dataIndex + 2] = 0 // B = reserved
       data[dataIndex + 3] = 0 // A = reserved
@@ -314,6 +328,16 @@ export class TextureGridSimulation {
   private initialiseHydrologyTargets(): void {
     // Hydrology targets start cleared to [0, 0, 0, 0] by WebGL
     // They will be properly initialised by setHydrologyData when terrain is loaded
+  }
+
+  /**
+   * Initialise atmosphere render targets with default values
+   * Called during construction to set up initial atmospheric temperature
+   * Uses Earth-like baseline: ~288K (15°C)
+   */
+  private initialiseAtmosphereTargets(): void {
+    // Atmosphere targets will be properly initialised by ClimateSimulationEngine
+    // when it sets up the atmosphere shader material
   }
 
   /**
@@ -357,9 +381,14 @@ export class TextureGridSimulation {
     for (let i = 0; i < this.cellCount; i++) {
       const coords = this.indexTo2D(i)
       const dataIndex = this.coordsToDataIndex(coords.x, coords.y, 4)
-      hydrologyData[dataIndex + 0] = iceThickness[i]      // R = iceThickness
+
+      // Quantise water and ice depths to 0.1m increments
+      const quantisedIce = Math.round(iceThickness[i] / DEPTH_QUANTUM) * DEPTH_QUANTUM
+      const quantisedWater = Math.round(waterDepth[i] / DEPTH_QUANTUM) * DEPTH_QUANTUM
+
+      hydrologyData[dataIndex + 0] = quantisedIce        // R = iceThickness (quantised)
       hydrologyData[dataIndex + 1] = 0                    // G = waterThermalMass (start at 0)
-      hydrologyData[dataIndex + 2] = waterDepth[i]        // B = waterDepth
+      hydrologyData[dataIndex + 2] = quantisedWater      // B = waterDepth (quantised)
       hydrologyData[dataIndex + 3] = salinity[i]          // A = salinity
     }
 
@@ -449,7 +478,7 @@ export class TextureGridSimulation {
 
   /**
    * Get the current surface/climate render target (for reading in shaders)
-   * Format: RGBA = [temperature, albedo, reserved, reserved]
+   * Format: RGBA = [surfaceTemperature, albedo, reserved, reserved]
    */
   public getClimateDataCurrent(): THREE.WebGLRenderTarget {
     return this.climateDataTargets[0]
@@ -457,7 +486,7 @@ export class TextureGridSimulation {
 
   /**
    * Get the next surface/climate render target (for writing in shaders)
-   * Format: RGBA = [temperature, albedo, reserved, reserved]
+   * Format: RGBA = [surfaceTemperature, albedo, reserved, reserved]
    */
   public getClimateDataNext(): THREE.WebGLRenderTarget {
     return this.climateDataTargets[1]
@@ -470,6 +499,31 @@ export class TextureGridSimulation {
     const temp = this.climateDataTargets[0]
     this.climateDataTargets[0] = this.climateDataTargets[1]
     this.climateDataTargets[1] = temp
+  }
+
+  /**
+   * Get the current atmosphere render target (for reading in shaders)
+   * Format: RGBA = [atmosphereTemperature, reserved, reserved, reserved]
+   */
+  public getAtmosphereDataCurrent(): THREE.WebGLRenderTarget {
+    return this.atmosphereDataTargets[0]
+  }
+
+  /**
+   * Get the next atmosphere render target (for writing in shaders)
+   * Format: RGBA = [atmosphereTemperature, reserved, reserved, reserved]
+   */
+  public getAtmosphereDataNext(): THREE.WebGLRenderTarget {
+    return this.atmosphereDataTargets[1]
+  }
+
+  /**
+   * Swap atmosphere buffers for next frame
+   */
+  public swapAtmosphereBuffers(): void {
+    const temp = this.atmosphereDataTargets[0]
+    this.atmosphereDataTargets[0] = this.atmosphereDataTargets[1]
+    this.atmosphereDataTargets[1] = temp
   }
 
   /**
@@ -516,9 +570,9 @@ export class TextureGridSimulation {
   }
 
   /**
-   * Read back current temperature value from GPU for a specific cell
+   * Read back current surface temperature value from GPU for a specific cell
    */
-  async getTemperature(
+  async getSurfaceTemperature(
     cellIndex: number,
     renderer: THREE.WebGLRenderer
   ): Promise<number> {
@@ -529,7 +583,7 @@ export class TextureGridSimulation {
     // Read a single pixel
     renderer.readRenderTargetPixels(target, coords.x, coords.y, 1, 1, buffer)
 
-    return buffer[0] // R channel = temperature
+    return buffer[0] // R channel = surfaceTemperature
   }
 
   /**
@@ -538,7 +592,7 @@ export class TextureGridSimulation {
   async getClimateDataForCell(
     cellIndex: number,
     renderer: THREE.WebGLRenderer
-  ): Promise<{ temperature: number }> {
+  ): Promise<{ surfaceTemperature: number }> {
     const coords = this.indexTo2D(cellIndex)
     const buffer = new Float32Array(4)
 
@@ -546,7 +600,7 @@ export class TextureGridSimulation {
     renderer.readRenderTargetPixels(target, coords.x, coords.y, 1, 1, buffer)
 
     return {
-      temperature: buffer[0],
+      surfaceTemperature: buffer[0],
     }
   }
 
@@ -580,13 +634,31 @@ export class TextureGridSimulation {
     const coords = this.indexTo2D(cellIndex)
     const buffer = new Float32Array(4)
 
-    // Surface data (temperature + albedo) is now stored in climate texture
-    // R = temperature, G = albedo
+    // Surface data (surface temperature + albedo) is now stored in climate texture
+    // R = surfaceTemperature, G = albedo
     const target = this.getClimateDataCurrent()
     renderer.readRenderTargetPixels(target, coords.x, coords.y, 1, 1, buffer)
 
     return {
       albedo: buffer[1], // G channel = effectiveAlbedo
+    }
+  }
+
+  /**
+   * Read back current atmosphere data (atmospheric temperature) for a specific cell
+   */
+  async getAtmosphereDataForCell(
+    cellIndex: number,
+    renderer: THREE.WebGLRenderer
+  ): Promise<{ atmosphericTemperature: number }> {
+    const coords = this.indexTo2D(cellIndex)
+    const buffer = new Float32Array(4)
+
+    const target = this.getAtmosphereDataCurrent()
+    renderer.readRenderTargetPixels(target, coords.x, coords.y, 1, 1, buffer)
+
+    return {
+      atmosphericTemperature: buffer[0], // R channel = atmosphericTemperature
     }
   }
 
@@ -614,6 +686,9 @@ export class TextureGridSimulation {
       target.dispose()
     }
     for (const target of this.climateDataTargets) {
+      target.dispose()
+    }
+    for (const target of this.atmosphereDataTargets) {
       target.dispose()
     }
   }

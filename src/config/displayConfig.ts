@@ -4,10 +4,13 @@
 
 export interface DisplayConfig {
   // Visualisation mode - what to display on the planet
-  visualisationMode: 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo' | 'terrain'
+  visualisationMode: 'terrain' | 'surfaceTemperature' | 'atmosphericTemperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo'
 
-  // Temperature display range for colour mapping
-  temperatureRange: { min: number; max: number } // Kelvin
+  // Surface temperature display range for colour mapping
+  surfaceTemperatureRange: { min: number; max: number } // Kelvin
+
+  // Atmospheric temperature display range for colour mapping
+  atmosphericTemperatureRange: { min: number; max: number } // Kelvin
 
   // Elevation display range for greyscale mapping
   elevationRange: { min: number; max: number } // metres
@@ -28,8 +31,8 @@ export interface DisplayConfig {
   colourmap: 'fast' // Currently only 'fast' supported; will expand to 'viridis' | 'blackbody' later
 
   // Underflow/overflow colours (RGB values 0-1)
-  underflowColour: [number, number, number] // Colour for temperatures below min (e.g., deep blue)
-  overflowColour: [number, number, number] // Colour for temperatures above max (e.g., magenta)
+  underflowColour: [number, number, number] // Colour for surface temperatures below min (e.g., deep blue)
+  overflowColour: [number, number, number] // Colour for surface temperatures above max (e.g., magenta)
 
   // Latitude/longitude grid overlay settings
   gridColour: string // Hex colour code
@@ -47,7 +50,8 @@ export interface DisplayConfig {
  */
 export const DEFAULT_DISPLAY_CONFIG: DisplayConfig = {
   visualisationMode: 'terrain',
-  temperatureRange: { min: 200, max: 350 }, // Kelvin colour scale range
+  surfaceTemperatureRange: { min: 200, max: 350 }, // Kelvin colour scale range
+  atmosphericTemperatureRange: { min: 200, max: 350 }, // Kelvin colour scale range
   elevationRange: { min: -5000, max: 10000 }, // metres (ocean depth to highest mountains in procedural generation)
   waterDepthRange: { min: 0, max: 5000 }, // metres (dynamic water from hydrology - evolves with evaporation)
   salinityRange: { min: 0, max: 50 }, // PSU (0 = fresh, 35 = ocean, 50+ = hypersaline)

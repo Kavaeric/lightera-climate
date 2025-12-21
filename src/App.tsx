@@ -37,7 +37,7 @@ function Scene({ simulation, showLatLonGrid, hoveredCell, selectedCell, onHoverC
 
   return (
     <>
-      {/* Climate solver - computes temperature for all time samples */}
+      {/* Climate solver - computes surface temperature for all time samples */}
       <ClimateSimulationEngine
         simulation={simulation}
         planetConfig={activePlanetConfig}
@@ -93,7 +93,7 @@ function ClimateDataFetcher({
 }: {
   simulation: TextureGridSimulation
   cellIndex: number | null
-  onDataFetched: (data: Array<{ day: number; temperature: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>) => void
+  onDataFetched: (data: Array<{ day: number; surfaceTemperature: number; atmosphericTemperature: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>) => void
 }) {
   const { gl } = useThree()
   const { getRecorder } = useSimulation()
@@ -107,21 +107,23 @@ function ClimateDataFetcher({
     const fetchData = async () => {
       const recorder = getRecorder()
       
-      // Always get current hydrology, surface, and terrain data (not time-series, just current state)
+      // Always get current hydrology, surface, atmosphere, and terrain data (not time-series, just current state)
       const hydrologyData = await simulation.getHydrologyDataForCell(cellIndex, gl)
       const surfaceData = await simulation.getSurfaceDataForCell(cellIndex, gl)
+      const atmosphereData = await simulation.getAtmosphereDataForCell(cellIndex, gl)
       const terrainData = simulation.getTerrainDataForCell(cellIndex)
       
-      // Try to get complete orbit temperature data from recorder
+      // Try to get complete orbit surface temperature data from recorder
       if (recorder && recorder.hasCompleteOrbit()) {
-        const temperatures = await recorder.getCompleteOrbitTemperatureForCell(cellIndex)
+        const surfaceTemperatures = await recorder.getCompleteOrbitSurfaceTemperatureForCell(cellIndex)
         
-        if (temperatures && temperatures.length > 0) {
+        if (surfaceTemperatures && surfaceTemperatures.length > 0) {
           // Format as time series data (sample index as "day")
-          // Use current hydrology, surface, and terrain data for all samples (since it's not time-series)
-          const formattedData = temperatures.map((temp, index) => ({
+          // Use current hydrology, surface, atmosphere, and terrain data for all samples (since it's not time-series)
+          const formattedData = surfaceTemperatures.map((surfaceTemp, index) => ({
             day: index,
-            temperature: temp,
+            surfaceTemperature: surfaceTemp,
+            atmosphericTemperature: atmosphereData.atmosphericTemperature,
             waterDepth: hydrologyData.waterDepth,
             iceThickness: hydrologyData.iceThickness,
             salinity: hydrologyData.salinity,
@@ -138,6 +140,7 @@ function ClimateDataFetcher({
       const formattedData = [{
         day: 0,
         ...climateData,
+        ...atmosphereData,
         ...hydrologyData,
         ...surfaceData,
         ...terrainData,
@@ -166,7 +169,7 @@ function AppContent() {
   const [hoveredCell, setHoveredCell] = useState<number | null>(null)
   const [selectedCell, setSelectedCell] = useState<number | null>(null)
   const [selectedCellLatLon, setSelectedCellLatLon] = useState<{ lat: number; lon: number } | null>(null)
-  const [climateData, setClimateData] = useState<Array<{ day: number; temperature: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>>([])
+  const [climateData, setClimateData] = useState<Array<{ day: number; surfaceTemperature: number; atmosphericTemperature: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>>([])
 
   // Get active config and simulation state from context
   const { activeSimulationConfig, simulationKey, isRunning, error, clearError, newSimulation, play, pause, stepOnce, getOrchestrator } = useSimulation()
@@ -249,7 +252,7 @@ function AppContent() {
     setClimateData([])
   }, [])
 
-  const handleDataFetched = useCallback((data: Array<{ day: number; temperature: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>) => {
+  const handleDataFetched = useCallback((data: Array<{ day: number; surfaceTemperature: number; atmosphericTemperature: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>) => {
     setClimateData(data)
   }, [])
 
@@ -425,6 +428,104 @@ function AppContent() {
               }}
             />
           </label>
+          <br />
+          <h3 style={{ margin: 0 }}>Atmosphere</h3>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>CO₂ (Pa)</span>
+            <input
+              type="number"
+              step="1"
+              min="0"
+              value={pendingPlanetConfig.atmosphereConfig?.composition.CO2 ?? 0}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                if (!isNaN(val) && pendingPlanetConfig.atmosphereConfig) {
+                  setPendingPlanetConfig({
+                    ...pendingPlanetConfig,
+                    atmosphereConfig: {
+                      ...pendingPlanetConfig.atmosphereConfig,
+                      composition: {
+                        ...pendingPlanetConfig.atmosphereConfig.composition,
+                        CO2: val,
+                      },
+                    },
+                  });
+                }
+              }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>N₂ (Pa)</span>
+            <input
+              type="number"
+              step="1"
+              min="0"
+              value={pendingPlanetConfig.atmosphereConfig?.composition.N2 ?? 0}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                if (!isNaN(val) && pendingPlanetConfig.atmosphereConfig) {
+                  setPendingPlanetConfig({
+                    ...pendingPlanetConfig,
+                    atmosphereConfig: {
+                      ...pendingPlanetConfig.atmosphereConfig,
+                      composition: {
+                        ...pendingPlanetConfig.atmosphereConfig.composition,
+                        N2: val,
+                      },
+                    },
+                  });
+                }
+              }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>O₂ (Pa)</span>
+            <input
+              type="number"
+              step="1"
+              min="0"
+              value={pendingPlanetConfig.atmosphereConfig?.composition.O2 ?? 0}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                if (!isNaN(val) && pendingPlanetConfig.atmosphereConfig) {
+                  setPendingPlanetConfig({
+                    ...pendingPlanetConfig,
+                    atmosphereConfig: {
+                      ...pendingPlanetConfig.atmosphereConfig,
+                      composition: {
+                        ...pendingPlanetConfig.atmosphereConfig.composition,
+                        O2: val,
+                      },
+                    },
+                  });
+                }
+              }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span>Ar (Pa)</span>
+            <input
+              type="number"
+              step="1"
+              min="0"
+              value={pendingPlanetConfig.atmosphereConfig?.composition.Ar ?? 0}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                if (!isNaN(val) && pendingPlanetConfig.atmosphereConfig) {
+                  setPendingPlanetConfig({
+                    ...pendingPlanetConfig,
+                    atmosphereConfig: {
+                      ...pendingPlanetConfig.atmosphereConfig,
+                      composition: {
+                        ...pendingPlanetConfig.atmosphereConfig.composition,
+                        Ar: val,
+                      },
+                    },
+                  });
+                }
+              }}
+            />
+          </label>
           <button
             onClick={() => {
               // Create new simulation with configs
@@ -491,12 +592,13 @@ function AppContent() {
               onChange={(e) => {
                 setDisplayConfig({
                   ...displayConfig,
-                  visualisationMode: e.target.value as 'terrain' | 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo',
+                  visualisationMode: e.target.value as 'terrain' | 'surfaceTemperature' | 'atmosphericTemperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo',
                 })
               }}
             >
               <option value="terrain">Terrain</option>
-              <option value="temperature">Temperature</option>
+              <option value="surfaceTemperature">Surface temperature</option>
+              <option value="atmosphericTemperature">Atmospheric temperature</option>
               <option value="elevation">Elevation (greyscale)</option>
               <option value="waterDepth">Water depth</option>
               <option value="salinity">Salinity (greyscale)</option>
@@ -509,14 +611,14 @@ function AppContent() {
             <input
               type="number"
               step="1"
-              value={displayConfig.temperatureRange.min}
+              value={displayConfig.surfaceTemperatureRange.min}
               onChange={(e) => {
                 const val = parseInt(e.target.value);
                 setDisplayConfig({
                   ...displayConfig,
-                  temperatureRange: {
-                    ...displayConfig.temperatureRange,
-                    min: isNaN(val) ? displayConfig.temperatureRange.min : val,
+                  surfaceTemperatureRange: {
+                    ...displayConfig.surfaceTemperatureRange,
+                    min: isNaN(val) ? displayConfig.surfaceTemperatureRange.min : val,
                   },
                 });
               }}
@@ -527,14 +629,14 @@ function AppContent() {
             <input
               type="number"
               step="1"
-              value={displayConfig.temperatureRange.max}
+              value={displayConfig.surfaceTemperatureRange.max}
               onChange={(e) => {
                 const val = parseInt(e.target.value);
                 setDisplayConfig({
                   ...displayConfig,
-                  temperatureRange: {
-                    ...displayConfig.temperatureRange,
-                    max: isNaN(val) ? displayConfig.temperatureRange.max : val,
+                  surfaceTemperatureRange: {
+                    ...displayConfig.surfaceTemperatureRange,
+                    max: isNaN(val) ? displayConfig.surfaceTemperatureRange.max : val,
                   },
                 });
               }}

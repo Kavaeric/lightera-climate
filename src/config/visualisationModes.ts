@@ -14,12 +14,13 @@ import {
   COLOURMAP_SALINITY,
   COLOURMAP_ICE,
   COLOURMAP_ALBEDO,
+  COLOURMAP_ATMOSPHERIC_TEMPERATURE,
 } from './colourmaps'
 import type { DisplayConfig } from './displayConfig'
 import terrainFragmentShader from '../shaders/display/terrain.frag?raw'
 
 export interface VisualisationMode {
-  id: 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo' | 'terrain'
+  id: 'terrain' | 'surfaceTemperature' | 'atmosphericTemperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo'
   name: string
   // Get the texture source for this visualisation
   getTextureSource: (simulation: TextureGridSimulation) => THREE.Texture
@@ -39,16 +40,16 @@ export interface VisualisationMode {
 }
 
 /**
- * Temperature visualisation mode
- * Shows global temperature from climate simulation using Fast colourmap
+ * Surface temperature visualisation mode
+ * Shows global surface temperature from climate simulation using Fast colourmap
  */
-export const VISUALISATION_TEMPERATURE: VisualisationMode = {
-  id: 'temperature',
-  name: 'Temperature',
+export const VISUALISATION_SURFACE_TEMPERATURE: VisualisationMode = {
+  id: 'surfaceTemperature',
+  name: 'Surface temperature', // User-facing label stays as "Surface temperature"
   getTextureSource: (simulation) => simulation.getClimateDataCurrent().texture,
-  dataChannel: 0, // Temperature in red channel
+  dataChannel: 0, // Surface temperature in red channel
   colourmap: COLOURMAP_FAST,
-  getRange: (displayConfig) => displayConfig.temperatureRange,
+  getRange: (displayConfig) => displayConfig.surfaceTemperatureRange,
 }
 
 /**
@@ -111,9 +112,22 @@ export const VISUALISATION_ALBEDO: VisualisationMode = {
   id: 'albedo',
   name: 'Albedo (greyscale)',
   getTextureSource: (simulation) => simulation.getClimateDataCurrent().texture,
-  dataChannel: 1, // Effective albedo in green channel (temperature is in red channel)
+  dataChannel: 1, // Effective albedo in green channel (surface temperature is in red channel)
   colourmap: COLOURMAP_ALBEDO,
   getRange: (displayConfig) => displayConfig.albedoRange,
+}
+
+/**
+ * Atmospheric temperature visualisation mode
+ * Shows atmospheric temperature from climate simulation using Plasma colourmap
+ */
+export const VISUALISATION_ATMOSPHERIC_TEMPERATURE: VisualisationMode = {
+  id: 'atmosphericTemperature',
+  name: 'Atmospheric temperature',
+  getTextureSource: (simulation) => simulation.getAtmosphereDataCurrent().texture,
+  dataChannel: 0, // Atmospheric temperature in red channel
+  colourmap: COLOURMAP_ATMOSPHERIC_TEMPERATURE,
+  getRange: (displayConfig) => displayConfig.atmosphericTemperatureRange,
 }
 
 /**
@@ -150,7 +164,8 @@ export const VISUALISATION_TERRAIN: VisualisationMode = {
  * Maps mode ID to VisualisationMode configuration
  */
 export const VISUALISATION_MODES: Record<string, VisualisationMode> = {
-  temperature: VISUALISATION_TEMPERATURE,
+  surfaceTemperature: VISUALISATION_SURFACE_TEMPERATURE,
+  atmosphericTemperature: VISUALISATION_ATMOSPHERIC_TEMPERATURE,
   elevation: VISUALISATION_ELEVATION,
   waterDepth: VISUALISATION_WATER_DEPTH,
   salinity: VISUALISATION_SALINITY,
@@ -163,7 +178,11 @@ export const VISUALISATION_MODES: Record<string, VisualisationMode> = {
  * Get a visualisation mode by ID
  */
 export function getVisualisationMode(
-  id: 'temperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo' | 'terrain'
+  id: 'terrain' | 'surfaceTemperature' | 'atmosphericTemperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo'
 ): VisualisationMode {
-  return VISUALISATION_MODES[id]
+  const mode = VISUALISATION_MODES[id]
+  if (!mode) {
+    throw new Error(`Visualisation mode '${id}' not found in registry. Available modes: ${Object.keys(VISUALISATION_MODES).join(', ')}`)
+  }
+  return mode
 }
