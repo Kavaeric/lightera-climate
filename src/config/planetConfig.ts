@@ -19,7 +19,7 @@ export interface PlanetConfig {
   albedo: number // 0-1 - fraction of sunlight reflected
   emissivity: number // 0-1 - thermal emissivity for blackbody radiation (e.g., rock: 0.90)
   surfaceHeatCapacity: number // J/(m²·K) - heat capacity per unit area (e.g., Earth: 2.927e8)
-  groundConductivity: number // 0-1 - lateral heat conduction coefficient for subsurface heat flow
+  groundConductivity: number // W/(m·K) - thermal conductivity of rock (shader uses physical constants for water/ice/rock)
 
   // Rotational parameters
   subsolarPoint: { lat: number; lon: number } // degrees - where sun is directly overhead
@@ -45,7 +45,7 @@ export const DEFAULT_PLANET_CONFIG: PlanetConfig = {
   albedo: 0.10, // Albedo of the planet's surface (airless body)
   emissivity: 0.90, // Emissivity of rock surface
   surfaceHeatCapacity: 2.16e6, // Heat capacity of exposed rock (ρ=2700 kg/m³, c=800 J/kg·K, depth=1m)
-  groundConductivity: 0.05, // Lateral heat conduction coefficient (0-1, 0 = no diffusion)
+  groundConductivity: 2.5, // Thermal conductivity of rock (W/(m·K)) - shader uses physical values: water=0.6, ice=2.2, rock=2.5
   subsolarPoint: { lat: 0, lon: 0 }, // Location of the equator and prime meridian
   rotationsPerYear: 365, // Number of rotations per orbit (0 = tidally locked)
   // rotationsPerYear: 88, // Number of rotations per orbit (0 = tidally locked)

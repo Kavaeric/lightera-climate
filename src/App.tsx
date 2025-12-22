@@ -253,7 +253,22 @@ function AppContent() {
     setClimateData([])
   }, [])
 
-  const handleDataFetched = useCallback((data: Array<{ day: number; surfaceTemperature: number; atmosphericTemperature: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>) => {
+
+  const handleDataFetched = useCallback(
+    (
+      data: Array<{
+        day: number
+        surfaceTemperature: number
+        atmosphericTemperature: number
+        atmosphericPressure: number
+        waterDepth: number
+        iceThickness: number
+        salinity: number
+        albedo: number
+        elevation: number
+      }>
+    ) => {
+
     setClimateData(data)
   }, [])
 

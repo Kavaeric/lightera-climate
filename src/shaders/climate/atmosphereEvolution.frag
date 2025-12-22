@@ -135,27 +135,44 @@ void main() {
   // Calculate IR transmittance using local pressure
   float transmittance = calculateTransmittance(P_local, co2Content, h2oContent);
 
-  // Fraction of solar radiation absorbed by atmosphere
-  // For a simplified model: atmosphere absorbs (1 - transmittance) fraction
-  // This is physically motivated: strong absorbers of IR also absorb some solar
-  // Conservative estimate: absorb about 20-30% of incident solar
-  float solarAbsorptionFraction = 0.25 * (1.0 - transmittance);  // Scaled by atmospheric opacity
-  float Q_solar_absorbed = Q_solar_incident * solarAbsorptionFraction;
+  // Solar absorption by atmosphere
+  // H2O absorbs ~15% in near-IR bands, O3 absorbs ~3% UV, clouds ~5%
+  // With H2O but no O3 or clouds: ~15-18%
+  // For Earth-like with all components: ~23%
+  // TODO: Make this dynamic based on H2O content when implementing water cycle
+  const float SOLAR_ABSORPTION_FRACTION = 0.18;
+  float Q_solar_absorbed = Q_solar_incident * SOLAR_ABSORPTION_FRACTION;
 
-  // ===== CALCULATE IR RADIATION TO SPACE =====
+  // ===== CALCULATE IR RADIATION =====
 
-  // Atmosphere radiates IR upward, fraction transmittance escapes to space
-  // The rest is re-absorbed by the atmosphere (no net effect)
-  // Net atmospheric loss = emissivity * σ * T_atm^4 * transmittance
-  float Q_ir_to_space = atmosphereEmissivity * STEFAN_BOLTZMANN * pow(T_atm_old, 4.0) * transmittance;
+  // Surface emission (from surface shader calculation)
+  float surfaceEmission = emissivity * STEFAN_BOLTZMANN * pow(T_surf, 4.0);
 
-  // ===== CALCULATE HEAT EXCHANGE WITH SURFACE =====
+  // Gray atmosphere radiative transfer (single-layer model)
+  // Atmosphere with emissivity ε_a = (1 - τ) absorbs and emits IR
 
-  // Convective/diffusive heat transfer between surface and atmosphere
-  // Positive when surface is warmer (surface heats atmosphere)
-  // Negative when atmosphere is warmer (atmosphere heats surface)
-  // Q_conv = κ * (T_surf - T_atm)
-  float Q_convection = THERMAL_CONDUCTIVITY_ATMOS * (T_surf - T_atm_old);
+  // Two-stream radiative transfer for gray atmosphere
+  // The atmosphere absorbs and emits with emissivity ε = (1-τ)
+
+  // Energy absorbed by atmosphere from surface IR
+  float Q_absorbed_from_surface = surfaceEmission * (1.0 - transmittance);
+
+  // Atmospheric emission (both upward to space and downward to surface)
+  float atmosphericEmission = (1.0 - transmittance) * STEFAN_BOLTZMANN * pow(T_atm_old, 4.0);
+
+  // Net radiative exchange for atmosphere
+  // Atmosphere loses energy in BOTH directions (upward + downward)
+  // Even though downward heats surface, it still represents energy leaving atmosphere
+  float dQ_ir = Q_absorbed_from_surface - 2.0 * atmosphericEmission;
+
+  // ===== CALCULATE SENSIBLE HEAT EXCHANGE WITH SURFACE =====
+
+  // Sensible heat transfer (turbulent mixing and conduction)
+  // Represents convective heat exchange between surface and atmosphere
+  // For Earth: ~20-30 W/m² average sensible heat flux
+  // Using coupling coefficient that gives realistic flux
+  const float SENSIBLE_HEAT_COUPLING = 5.0;  // W/(m·K)
+  float Q_sensible = SENSIBLE_HEAT_COUPLING * (T_surf - T_atm_old);
 
   // ===== CALCULATE LATERAL ATMOSPHERIC HEAT DIFFUSION =====
 
@@ -191,11 +208,10 @@ void main() {
   // ===== CALCULATE NET HEATING RATE =====
 
   // Energy balance for atmosphere:
-  // Gains: solar absorption + convection from warm surface + diffusion from warm neighbours
-  // Losses: IR to space + diffusion to cold neighbours
-  // Note: Back-radiation to surface is handled in surface shader via convection
-  // dQ_total = Q_solar_absorbed + Q_convection + Q_diffusion - Q_ir_to_space
-  float dQ_total = Q_solar_absorbed + Q_convection + Q_diffusion - Q_ir_to_space;
+  // Gains: solar absorption + IR from surface + sensible heat from surface + diffusion from neighbors
+  // Losses: IR to space (upward only) + diffusion to cold neighbors
+  // Note: Downward IR emission heats surface, not counted here
+  float dQ_total = Q_solar_absorbed + dQ_ir + Q_sensible + Q_diffusion;
 
   // ===== CALCULATE TEMPERATURE CHANGE =====
 

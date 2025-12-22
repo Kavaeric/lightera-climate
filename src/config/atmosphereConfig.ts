@@ -25,11 +25,11 @@ export interface AtmosphereConfig {
 export const DEFAULT_ATMOSPHERE_CONFIG: AtmosphereConfig = {
   scaleHeight: 8500, // metres
   composition: {
-    N2: 78084, // 78.084% of 101325 Pa
-    O2: 20946, // 20.946% of 101325 Pa
-    Ar: 934,   // 0.934% of 101325 Pa
-    CO2: 300,  // ~400 ppm = 0.04% of 101325 Pa
-    H2O: 0,    // Variable, starts at 0
+    N2: 78084,  // 78.084% of 101325 Pa
+    O2: 20946,  // 20.946% of 101325 Pa
+    Ar: 934,    // 0.934% of 101325 Pa
+    CO2: 40.5,  // 400 ppm = 0.04% of 101325 Pa
+    H2O: 25,    // kg/m² column mass (typical Earth: 15-30 kg/m², global avg ~25 kg/m²)
   },
 }
 

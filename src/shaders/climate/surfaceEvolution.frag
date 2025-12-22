@@ -14,6 +14,7 @@ uniform sampler2D atmosphereData;        // Atmosphere data [atmosphereTemperatu
 
 // Physical constants
 const float STEFAN_BOLTZMANN = 5.670374419e-8; // W/(m²·K⁴)
+const float GRAVITY = 10.0; // m/s² - gravitational acceleration
 
 // Simulation parameters
 uniform vec2 baseSubsolarPoint;       // [lat, lon] in degrees - subsolar point at vernal equinox
@@ -30,11 +31,37 @@ uniform float cosmicBackgroundTemp;   // K
 uniform float thermalConductivity;     // W/(m·K) - for lateral heat conduction
 uniform float planetRadius;           // metres - planet's radius for calculating surface area and scaling
 
+// Atmospheric radiative properties
+uniform float totalPressure;          // Pa - total atmospheric pressure
+uniform float co2Content;             // ppm - CO2 concentration
+uniform float h2oContent;             // kg/m² - water vapor column
+uniform float co2AbsorptionCoeff;     // m²/kg - CO2 mass absorption coefficient
+uniform float h2oAbsorptionCoeff;     // m²/kg - H2O mass absorption coefficient
+
 /**
  * Convert degrees to radians
  */
 float deg2rad(float deg) {
   return deg * 3.14159265359 / 180.0;
+}
+
+/**
+ * Calculate IR transmittance through atmosphere
+ * Same formula as atmosphereEvolution.frag for consistency
+ */
+float calculateTransmittance(float totalPress, float co2Ppm, float h2oMass) {
+  // Calculate atmospheric column mass (kg/m²)
+  float columnMass = totalPress / GRAVITY;
+
+  // Calculate CO2 column mass (kg/m²)
+  float co2ColumnMass = (co2Ppm / 1.0e6) * columnMass;
+
+  // Optical depth from CO2 and H2O
+  float co2Opacity = co2AbsorptionCoeff * co2ColumnMass;
+  float h2oOpacity = h2oAbsorptionCoeff * h2oMass;
+  float totalOpacity = co2Opacity + h2oOpacity;
+
+  return exp(-totalOpacity);
 }
 
 /**
@@ -128,21 +155,56 @@ void main() {
   float subsolarLat = calculateSubsolarLatitude(baseSubsolarPoint.x, axialTilt, yearProgress);
   vec2 subsolarPoint = vec2(subsolarLat, baseSubsolarPoint.y);
 
-  // Calculate incoming solar flux
-  float Q_solar = calculateSolarFlux(cellLatLon.x, cellLatLon.y, subsolarPoint);
+  // Calculate incoming solar flux at top of atmosphere
+  float Q_solar_toa = calculateSolarFlux(cellLatLon.x, cellLatLon.y, subsolarPoint);
 
-  // Account for per-cell albedo (fraction of light reflected)
-  Q_solar = Q_solar * (1.0 - effectiveAlbedo);
+  // Atmosphere absorbs fraction of solar (O3, H2O, clouds absorb UV/visible)
+  // H2O absorbs ~15-18% in near-IR, O3 ~3% UV, clouds ~5%
+  // This matches the SOLAR_ABSORPTION_FRACTION in atmosphere shader
+  const float SOLAR_ABSORPTION_BY_ATMOSPHERE = 0.18;
 
-  // Calculate outgoing blackbody radiation from surface
-  // Q_out = emissivity * σ * T^4
-  // This radiation escapes to space (atmosphere is assumed transparent for simplicity)
-  float Q_radiation = emissivity * STEFAN_BOLTZMANN * pow(T_old, 4.0);
+  // Solar reaching surface after atmospheric absorption
+  float Q_solar_at_surface = Q_solar_toa * (1.0 - SOLAR_ABSORPTION_BY_ATMOSPHERE);
 
-  // Calculate net radiative heating rate
-  // Solar absorbed minus radiation to space
-  // Note: Atmospheric warming/cooling handled via convection term below
-  float dQ_radiation = Q_solar - Q_radiation;
+  // Account for surface albedo (fraction of light reflected back to space)
+  float Q_solar = Q_solar_at_surface * (1.0 - effectiveAlbedo);
+
+  // Read atmospheric temperature for radiative transfer
+  vec4 atmosData = texture2D(atmosphereData, vUv);
+  float T_atmo = atmosData.r;
+  float P_local = atmosData.g;
+
+  // Use global pressure if local not initialized
+  if (P_local < 1.0) {
+    P_local = totalPressure;
+  }
+
+  // Calculate atmospheric IR transmittance
+  float transmittance = calculateTransmittance(P_local, co2Content, h2oContent);
+
+  // ===== RADIATIVE TRANSFER WITH GREENHOUSE EFFECT =====
+
+  // Surface emits blackbody radiation: ε × σ × T_surf^4
+  float surfaceEmission = emissivity * STEFAN_BOLTZMANN * pow(T_old, 4.0);
+
+  // Fraction of surface emission that escapes to space (rest absorbed by atmosphere)
+  float Q_ir_to_space = surfaceEmission * transmittance;
+
+  // Atmospheric back-radiation to surface
+  // Two-stream approximation for gray atmosphere:
+  // Atmosphere at temperature T_atm emits σ × T_atm^4 per unit area
+  // In single-layer model, assume atmosphere emits equally upward and downward
+  // BUT: must account for atmospheric absorptivity (1-τ)
+  // A fully opaque atmosphere (τ=0) emits full blackbody: σ × T_atm^4
+  // A transparent atmosphere (τ=1) emits nothing: 0
+  // Gray atmosphere emits: (1-τ) × σ × T_atm^4 downward
+  // For Earth (τ≈0.5): atmosphere emits 0.5 × σ × T_atm^4 downward
+  float Q_back_radiation = (1.0 - transmittance) * STEFAN_BOLTZMANN * pow(T_atmo, 4.0);
+
+  // Net radiative balance for surface
+  // Gains: solar + atmospheric back-radiation
+  // Losses: surface IR emission (all of it - atmosphere will absorb fraction (1-τ))
+  float dQ_radiation = Q_solar + Q_back_radiation - surfaceEmission;
 
   // Lateral heat conduction (diffusion from neighbours)
   // Read neighbour indices
@@ -178,35 +240,62 @@ void main() {
   }
 
   // Calculate conductive heat flux from neighbours (lateral heat conduction)
+  // Uses Fourier's law: Q = k * A * (dT / dx)
+  // For geodesic grid: approximate cell spacing from planet surface area / cell count
+  // Typical resolution: 16 subdivisions = ~2560 cells
+  // Approximate cell spacing: sqrt(4π * R² / N) where N = cell count
+  // For Earth (R = 6.371e6 m) with 2560 cells: spacing ≈ 1e5 m = 100 km
+
   float avgNeighbourSurfaceTemp = neighbourSum / max(validNeighbours, 1.0);
-  float dQ_conduction = thermalConductivity * (avgNeighbourSurfaceTemp - T_old);
 
-  // Read atmospheric temperature and pressure for atmosphere-surface heat exchange
-  vec4 atmosData = texture2D(atmosphereData, vUv);
-  float T_atmo = atmosData.r;
-  float P_local = atmosData.g;        // Local atmospheric pressure in Pa
+  // Phase-dependent thermal conductivity based on physical material properties
+  // Thermal conductivity values (W/(m·K)):
+  // - Water: 0.6
+  // - Ice: 2.2
+  // - Rock (typical): 2.5
+  const float WATER_CONDUCTIVITY = 0.6;
+  const float ICE_CONDUCTIVITY = 2.2;
+  const float ROCK_CONDUCTIVITY = 2.5;
 
-  // Convective heat transfer between atmosphere and surface
-  // Enhanced coupling for water/ice surfaces due to better thermal contact
-  // Same coupling constant as in atmosphere shader (10 W/(m·K))
-  // Positive when atmosphere is warmer (atmosphere heats surface)
-  // Negative when surface is warmer (surface heats atmosphere - energy loss)
-  const float ATMOS_COUPLING_ROCK = 10.0; // W/(m·K) - rock/ground
-  const float ATMOS_COUPLING_WATER = 25.0; // W/(m·K) - water/ice surfaces (enhanced)
-  float atmosCoupling = mix(ATMOS_COUPLING_ROCK, ATMOS_COUPLING_WATER, hasWaterOrIce);
-  float dQ_atmos_coupling = atmosCoupling * (T_atmo - T_old);
+  float k = ROCK_CONDUCTIVITY;  // Default to rock conductivity
+  if (hasWater > 0.0 && hasIce < 0.01) {
+    k = WATER_CONDUCTIVITY;
+  } else if (hasIce > 0.0) {
+    k = ICE_CONDUCTIVITY;
+  }
+
+  // Estimate cell spacing for heat conduction calculation
+  // Approximate: sqrt(surface_area / N_cells) where N ≈ textureWidth * textureHeight
+  float totalCells = textureWidth * textureHeight;
+  float cellSpacing = sqrt(4.0 * 3.14159 * planetRadius * planetRadius / totalCells);
+
+  // Fourier's law: Q = k * (dT / dx) per unit area
+  // Here: dQ (W/m²) = k (W/(m·K)) * dT (K) / spacing (m)
+  float dQ_conduction = k * (avgNeighbourSurfaceTemp - T_old) / cellSpacing;
+
+  // Sensible heat transfer (convection/conduction) between atmosphere and surface
+  // In this simplified single-layer model, most energy transfer is via radiation
+  // Sensible heat represents only the small non-radiative component (turbulent eddies, etc.)
+  // Keep this small to avoid double-counting with radiative transfer
+  const float SENSIBLE_HEAT_COUPLING_ROCK = 0.0;  // W/(m·K) - negligible for this model
+  const float SENSIBLE_HEAT_COUPLING_WATER = 0.0; // W/(m·K) - negligible for this model
+  float sensibleHeatCoupling = mix(SENSIBLE_HEAT_COUPLING_ROCK, SENSIBLE_HEAT_COUPLING_WATER, hasWaterOrIce);
+  float dQ_sensible = sensibleHeatCoupling * (T_atmo - T_old);
 
   // Total heating rate (W/m²)
-  float dQ_total = dQ_radiation + dQ_conduction + dQ_atmos_coupling;
+  // Radiation: solar + back_radiation - IR_to_space
+  // Conduction: lateral heat diffusion from neighbors
+  // Sensible: turbulent heat exchange with atmosphere
+  float dQ_total = dQ_radiation + dQ_conduction + dQ_sensible;
 
   // Determine effective heat capacity based on phase state (hydrology already read above)
   // Three cases:
   // 1. Rock/land: C = surfaceHeatCapacity (2.16e6 J/(m²·K)) - represents ~100-150m crust
-  // 2. Liquid water: C = 4186 * 1000 * min(waterDepth, 150m) - capped at crust depth
-  // 3. Ice: C = 2100 * 917 * min(iceThickness, 150m) - capped at crust depth
+  // 2. Liquid water: C = 4186 * 1000 * min(waterDepth, CRUST_DEPTH) - capped at mixed layer depth
+  // 3. Ice: C = 2100 * 917 * min(iceThickness, CRUST_DEPTH) - capped at active depth
   // This prevents unrealistic heat capacities from very deep water while still providing thermal inertia
 
-  const float CRUST_DEPTH = 150.0;  // approximate depth of thermal crust being simulated in metres
+  const float CRUST_DEPTH = 25.0;  // approximate depth of thermal crust being simulated in metres (ocean mixed layer)
 
   // Heat capacities for different phases
   float C_rock = surfaceHeatCapacity;                                 // Rock: 2.16e6 J/(m²·K)

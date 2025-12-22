@@ -123,10 +123,10 @@ export function ClimateSimulationEngine({
   const h2oContent = activeAtmosphere.composition.H2O || 0 // kg/m² (will be 0 initially, evolves during simulation)
 
   // Mass absorption coefficients (m²/kg)
-  // Tuned so Earth atmosphere (400 ppm CO2, 101325 Pa) gives realistic greenhouse effect
-  // For Earth: CO2 column mass ≈ 6 kg/m², τ ≈ 1.0 → σ_CO2 ≈ 0.17 m²/kg
-  const co2AbsorptionCoeff = 0.17 // m²/kg
-  const h2oAbsorptionCoeff = 0.3  // m²/kg (stronger absorber)
+  // Physical values for CO2 IR absorption in relevant atmospheric bands
+  // Literature value for band-averaged CO2 absorption: ~0.01-0.02 m²/kg
+  const co2AbsorptionCoeff = 0.015 // m²/kg - realistic for CO2 in IR bands
+  const h2oAbsorptionCoeff = 0.03  // m²/kg - realistic for H2O in IR bands
 
   // Initialise GPU resources and orchestrator once per simulationKey
   useEffect(() => {
@@ -232,6 +232,12 @@ export function ClimateSimulationEngine({
         cosmicBackgroundTemp: { value: cosmicBackgroundTemp },
         thermalConductivity: { value: thermalConductivity },
         planetRadius: { value: radius },
+        // Atmospheric radiative properties for greenhouse effect
+        totalPressure: { value: totalPressure },
+        co2Content: { value: co2Content },
+        h2oContent: { value: h2oContent },
+        co2AbsorptionCoeff: { value: co2AbsorptionCoeff },
+        h2oAbsorptionCoeff: { value: h2oAbsorptionCoeff },
       },
     })
 
@@ -391,7 +397,7 @@ export function ClimateSimulationEngine({
       recorderRef.current = null
     }
     } catch (error) {
-      console.error('[ClimateSimulationEngine] Initialization failed:', error)
+      console.error('[ClimateSimulationEngine] Initialisation failed:', error)
       handleGPUError(error instanceof Error ? error : new Error(String(error)))
 
       // Cleanup on error
