@@ -3,11 +3,7 @@
 
 precision highp float;
 
-// Terrain data texture (elevation in red channel)
-uniform sampler2D terrainTex;
-
-// Hydrology data texture (RGBA = [iceThickness, waterThermalMass, waterDepth, salinity])
-uniform sampler2D hydrologyTex;
+#include "../textureAccessors.glsl"
 
 // Elevation range for normalisation
 uniform float elevationMin;
@@ -164,58 +160,59 @@ vec3 sampleIceThicknessColourmap(float t) {
 }
 
 void main() {
-  // Sample elevation from terrain texture (red channel)
-  float elevation = texture2D(terrainTex, vUv).r;
-  
+  // === Elevation ===
+  // Sample elevation using accessor
+  float elevation = getElevation(vUv);
+
   // Normalise to [0, 1]
   float normalisedElevation = (elevation - elevationMin) / (elevationMax - elevationMin);
-  
+
   // Detect underflow/overflow for fallback colouring
-  float isUnderflow = step(normalisedElevation, -0.0001); // Weird negative decimal to avoid returning 1.0 for elevation exactly at the min value
-  float isOverflow = step(1.0, normalisedElevation);
+  float isUnderflow = step(normalisedElevation, 0.0 + 1e-6);
+  float isOverflow = step(1.0 + 1e-6, normalisedElevation);
   float isNormal = (1.0 - isUnderflow) * (1.0 - isOverflow);
-  
+
   // Sample colour from elevation colourmap or use overflow/underflow colours
   vec3 normalElevationColour = sampleElevationColourmap(normalisedElevation);
-  
+
   // Blend elevation colour with underflow/overflow colours
   vec3 elevationColour = elevationUnderflowColour * isUnderflow +
                 elevationOverflowColour * isOverflow +
                 normalElevationColour * isNormal;
 
   // === Water depth ===
-  // Sample water depth from hydrology texture (blue channel)
-  float waterDepth = texture2D(hydrologyTex, vUv).b;
-  
+  // Sample water depth using accessor
+  float waterDepth = getWaterDepth(vUv);
+
   // Normalise to [0, 1]
   float normalisedWaterDepth = (waterDepth - 0.0) / (5000.0 - 0.0);
-  
+
   // Detect underflow/overflow for fallback colouring
-  float isUnderflowWaterDepth = step(normalisedWaterDepth, 0.0);
-  float isOverflowWaterDepth = step(1.0001, normalisedWaterDepth); // Weird positive decimal to avoid returning 0.0 for water depth exactly at the max value
+  float isUnderflowWaterDepth = step(normalisedWaterDepth, 0.0 + 1e-6);
+  float isOverflowWaterDepth = step(1.0 + 1e-6, normalisedWaterDepth);
   float isNormalWaterDepth = (1.0 - isUnderflowWaterDepth) * (1.0 - isOverflowWaterDepth);
-  
+
   // Sample colour from water depth colourmap or use overflow/underflow colours
   vec3 normalWaterDepthColour = sampleWaterDepthColourmap(normalisedWaterDepth);
-  
+
   // Blend water depth colour with elevation colour based on water presence
   vec3 waterDepthColour = waterDepthUnderflowColour * isUnderflowWaterDepth +
                 waterDepthOverflowColour * isOverflowWaterDepth +
                 normalWaterDepthColour * isNormalWaterDepth;
-  
+
   // Create a mask for water presence
   float hasWater = step(0.01, waterDepth);
 
   // === Ice thickness ===
-  // Sample ice thickness from hydrology texture (red channel)
-  float iceThickness = texture2D(hydrologyTex, vUv).r;
-  
+  // Sample ice thickness using accessor
+  float iceThickness = getIceThickness(vUv);
+
   // Normalise to [0, 1]
   float normalisedIceThickness = (iceThickness - 0.0) / (5000.0 - 0.0);
-  
+
   // Detect underflow/overflow for fallback colouring
-  float isUnderflowIceThickness = step(normalisedIceThickness, 0.0);
-  float isOverflowIceThickness = step(1.0001, normalisedIceThickness); // Weird positive decimal to avoid returning 0.0 for ice thickness exactly at the max value
+  float isUnderflowIceThickness = step(normalisedIceThickness, 0.0 + 1e-6);
+  float isOverflowIceThickness = step(1.0 + 1e-6, normalisedIceThickness);
   float isNormalIceThickness = (1.0 - isUnderflowIceThickness) * (1.0 - isOverflowIceThickness);
 
   // Sample colour from ice thickness colourmap or use overflow/underflow colours

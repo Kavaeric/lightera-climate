@@ -1,22 +1,23 @@
+import { useRef, useMemo, useState, useCallback, useEffect } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls, GizmoHelper, GizmoViewport } from '@react-three/drei'
-import { useRef, useMemo, useState, useCallback, useEffect } from 'react'
 import * as THREE from 'three'
 import { TextureGridSimulation } from './util/TextureGridSimulation'
 import { PlanetRenderer } from './components/PlanetRenderer'
 import { CellHighlightOverlay } from './components/CellHighlightOverlay'
-import { PlanetInteraction } from './components/PlanetInteraction'
 import { ReferenceGridOverlay } from './components/ReferenceGridOverlay'
-import { ClimateSimulationEngine } from './components/ClimateSimulationEngine'
+import { createClimateEngine } from './engine/createClimateEngine'
 import { ClimateDataChart } from './components/ClimateDataChart'
-import { DEFAULT_PLANET_CONFIG, type PlanetConfig } from './config/planetConfig'
-import { DEFAULT_SIMULATION_CONFIG, type SimulationConfig } from './config/simulationConfig'
+import { ORBITAL_CONFIG_EARTH, type OrbitalConfig } from './config/orbital'
+import { SIMULATION_CONFIG_DEFAULT, type SimulationConfig } from './config/simulationConfig'
+import { PLANETARY_CONFIG_EARTH, type PlanetaryConfig } from './config/planetary'
 import { SimulationProvider } from './context/SimulationContext'
 import { DisplayConfigProvider } from './context/DisplayConfigProvider'
 import { useSimulation } from './context/useSimulation'
 import { useDisplayConfig } from './context/useDisplayConfig'
 import { TerrainDataLoader } from './util/TerrainDataLoader'
 import { HydrologyInitialiser } from './util/HydrologyInitialiser'
+import type { VisualisationModeId } from './types/visualisationModes'
 
 interface SceneProps {
   simulation: TextureGridSimulation
@@ -32,27 +33,83 @@ interface SceneProps {
 function Scene({ simulation, showLatLonGrid, hoveredCell, selectedCell, onHoverCell, onCellClick, stepsPerFrame, samplesPerOrbit }: SceneProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const highlightRef = useRef<THREE.Mesh>(null)
-  const { activeSimulationConfig, activePlanetConfig } = useSimulation()
+  const { gl } = useThree()
+  const {
+    activeSimulationConfig,
+    activeOrbitalConfig,
+    activePlanetaryConfig,
+    simulationKey,
+    registerOrchestrator,
+    registerRecorder,
+    pause,
+  } = useSimulation()
   const { displayConfig } = useDisplayConfig()
+
+  // Initialise climate engine
+  useEffect(() => {
+    return createClimateEngine({
+      gl,
+      simulation,
+      orbitalConfig: activeOrbitalConfig,
+      planetaryConfig: activePlanetaryConfig,
+      simulationConfig: activeSimulationConfig,
+      stepsPerFrame,
+      samplesPerOrbit,
+      registerOrchestrator,
+      registerRecorder,
+      onError: pause,
+    })
+
+  }, [
+    gl,
+    simulation,
+    simulationKey,
+    activeSimulationConfig,
+    activeOrbitalConfig,
+    activePlanetaryConfig,
+    stepsPerFrame,
+    samplesPerOrbit,
+    registerOrchestrator,
+    registerRecorder,
+    pause,
+  ])
+
+  // WebGL context loss handling
+  useEffect(() => {
+    const canvas = gl.domElement
+
+    const handleContextLost = (event: Event) => {
+      event.preventDefault()
+      console.error('[Scene] WebGL context lost')
+      pause()
+    }
+
+    const handleContextRestored = () => {
+      console.log('[Scene] WebGL context restored')
+      // Context restored, but would need to reinitialise by incrementing simulationKey to trigger recreation
+    }
+
+    canvas.addEventListener('webglcontextlost', handleContextLost)
+    canvas.addEventListener('webglcontextrestored', handleContextRestored)
+
+    return () => {
+      canvas.removeEventListener('webglcontextlost', handleContextLost)
+      canvas.removeEventListener('webglcontextrestored', handleContextRestored)
+    }
+  }, [gl, pause])
 
   return (
     <>
-      {/* Climate solver - computes surface temperature for all time samples */}
-      <ClimateSimulationEngine
-        simulation={simulation}
-        planetConfig={activePlanetConfig}
-        simulationConfig={activeSimulationConfig}
-        stepsPerFrame={stepsPerFrame}
-        samplesPerOrbit={samplesPerOrbit}
-      />
 
-      {/* Visible geometry - pure data visualisation */}
+      {/* Visible geometry - pure data visualisation with built-in interaction */}
       <PlanetRenderer
         ref={meshRef}
         subdivisions={activeSimulationConfig.resolution}
         radius={1}
         simulation={simulation}
         displayConfig={displayConfig}
+        onHoverCell={onHoverCell}
+        onCellClick={onCellClick}
       />
 
       {/* Cell highlighting overlay - separate mesh for interaction feedback */}
@@ -63,14 +120,6 @@ function Scene({ simulation, showLatLonGrid, hoveredCell, selectedCell, onHoverC
         simulation={simulation}
         hoveredCellIndex={hoveredCell}
         selectedCellIndex={selectedCell}
-      />
-
-      {/* Cell picker */}
-      <PlanetInteraction
-        simulation={simulation}
-        meshRef={meshRef}
-        onHoverCell={onHoverCell}
-        onCellClick={onCellClick}
       />
 
       {/* Lat/Lon grid overlay */}
@@ -157,8 +206,9 @@ function ClimateDataFetcher({
 
 function AppContent() {
   // UI configuration objects (mutable via input fields)
-  const [pendingPlanetConfig, setPendingPlanetConfig] = useState<PlanetConfig>(DEFAULT_PLANET_CONFIG)
-  const [pendingSimulationConfig, setPendingSimulationConfig] = useState<SimulationConfig>(DEFAULT_SIMULATION_CONFIG)
+  const [pendingSimulationConfig, setPendingSimulationConfig] = useState<SimulationConfig>(SIMULATION_CONFIG_DEFAULT)
+  const [orbitalConfig, setOrbitalConfig] = useState<OrbitalConfig>(ORBITAL_CONFIG_EARTH)
+  const [planetaryConfig] = useState<PlanetaryConfig>(PLANETARY_CONFIG_EARTH)
   const { displayConfig, setDisplayConfig } = useDisplayConfig()
   const [seaLevel] = useState(0)
   // const [seaLevel, setSeaLevel] = useState(0)
@@ -173,7 +223,7 @@ function AppContent() {
   const [climateData, setClimateData] = useState<Array<{ day: number; surfaceTemperature: number; atmosphericTemperature: number; atmosphericPressure: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>>([])
 
   // Get active config and simulation state from context
-  const { activeSimulationConfig, simulationKey, isRunning, error, clearError, newSimulation, play, pause, stepOnce, getOrchestrator } = useSimulation()
+  const { activeSimulationConfig, simulationKey, isRunning, newSimulation, play, pause, getOrchestrator } = useSimulation()
 
   // Track simulation progress from orchestrator
   const [simulationProgress, setSimulationProgress] = useState<{ orbitIdx: number; physicsStep: number } | null>(null)
@@ -274,45 +324,6 @@ function AppContent() {
 
   return (
     <main style={{ width: '100vw', height: '100vh', background: 'black' }}>
-      {/* Error banner */}
-      {error && (
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          background: 'rgba(220, 38, 38, 0.95)',
-          color: 'white',
-          padding: '16px',
-          zIndex: 1000,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '16px',
-          fontFamily: 'monospace',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
-        }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>⚠ Simulation Error</div>
-            <div style={{ fontSize: '14px', opacity: 0.9 }}>{error.message}</div>
-          </div>
-          <button
-            onClick={() => clearError()}
-            style={{
-              background: 'rgba(255, 255, 255, 0.2)',
-              border: '1px solid rgba(255, 255, 255, 0.4)',
-              color: 'white',
-              padding: '8px 16px',
-              cursor: 'pointer',
-              fontFamily: 'monospace',
-              borderRadius: '4px',
-            }}
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
       <Canvas camera={{ position: [2, 1, 2], fov: 60 }} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
         <OrbitControls enablePan={false} />
 
@@ -376,177 +387,63 @@ function AppContent() {
             />
           </label>
           <br />
-          <h2>Planet settings</h2>
+          <h2>Orbital settings</h2>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <span>Solar flux (W/m²)</span>
             <input
               type="number"
               step="1"
               min="0"
-              value={pendingPlanetConfig.solarFlux}
+              value={orbitalConfig.solarFlux}
               onChange={(e) => {
                 const val = parseFloat(e.target.value);
-                setPendingPlanetConfig({ ...pendingPlanetConfig, solarFlux: isNaN(val) ? pendingPlanetConfig.solarFlux : val });
+                setOrbitalConfig({ ...orbitalConfig, solarFlux: isNaN(val) ? orbitalConfig.solarFlux : val });
               }}
             />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span>Emissivity (0-1)</span>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              max="1"
-              value={pendingPlanetConfig.emissivity}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value);
-                setPendingPlanetConfig({ ...pendingPlanetConfig, emissivity: isNaN(val) ? pendingPlanetConfig.emissivity : val });
-              }}
-            />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span>Rotations per orbit</span>
+            <span>Axial tilt (°)</span>
             <input
               type="number"
               step="0.1"
               min="0"
-              value={pendingPlanetConfig.rotationsPerYear}
+              max="90"
+              value={orbitalConfig.axialTilt}
               onChange={(e) => {
                 const val = parseFloat(e.target.value);
-                setPendingPlanetConfig({ ...pendingPlanetConfig, rotationsPerYear: isNaN(val) ? pendingPlanetConfig.rotationsPerYear : val });
+                setOrbitalConfig({ ...orbitalConfig, axialTilt: isNaN(val) ? orbitalConfig.axialTilt : val });
               }}
             />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span>Axial tilt (degrees)</span>
-            <input
-              type="number"
-              step="0.1"
-              min="0"
-              value={pendingPlanetConfig.axialTilt}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value);
-                setPendingPlanetConfig({ ...pendingPlanetConfig, axialTilt: isNaN(val) ? pendingPlanetConfig.axialTilt : val });
-              }}
-            />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span>Ground conductivity (0-1)</span>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              max="1"
-              value={pendingPlanetConfig.groundConductivity}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value);
-                setPendingPlanetConfig({ ...pendingPlanetConfig, groundConductivity: isNaN(val) ? pendingPlanetConfig.groundConductivity : val });
-              }}
-            />
-          </label>
-          <br />
-          <h3 style={{ margin: 0 }}>Atmosphere</h3>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span>CO₂ (Pa)</span>
+            <span>Year length (s)</span>
             <input
               type="number"
               step="1"
               min="0"
-              value={pendingPlanetConfig.atmosphereConfig?.composition.CO2 ?? 0}
+              value={orbitalConfig.yearLength}
               onChange={(e) => {
                 const val = parseFloat(e.target.value);
-                if (!isNaN(val) && pendingPlanetConfig.atmosphereConfig) {
-                  setPendingPlanetConfig({
-                    ...pendingPlanetConfig,
-                    atmosphereConfig: {
-                      ...pendingPlanetConfig.atmosphereConfig,
-                      composition: {
-                        ...pendingPlanetConfig.atmosphereConfig.composition,
-                        CO2: val,
-                      },
-                    },
-                  });
-                }
+                setOrbitalConfig({ ...orbitalConfig, yearLength: isNaN(val) ? orbitalConfig.yearLength : val });
               }}
             />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span>N₂ (Pa)</span>
+            <span>Rotations per year</span>
             <input
               type="number"
               step="1"
               min="0"
-              value={pendingPlanetConfig.atmosphereConfig?.composition.N2 ?? 0}
+              value={orbitalConfig.rotationsPerYear}
               onChange={(e) => {
                 const val = parseFloat(e.target.value);
-                if (!isNaN(val) && pendingPlanetConfig.atmosphereConfig) {
-                  setPendingPlanetConfig({
-                    ...pendingPlanetConfig,
-                    atmosphereConfig: {
-                      ...pendingPlanetConfig.atmosphereConfig,
-                      composition: {
-                        ...pendingPlanetConfig.atmosphereConfig.composition,
-                        N2: val,
-                      },
-                    },
-                  });
-                }
-              }}
-            />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span>O₂ (Pa)</span>
-            <input
-              type="number"
-              step="1"
-              min="0"
-              value={pendingPlanetConfig.atmosphereConfig?.composition.O2 ?? 0}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value);
-                if (!isNaN(val) && pendingPlanetConfig.atmosphereConfig) {
-                  setPendingPlanetConfig({
-                    ...pendingPlanetConfig,
-                    atmosphereConfig: {
-                      ...pendingPlanetConfig.atmosphereConfig,
-                      composition: {
-                        ...pendingPlanetConfig.atmosphereConfig.composition,
-                        O2: val,
-                      },
-                    },
-                  });
-                }
-              }}
-            />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span>Ar (Pa)</span>
-            <input
-              type="number"
-              step="1"
-              min="0"
-              value={pendingPlanetConfig.atmosphereConfig?.composition.Ar ?? 0}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value);
-                if (!isNaN(val) && pendingPlanetConfig.atmosphereConfig) {
-                  setPendingPlanetConfig({
-                    ...pendingPlanetConfig,
-                    atmosphereConfig: {
-                      ...pendingPlanetConfig.atmosphereConfig,
-                      composition: {
-                        ...pendingPlanetConfig.atmosphereConfig.composition,
-                        Ar: val,
-                      },
-                    },
-                  });
-                }
+                setOrbitalConfig({ ...orbitalConfig, rotationsPerYear: isNaN(val) ? orbitalConfig.rotationsPerYear : val });
               }}
             />
           </label>
           <button
             onClick={() => {
-              // Create new simulation with configs
-              clearError()
-              newSimulation(pendingSimulationConfig, pendingPlanetConfig)
+              newSimulation(pendingSimulationConfig, orbitalConfig, planetaryConfig)
               setSelectedCell(null)
               setSelectedCellLatLon(null)
               setClimateData([])
@@ -577,9 +474,6 @@ function AppContent() {
             <button onClick={pause} disabled={!isRunning}>
               Pause
             </button>
-            <button onClick={stepOnce} disabled={isRunning}>
-              Step once
-            </button>
           </div>
         </section>
         <hr style={{ margin: '8px 0', border: 'none', borderTop: '1px solid rgba(255,255,255,0.3)' }} />
@@ -608,18 +502,19 @@ function AppContent() {
               onChange={(e) => {
                 setDisplayConfig({
                   ...displayConfig,
-                  visualisationMode: e.target.value as 'terrain' | 'surfaceTemperature' | 'atmosphericTemperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo',
+                  visualisationMode: e.target.value as VisualisationModeId,
                 })
               }}
             >
               <option value="terrain">Terrain</option>
-              <option value="surfaceTemperature">Surface temperature</option>
-              <option value="atmosphericTemperature">Atmospheric temperature</option>
+              <option value="solarFlux">Solar flux</option>
               <option value="elevation">Elevation (greyscale)</option>
               <option value="waterDepth">Water depth</option>
               <option value="salinity">Salinity (greyscale)</option>
               <option value="iceThickness">Ice thickness</option>
               <option value="albedo">Albedo (greyscale)</option>
+              <option value="surfaceTemperature">Surface temperature</option>
+              <option value="atmosphericTemperature">Atmospheric temperature</option>
             </select>
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

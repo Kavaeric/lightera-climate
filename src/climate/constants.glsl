@@ -1,0 +1,33 @@
+// Constants, useful in multiple climate passes
+precision highp float;
+
+// Pi
+// The ratio of a circle's circumference to its diameter
+// I actually memorised more digits than this
+const float PI = 3.14159265358979323846264338327950288419716939937510582097494459;
+
+// Stefan-Boltzmann constant
+// The power of a black body
+const float STEFAN_BOLTZMANN_CONST = 5.670374419e-8; // W/(m²·K⁴)
+
+// Simulation constants
+// The depth of the surface layer of the planet being simulated
+const float SIMULATION_SURFACE_DEPTH = 50.0; // m
+// The quantisation of the surface layer of the planet being simulated
+const float SIMULATION_DEPTH_QUANTUM = 0.1; // m
+
+// Physical properties of rock/dry ground
+const float MATERIAL_ROCK_DENSITY = 2700.0; // kg/m³
+const float MATERIAL_ROCK_SPECIFIC_HEAT = 850.0; // J/(kg·K)
+const float MATERIAL_ROCK_HEAT_CAPACITY_PER_AREA = MATERIAL_ROCK_DENSITY * MATERIAL_ROCK_SPECIFIC_HEAT * SIMULATION_SURFACE_DEPTH; // J/(m²·K)
+const float MATERIAL_ROCK_ALBEDO_VISIBLE = 0.15;
+const float MATERIAL_ROCK_ALBEDO_INFRARED = 0.15;
+const float MATERIAL_ROCK_EMISSIVITY = 0.90;
+
+// Physical properties of water
+const float MATERIAL_WATER_DENSITY = 1000.0; // kg/m³
+const float MATERIAL_WATER_SPECIFIC_HEAT = 4180.0; // J/(kg·K)
+const float MATERIAL_WATER_HEAT_CAPACITY_PER_AREA = MATERIAL_WATER_DENSITY * MATERIAL_WATER_SPECIFIC_HEAT * SIMULATION_SURFACE_DEPTH; // J/(m²·K)
+const float MATERIAL_WATER_ALBEDO_VISIBLE = 0.06;
+const float MATERIAL_WATER_ALBEDO_INFRARED = 0.06;
+const float MATERIAL_WATER_EMISSIVITY = 0.96;

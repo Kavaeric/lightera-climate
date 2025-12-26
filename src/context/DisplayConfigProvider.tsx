@@ -1,5 +1,5 @@
 import { useState, useCallback, type ReactNode } from 'react'
-import { DEFAULT_DISPLAY_CONFIG, type DisplayConfig } from '../config/displayConfig'
+import { DISPLAY_CONFIG_DEFAULT, type DisplayConfig } from '../config/displayConfig'
 import { DisplayConfigContext } from './useDisplayConfig'
 
 interface DisplayConfigProviderProps {
@@ -7,7 +7,7 @@ interface DisplayConfigProviderProps {
 }
 
 export function DisplayConfigProvider({ children }: DisplayConfigProviderProps) {
-  const [displayConfig, setDisplayConfig] = useState<DisplayConfig>(DEFAULT_DISPLAY_CONFIG)
+  const [displayConfig, setDisplayConfig] = useState<DisplayConfig>(DISPLAY_CONFIG_DEFAULT)
 
   const handleSetDisplayConfig = useCallback((config: DisplayConfig | ((prev: DisplayConfig) => DisplayConfig)) => {
     setDisplayConfig(config)

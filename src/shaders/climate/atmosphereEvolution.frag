@@ -1,3 +1,5 @@
+// Deprecated, replacing it with stuff in src/climate/pass
+
 precision highp float;
 
 varying vec2 vUv;
@@ -5,7 +7,7 @@ varying vec2 vUv;
 // Input textures
 uniform sampler2D previousAtmosphere;     // Previous frame: RGBA = [T_atm, P_local, reserved, reserved]
 uniform sampler2D previousSurfaceData;    // Surface temperature and albedo
-uniform sampler2D cellPositions;          // Cell lat/lon positions
+uniform sampler2D cellInformation;          // Cell lat/lon positions
 uniform sampler2D terrainData;            // Terrain data [elevation, reserved, reserved, reserved]
 uniform sampler2D neighbourIndices1;      // Neighbour cell indices (x, y, z = first 3 neighbours)
 uniform sampler2D neighbourIndices2;      // Neighbour cell indices (x, y, z = next 3 neighbours)
@@ -107,134 +109,10 @@ float calculateTransmittance(float totalPress, float co2Ppm, float h2oMass) {
 void main() {
   // Read previous atmospheric state
   vec4 prevAtmos = texture2D(previousAtmosphere, vUv);
-  float T_atm_old = prevAtmos.r;  // Atmospheric temperature in Kelvin
-  float P_local = prevAtmos.g;    // Local atmospheric pressure in Pa
 
-  // For now, use uniform total pressure if not initialised
-  if (P_local < 1.0) {
-    P_local = totalPressure;
-  }
-
-  // Read surface state (same frame hydrology pass has completed)
-  vec4 surfaceData = texture2D(previousSurfaceData, vUv);
-  float T_surf = surfaceData.r;   // Surface temperature
-  float surfaceAlbedo = surfaceData.g;
-
-  // Read cell position for solar calculation
-  vec2 cellLatLon = texture2D(cellPositions, vUv).rg; // [lat, lon] in degrees
-
-  // ===== CALCULATE SOLAR HEATING OF ATMOSPHERE =====
-
-  // Subsolar point (same calculation as surface shader)
-  float subsolarLat = calculateSubsolarLatitude(baseSubsolarPoint.x, axialTilt, yearProgress);
-  vec2 subsolarPoint = vec2(subsolarLat, baseSubsolarPoint.y);
-
-  // Incident solar flux at this cell
-  float Q_solar_incident = calculateSolarFlux(cellLatLon.x, cellLatLon.y, subsolarPoint);
-
-  // Calculate IR transmittance using local pressure
-  float transmittance = calculateTransmittance(P_local, co2Content, h2oContent);
-
-  // Solar absorption by atmosphere
-  // H2O absorbs ~15% in near-IR bands, O3 absorbs ~3% UV, clouds ~5%
-  // With H2O but no O3 or clouds: ~15-18%
-  // For Earth-like with all components: ~23%
-  // TODO: Make this dynamic based on H2O content when implementing water cycle
-  const float SOLAR_ABSORPTION_FRACTION = 0.18;
-  float Q_solar_absorbed = Q_solar_incident * SOLAR_ABSORPTION_FRACTION;
-
-  // ===== CALCULATE IR RADIATION =====
-
-  // Surface emission (from surface shader calculation)
-  float surfaceEmission = emissivity * STEFAN_BOLTZMANN * pow(T_surf, 4.0);
-
-  // Gray atmosphere radiative transfer (single-layer model)
-  // Atmosphere with emissivity ε_a = (1 - τ) absorbs and emits IR
-
-  // Two-stream radiative transfer for gray atmosphere
-  // The atmosphere absorbs and emits with emissivity ε = (1-τ)
-
-  // Energy absorbed by atmosphere from surface IR
-  float Q_absorbed_from_surface = surfaceEmission * (1.0 - transmittance);
-
-  // Atmospheric emission (both upward to space and downward to surface)
-  float atmosphericEmission = (1.0 - transmittance) * STEFAN_BOLTZMANN * pow(T_atm_old, 4.0);
-
-  // Net radiative exchange for atmosphere
-  // Atmosphere loses energy in BOTH directions (upward + downward)
-  // Even though downward heats surface, it still represents energy leaving atmosphere
-  float dQ_ir = Q_absorbed_from_surface - 2.0 * atmosphericEmission;
-
-  // ===== CALCULATE SENSIBLE HEAT EXCHANGE WITH SURFACE =====
-
-  // Sensible heat transfer (turbulent mixing and conduction)
-  // Represents convective heat exchange between surface and atmosphere
-  // For Earth: ~20-30 W/m² average sensible heat flux
-  // Using coupling coefficient that gives realistic flux
-  const float SENSIBLE_HEAT_COUPLING = 5.0;  // W/(m·K)
-  float Q_sensible = SENSIBLE_HEAT_COUPLING * (T_surf - T_atm_old);
-
-  // ===== CALCULATE LATERAL ATMOSPHERIC HEAT DIFFUSION =====
-
-  // Read neighbour indices
-  vec3 neighbours1 = texture2D(neighbourIndices1, vUv).rgb;
-  vec3 neighbours2 = texture2D(neighbourIndices2, vUv).rgb;
-
-  // Sample neighbour atmospheric temperatures
-  float neighbourSum = 0.0;
-  float validNeighbours = 0.0;
-
-  // Helper function to safely sample neighbour temperature
-  #define SAMPLE_NEIGHBOUR(index) \
-    if (index >= 0.0) { \
-      vec2 neighbourCoord = vec2(mod(index, 256.0) / 256.0, floor(index / 256.0) / 256.0); \
-      float T_neighbour = texture2D(previousAtmosphere, neighbourCoord).r; \
-      neighbourSum += T_neighbour; \
-      validNeighbours += 1.0; \
-    }
-
-  SAMPLE_NEIGHBOUR(neighbours1.r)
-  SAMPLE_NEIGHBOUR(neighbours1.g)
-  SAMPLE_NEIGHBOUR(neighbours1.b)
-  SAMPLE_NEIGHBOUR(neighbours2.r)
-  SAMPLE_NEIGHBOUR(neighbours2.g)
-  SAMPLE_NEIGHBOUR(neighbours2.b)
-
-  // Calculate diffusive heat flux from neighbours (lateral heat transport)
-  // This represents large-scale atmospheric circulation and mixing
-  float avgNeighbourAtmosTemp = neighbourSum / max(validNeighbours, 1.0);
-  float Q_diffusion = atmosphericDiffusion * (avgNeighbourAtmosTemp - T_atm_old);
-
-  // ===== CALCULATE NET HEATING RATE =====
-
-  // Energy balance for atmosphere:
-  // Gains: solar absorption + IR from surface + sensible heat from surface + diffusion from neighbors
-  // Losses: IR to space (upward only) + diffusion to cold neighbors
-  // Note: Downward IR emission heats surface, not counted here
-  float dQ_total = Q_solar_absorbed + dQ_ir + Q_sensible + Q_diffusion;
-
-  // ===== CALCULATE TEMPERATURE CHANGE =====
-
-  // Calculate atmospheric heat capacity from local pressure
-  // C = (column_mass) × (specific_heat) = (P/g) × c_p
-  // For Earth (101325 Pa): C = 10132.5 kg/m² × 1000 J/(kg·K) ≈ 1e7 J/(m²·K)
-  // For thin atmospheres, this scales down proportionally
-  float atmosphereHeatCapacity = (P_local / GRAVITY) * SPECIFIC_HEAT_AIR;
-
-  // Prevent division by zero for airless worlds
-  atmosphereHeatCapacity = max(atmosphereHeatCapacity, 1.0);
-
-  // dT/dt = dQ / C
-  float dT = (dQ_total / atmosphereHeatCapacity) * dt;
-
-  // New atmospheric temperature
-  float T_atm_new = T_atm_old + dT;
-
-  // Enforce minimum temperature (cosmic background radiation)
-  const float COSMIC_BACKGROUND = 2.73;  // K
-  T_atm_new = max(T_atm_new, COSMIC_BACKGROUND);
+  // PHYSICS REMOVED: Just pass through unchanged
+  // TODO: Rebuild physics architecture
 
   // Output: RGBA = [T_atm, P_local, reserved, reserved]
-  // For now, P_local remains constant (uniform across planet)
-  gl_FragColor = vec4(T_atm_new, P_local, prevAtmos.b, prevAtmos.a);
+  gl_FragColor = prevAtmos;
 }

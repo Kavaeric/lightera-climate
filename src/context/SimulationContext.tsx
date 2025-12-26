@@ -1,9 +1,11 @@
 import { useState, useRef, useCallback } from 'react'
 import type { ReactNode } from 'react'
-import type { PlanetConfig } from '../config/planetConfig'
+import type { OrbitalConfig } from '../config/orbital'
+import type { PlanetaryConfig } from '../config/planetary'
 import type { SimulationConfig } from '../config/simulationConfig'
-import { DEFAULT_PLANET_CONFIG } from '../config/planetConfig'
-import { DEFAULT_SIMULATION_CONFIG } from '../config/simulationConfig'
+import { ORBITAL_CONFIG_EARTH } from '../config/orbital'
+import { PLANETARY_CONFIG_EARTH } from '../config/planetary'
+import { SIMULATION_CONFIG_DEFAULT } from '../config/simulationConfig'
 import { SimulationContext } from './useSimulation'
 import type { SimulationOrchestrator } from '../util/SimulationOrchestrator'
 import type { SimulationRecorder } from '../util/SimulationRecorder'
@@ -13,11 +15,11 @@ interface SimulationProviderProps {
 }
 
 export function SimulationProvider({ children }: SimulationProviderProps) {
-  const [activeSimulationConfig, setActiveSimulationConfig] = useState<SimulationConfig>(DEFAULT_SIMULATION_CONFIG)
-  const [activePlanetConfig, setActivePlanetConfig] = useState<PlanetConfig>(DEFAULT_PLANET_CONFIG)
+  const [activeSimulationConfig, setActiveSimulationConfig] = useState<SimulationConfig>(SIMULATION_CONFIG_DEFAULT)
+  const [activeOrbitalConfig, setActiveOrbitalConfig] = useState<OrbitalConfig>(ORBITAL_CONFIG_EARTH)
+  const [activePlanetaryConfig, setActivePlanetaryConfig] = useState<PlanetaryConfig>(PLANETARY_CONFIG_EARTH)
   const [simulationKey, setSimulationKey] = useState(0)
   const [isRunning, setIsRunning] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
   const orchestratorRef = useRef<SimulationOrchestrator | null>(null)
   const recorderRef = useRef<SimulationRecorder | null>(null)
 
@@ -26,13 +28,14 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
     setIsRunning(orchestratorRef.current?.isRunning() ?? false)
   }, [])
 
-  const clearError = useCallback(() => {
-    setError(null)
-  }, [])
-
-  const newSimulation = (simConfig: SimulationConfig, planetConfig: PlanetConfig) => {
+  const newSimulation = (
+    simConfig: SimulationConfig,
+    orbitalConfig: OrbitalConfig,
+    planetaryConfig: PlanetaryConfig
+  ) => {
     setActiveSimulationConfig(simConfig)
-    setActivePlanetConfig(planetConfig)
+    setActiveOrbitalConfig(orbitalConfig)
+    setActivePlanetaryConfig(planetaryConfig)
     orchestratorRef.current = null
     setSimulationKey((prev) => prev + 1)
   }
@@ -46,14 +49,6 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
     orchestratorRef.current?.pause()
     syncIsRunning()
   }, [syncIsRunning])
-
-  const stepOnce = useCallback(() => {
-    orchestratorRef.current?.stepOnce()
-  }, [])
-
-  const step = useCallback((numSteps: number) => {
-    orchestratorRef.current?.requestSteps(numSteps)
-  }, [])
 
   const registerOrchestrator = useCallback((orchestrator: SimulationOrchestrator | null) => {
     orchestratorRef.current = orchestrator
@@ -75,21 +70,18 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
   return (
     <SimulationContext.Provider
       value={{
-        activeSimulationConfig,
-        activePlanetConfig,
         simulationKey,
         isRunning,
-        error,
+        activeSimulationConfig,
+        activeOrbitalConfig,
+        activePlanetaryConfig,
         setActiveSimulationConfig,
-        setActivePlanetConfig,
+        setActiveOrbitalConfig,
+        setActivePlanetaryConfig,
         setSimulationKey,
         newSimulation,
         play,
         pause,
-        stepOnce,
-        step,
-        setError,
-        clearError,
         registerOrchestrator,
         getOrchestrator,
         registerRecorder,

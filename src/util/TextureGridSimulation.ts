@@ -20,8 +20,8 @@ export class TextureGridSimulation {
   public neighbourIndices2: THREE.DataTexture // stores neighbours 3,4,5
   public neighbourCounts: THREE.DataTexture // stores how many neighbours (5 or 6)
 
-  // Cell position data (lat/lon in degrees)
-  public cellPositions: THREE.DataTexture // RG = [latitude, longitude] in degrees
+  // Cell position data (lat/lon in degrees, surface area in m²)
+  public cellInformation: THREE.DataTexture // RGBA = [latitude, longitude, surfaceArea, reserved] in degrees/m²
 
   // Terrain data (static, doesn't change per time sample)
   public terrainData: THREE.DataTexture // RGBA = [elevation, waterDepth, salinity, baseAlbedo]
@@ -35,14 +35,26 @@ export class TextureGridSimulation {
   private hydrologyInitData: { waterDepth: number[]; salinity: number[]; iceThickness: number[] } | null = null
 
   // Surface data storage: TWO render targets (current and next frame)
-  // Stores surface temperature and albedo together
-  // Each render target RGBA = [surfaceTemperature, albedo, reserved, reserved]
+  // Thermal surface texture: temperature and albedo
+  // Each render target RGBA = [surfaceTemperature, -, -, albedo]
   public climateDataTargets: THREE.WebGLRenderTarget[]
 
   // Atmosphere data storage: TWO render targets (current and next frame)
-  // Stores atmospheric temperature
-  // Each render target RGBA = [atmosphereTemperature, reserved, reserved, reserved]
+  // Thermal atmosphere texture: temperature and albedo (cloud cover)
+  // Each render target RGBA = [atmosphereTemperature, -, -, albedo]
   public atmosphereDataTargets: THREE.WebGLRenderTarget[]
+
+  // Solar flux data storage: Single render target (recalculated each step, no ping-pong needed)
+  // Stores solar flux at top of atmosphere
+  // RGBA = [flux (W/m²), reserved, reserved, reserved]
+  public solarFluxTarget: THREE.WebGLRenderTarget | null = null
+
+  // Working buffers for pass-based physics architecture
+  // These are used for intermediate results within a single timestep
+  // Thermal surface working buffer: RGBA = [surfaceTemperature, -, -, albedo]
+  public surfaceWorkingBuffers: THREE.WebGLRenderTarget[] = []
+  // Thermal atmosphere working buffer: RGBA = [atmosphereTemperature, -, -, albedo]
+  public atmosphereWorkingBuffers: THREE.WebGLRenderTarget[] = []
 
   constructor(config: SimulationConfig) {
     this.grid = new Grid(config.resolution)
@@ -71,7 +83,7 @@ export class TextureGridSimulation {
     this.neighbourCounts = this.createNeighbourCountTexture()
 
     // Create cell position texture
-    this.cellPositions = this.createCellPositionTexture()
+    this.cellInformation = this.createCellInformationTexture()
 
     // Create terrain data texture (initialised with defaults)
     this.terrainData = this.createDefaultTerrainTexture()
@@ -88,6 +100,14 @@ export class TextureGridSimulation {
     // Stores atmospheric temperature: RGBA = [atmosphereTemperature, reserved, reserved, reserved]
     this.atmosphereDataTargets = [this.createRenderTarget(), this.createRenderTarget()]
     this.initialiseAtmosphereTargets()
+
+    // Create solar flux data storage (single target, no ping-pong)
+    this.solarFluxTarget = this.createRenderTarget()
+
+    // Create working buffers for pass-based architecture
+    // Two buffers each for surface and atmosphere to allow ping-pong between passes
+    this.surfaceWorkingBuffers = [this.createRenderTarget(), this.createRenderTarget()]
+    this.atmosphereWorkingBuffers = [this.createRenderTarget(), this.createRenderTarget()]
   }
 
   /**
@@ -230,25 +250,27 @@ export class TextureGridSimulation {
   }
 
   /**
-   * Create cell position texture (stores lat/lon for each cell)
+   * Create cell position texture (stores lat/lon and surface area for each cell)
    */
-  private createCellPositionTexture(): THREE.DataTexture {
-    const data = new Float32Array(this.textureWidth * this.textureHeight * 2) // RG
+  private createCellInformationTexture(): THREE.DataTexture {
+    const data = new Float32Array(this.textureWidth * this.textureHeight * 4) // RGBA
 
     for (let i = 0; i < this.cellCount; i++) {
       const cell = this.cells[i]
       const coords = this.indexTo2D(i)
-      const dataIndex = this.coordsToDataIndex(coords.x, coords.y, 2)
+      const dataIndex = this.coordsToDataIndex(coords.x, coords.y, 4)
 
       data[dataIndex + 0] = cell.latLon.lat // R = latitude (degrees)
       data[dataIndex + 1] = cell.latLon.lon // G = longitude (degrees)
+      data[dataIndex + 2] = cell.area // B = surface area (m²)
+      data[dataIndex + 3] = 0.0 // A = reserved
     }
 
     const texture = new THREE.DataTexture(
       data,
       this.textureWidth,
       this.textureHeight,
-      THREE.RGFormat,
+      THREE.RGBAFormat,
       THREE.FloatType
     )
     texture.minFilter = THREE.NearestFilter
@@ -518,6 +540,30 @@ export class TextureGridSimulation {
   }
 
   /**
+   * Get solar flux data target
+   */
+  public getSolarFluxTarget(): THREE.WebGLRenderTarget {
+    if (!this.solarFluxTarget) {
+      throw new Error('Solar flux target not initialised')
+    }
+    return this.solarFluxTarget
+  }
+
+  /**
+   * Get surface working buffer (for pass-based architecture)
+   */
+  public getSurfaceWorkingBuffer(index: 0 | 1): THREE.WebGLRenderTarget {
+    return this.surfaceWorkingBuffers[index]
+  }
+
+  /**
+   * Get atmosphere working buffer (for pass-based architecture)
+   */
+  public getAtmosphereWorkingBuffer(index: 0 | 1): THREE.WebGLRenderTarget {
+    return this.atmosphereWorkingBuffers[index]
+  }
+
+  /**
    * Swap atmosphere buffers for next frame
    */
   public swapAtmosphereBuffers(): void {
@@ -681,7 +727,7 @@ export class TextureGridSimulation {
     this.neighbourIndices1.dispose()
     this.neighbourIndices2.dispose()
     this.neighbourCounts.dispose()
-    this.cellPositions.dispose()
+    this.cellInformation.dispose()
     this.terrainData.dispose()
     for (const target of this.hydrologyDataTargets) {
       target.dispose()
@@ -690,6 +736,15 @@ export class TextureGridSimulation {
       target.dispose()
     }
     for (const target of this.atmosphereDataTargets) {
+      target.dispose()
+    }
+    if (this.solarFluxTarget) {
+      this.solarFluxTarget.dispose()
+    }
+    for (const target of this.surfaceWorkingBuffers) {
+      target.dispose()
+    }
+    for (const target of this.atmosphereWorkingBuffers) {
       target.dispose()
     }
   }

@@ -1,5 +1,6 @@
 import { useContext, createContext } from 'react'
-import type { PlanetConfig } from '../config/planetConfig'
+import type { OrbitalConfig } from '../config/orbital'
+import type { PlanetaryConfig } from '../config/planetary'
 import type { SimulationConfig } from '../config/simulationConfig'
 import type { SimulationOrchestrator } from '../util/SimulationOrchestrator'
 import type { SimulationRecorder } from '../util/SimulationRecorder'
@@ -7,28 +8,27 @@ import type { SimulationRecorder } from '../util/SimulationRecorder'
 export interface SimulationContextType {
   // Active configuration (only updated when simulation runs)
   activeSimulationConfig: SimulationConfig
-  activePlanetConfig: PlanetConfig
+  activeOrbitalConfig: OrbitalConfig
+  activePlanetaryConfig: PlanetaryConfig
 
   // Simulation state
   simulationKey: number
   isRunning: boolean
-  error: Error | null
 
   // Methods to update state
   setActiveSimulationConfig: (config: SimulationConfig) => void
-  setActivePlanetConfig: (config: PlanetConfig) => void
+  setActiveOrbitalConfig: (config: OrbitalConfig) => void
+  setActivePlanetaryConfig: (config: PlanetaryConfig) => void
   setSimulationKey: (key: number | ((prev: number) => number)) => void
 
   // Control methods (delegate to orchestrator)
-  newSimulation: (simConfig: SimulationConfig, planetConfig: PlanetConfig) => void
+  newSimulation: (
+    simConfig: SimulationConfig,
+    orbitalConfig: OrbitalConfig,
+    planetaryConfig: PlanetaryConfig
+  ) => void
   play: () => void
   pause: () => void
-  stepOnce: () => void
-  step: (numSteps: number) => void
-
-  // Error handling
-  setError: (error: Error | null) => void
-  clearError: () => void
 
   // Orchestrator access
   registerOrchestrator: (orchestrator: SimulationOrchestrator | null) => void

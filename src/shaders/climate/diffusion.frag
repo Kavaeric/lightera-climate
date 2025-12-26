@@ -1,5 +1,6 @@
 // Diffusion simulation shader - runs on GPU via render-to-texture
 // Computes heat diffusion across geodesic grid cells
+// Deprecated, replacing it with stuff in src/climate/pass
 
 precision highp float;
 

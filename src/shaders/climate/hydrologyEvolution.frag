@@ -1,3 +1,5 @@
+// Deprecated, replacing it with stuff in src/climate/pass
+
 precision highp float;
 
 varying vec2 vUv;
@@ -72,91 +74,11 @@ float calculateBoilingPoint(float pressure) {
 void main() {
   // Read current state
   vec4 hydro = texture2D(previousHydrology, vUv);
-  float iceThickness = hydro.r;
-  float waterDepth = hydro.b;
-  float salinity = hydro.a;
 
-  // Read environmental conditions
-  float T = texture2D(currentTemperature, vUv).r; // Surface temperature in Kelvin
-  vec4 atmos = texture2D(atmosphereData, vUv);
-  float P_local = atmos.g; // Local atmospheric pressure in Pa
-
-  // Calculate phase transition temperatures
-  float freezingPoint = calculateFreezingPoint(P_local, salinity);
-  float boilingPoint = calculateBoilingPoint(P_local);
-
-  // ===== PHASE CHANGES: FREEZING AND MELTING =====
-  // Water freezes when T < freezing point
-  // Ice melts when T > freezing point
-  // Mass is conserved: 1 m³ water = 1 m³ ice (density difference handled elsewhere)
-
-  float tempDifference = freezingPoint - T; // Positive when below freezing
-
-  // Calculate freezing: only happens when below freezing point and water is available
-  float isBelowFreezing = step(0.0, tempDifference); // 1.0 if below freezing, 0.0 otherwise
-  float freezeRate = MAX_FREEZE_RATE * clamp(tempDifference / 15.0, 0.0, 1.0);
-  float freezeAmount = freezeRate * isBelowFreezing;
-  freezeAmount = min(freezeAmount, waterDepth); // Can't freeze more than available water
-  // Quantise freeze amount to ensure 1:1 conversion precision, then re-check limit
-  freezeAmount = quantiseDepth(freezeAmount);
-  freezeAmount = min(freezeAmount, waterDepth); // Ensure we don't exceed available after quantisation
-
-  // Calculate melting: only happens when above freezing point and ice is available
-  float isAboveFreezing = step(0.0, -tempDifference); // 1.0 if above freezing, 0.0 otherwise
-  float meltRate = MAX_MELT_RATE * clamp(-tempDifference / 15.0, 0.0, 1.0);
-  float meltAmount = meltRate * isAboveFreezing;
-  meltAmount = min(meltAmount, iceThickness); // Can't melt more than available ice
-  // Quantise melt amount to ensure 1:1 conversion precision, then re-check limit
-  meltAmount = quantiseDepth(meltAmount);
-  meltAmount = min(meltAmount, iceThickness); // Ensure we don't exceed available after quantisation
-
-  // Apply phase changes (mutually exclusive: either freezing or melting, never both)
-  // 1:1 conversion: 1m ice melts to 1m water, 1m water freezes to 1m ice
-  float newIceThickness = iceThickness - meltAmount + freezeAmount;
-  float newWaterDepth = waterDepth - freezeAmount + meltAmount;
-
-  // ===== EVAPORATION =====
-  // Water evaporates when T > boiling point
-  // Evaporation removes water from the system (no mass conservation)
-
-  float tempAboveBoiling = T - boilingPoint; // Positive when above boiling
-  float isAboveBoiling = step(0.0, tempAboveBoiling); // 1.0 if above boiling, 0.0 otherwise
-
-  // Calculate evaporation rate
-  float evapRate = MAX_EVAPORATION_RATE * clamp(tempAboveBoiling / 10.0, 0.0, 1.0);
-  
-  // Salty water evaporates slower
-  float salinityFactor = 1.0 - clamp(salinity / 100.0, 0.0, 1.0);
-  evapRate *= salinityFactor;
-
-  // Only liquid water evaporates (ice sublimes separately if needed)
-  // Evaporation is limited by available water
-  float evaporation = evapRate * isAboveBoiling;
-  evaporation = min(evaporation, newWaterDepth);
-  newWaterDepth -= evaporation;
-
-  // ===== QUANTISATION AND CLAMPING =====
-  // Quantise all depths to prevent floating point drift
-  newIceThickness = quantiseDepth(max(0.0, newIceThickness));
-  newWaterDepth = quantiseDepth(max(0.0, newWaterDepth));
-
-  // Clamp to reasonable maximums
-  newIceThickness = clamp(newIceThickness, 0.0, 10000.0);
-  newWaterDepth = clamp(newWaterDepth, 0.0, 10000.0);
-
-  // ===== DERIVE THERMAL MASS =====
-  // Thermal mass indicates phase: 1.0 = liquid water, 0.0 = ice or no water
-  // This is derived from final state rather than tracked through updates
-  float hasWater = step(DEPTH_QUANTUM, newWaterDepth);
-  float hasIce = step(DEPTH_QUANTUM, newIceThickness);
-  float newWaterThermalMass = hasWater * (1.0 - hasIce); // Liquid water only (not ice)
-
-  // ===== SALINITY =====
-  // Salinity travels with water/ice, cleared when all water is gone
-  float hasWaterOrIce = step(DEPTH_QUANTUM, newWaterDepth + newIceThickness);
-  float newSalinity = mix(0.0, salinity, hasWaterOrIce);
+  // PHYSICS REMOVED: Just pass through unchanged
+  // TODO: Rebuild physics architecture
 
   // Output new hydrology state
   // RGBA = [iceThickness, waterThermalMass, waterDepth, salinity]
-  gl_FragColor = vec4(newIceThickness, newWaterThermalMass, newWaterDepth, newSalinity);
+  gl_FragColor = hydro;
 }

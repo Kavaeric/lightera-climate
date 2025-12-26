@@ -1,21 +1,21 @@
 import { useMemo, forwardRef, useRef, useEffect } from 'react'
 import * as THREE from 'three'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import { Grid } from '../simulation/geometry/geodesic'
 import { TextureGridSimulation } from '../util/TextureGridSimulation'
 import type { DisplayConfig } from '../config/displayConfig'
 import { getVisualisationMode } from '../config/visualisationModes'
-import { buildDisplayShaderUniforms } from '../util/ShaderBuilder'
 
-// Import shaders
-import displayVertexShader from '../shaders/display/display.vert?raw'
-import displayFragmentShader from '../shaders/display/display.frag?raw'
+// Import vertex shader for all visualisations
+import visualiseVertexShader from '../shaders/display/visualise.vert?raw'
 
 interface PlanetRendererProps {
   subdivisions: number
   radius: number
   simulation: TextureGridSimulation
   displayConfig: DisplayConfig
+  onHoverCell?: (cellIndex: number | null) => void
+  onCellClick?: (cellIndex: number) => void
 }
 
 /**
@@ -30,6 +30,8 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
     radius,
     simulation,
     displayConfig,
+    onHoverCell,
+    onCellClick,
   }, ref) {
     // Generate geometry with UV coordinates mapped to texture
     const geometry = useMemo(() => {
@@ -77,42 +79,22 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
     return bufferGeometry
   }, [subdivisions, radius, simulation])
 
-  // Create shader material - supports both unified and custom shaders
+  // Create shader material with custom fragment shader from visualisation mode
   const material = useMemo(() => {
     // Get visualisation mode configuration
     const mode = getVisualisationMode(displayConfig.visualisationMode)
-    
+
     if (!mode) {
       throw new Error(`Visualisation mode '${displayConfig.visualisationMode}' not found`)
     }
 
-    let shaderUniforms: Record<string, THREE.IUniform<unknown>>
-    let fragmentShader: string
-
-    // Check if mode uses custom shader
-    if (mode.customFragmentShader && mode.buildCustomUniforms) {
-      // Use custom shader and uniforms
-      fragmentShader = mode.customFragmentShader
-      shaderUniforms = mode.buildCustomUniforms(simulation, displayConfig)
-    } else {
-      // Use unified shader (existing behaviour)
-      const sourceTexture = mode.getTextureSource(simulation)
-      const valueRange = mode.getRange(displayConfig)
-
-      shaderUniforms = buildDisplayShaderUniforms(
-        sourceTexture,
-        mode.colourmap,
-        valueRange.min,
-        valueRange.max,
-        mode.dataChannel
-      )
-      fragmentShader = displayFragmentShader
-    }
+    // Build uniforms for this visualisation mode
+    const shaderUniforms = mode.buildCustomUniforms(simulation, displayConfig)
 
     const shaderMaterial = new THREE.ShaderMaterial({
       uniforms: shaderUniforms,
-      vertexShader: displayVertexShader,
-      fragmentShader: fragmentShader,
+      vertexShader: visualiseVertexShader,
+      fragmentShader: mode.customFragmentShader,
     })
 
     return shaderMaterial
@@ -124,38 +106,105 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
     materialRef.current = material
   }, [material])
 
-  // Update texture uniform every frame to handle buffer swaps
+  // Update texture uniforms every frame to handle buffer swaps
   // This ensures the visualisation always shows the most recent simulation state
   useFrame(() => {
     const currentMaterial = materialRef.current
     if (!currentMaterial) return
 
-    const mode = getVisualisationMode(displayConfig.visualisationMode)
     const uniforms = currentMaterial.uniforms
 
-    // Update texture uniform for unified shader
-    if (uniforms.dataTex) {
-      const currentTexture = mode.getTextureSource(simulation)
-      uniforms.dataTex.value = currentTexture
+    // Update standardized data texture uniforms that may change between frames
+    if (uniforms.surfaceData) {
+      uniforms.surfaceData.value = simulation.getClimateDataCurrent().texture
     }
-
-    // Update texture uniforms for custom shaders (e.g., terrainTex, hydrologyTex for terrain mode)
-    if (mode.buildCustomUniforms) {
-      // Update terrainTex if it exists (for terrain mode)
-      if (uniforms.terrainTex) {
-        uniforms.terrainTex.value = simulation.terrainData
-      }
-      // Update hydrologyTex if it exists (for terrain mode) - this changes every frame
-      if (uniforms.hydrologyTex) {
-        uniforms.hydrologyTex.value = simulation.getHydrologyDataCurrent().texture
-      }
+    if (uniforms.atmosphereData) {
+      uniforms.atmosphereData.value = simulation.getAtmosphereDataCurrent().texture
     }
+    if (uniforms.hydrologyData) {
+      uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture
+    }
+    if (uniforms.solarFluxData) {
+      uniforms.solarFluxData.value = simulation.getSolarFluxTarget().texture
+    }
+    // terrainData is static and doesn't need updating
   })
 
-    return (
-      <mesh ref={ref} geometry={geometry} material={material}>
-        {/* Material is already set via shader */}
-      </mesh>
-    )
+  // Helper function to find cell index from UV coordinates
+  const findCellIndexFromUV = (u: number, v: number): number => {
+    let cellIndex = -1
+    let minDist = Infinity
+
+    for (let i = 0; i < simulation.getCellCount(); i++) {
+      const [cellU, cellV] = simulation.getCellUV(i)
+      const dist = Math.abs(cellU - u) + Math.abs(cellV - v)
+      if (dist < minDist) {
+        minDist = dist
+        cellIndex = i
+      }
+    }
+
+    return cellIndex
+  }
+
+  // Handle pointer move for hover detection
+  const handlePointerMove = (event: ThreeEvent<PointerEvent>) => {
+    if (!onHoverCell) return
+
+    const intersection = event.intersections?.[0]
+    if (!intersection || intersection.faceIndex === undefined || intersection.faceIndex === null) {
+      onHoverCell(null)
+      return
+    }
+
+    const mesh = event.object as THREE.Mesh
+    const geometry = mesh.geometry as THREE.BufferGeometry
+    const uvAttribute = geometry.getAttribute('uv')
+    const vertexIndex = intersection.faceIndex * 3
+    const u = uvAttribute.getX(vertexIndex)
+    const v = uvAttribute.getY(vertexIndex)
+
+    const cellIndex = findCellIndexFromUV(u, v)
+    if (cellIndex >= 0) {
+      onHoverCell(cellIndex)
+    } else {
+      onHoverCell(null)
+    }
+  }
+
+  // Handle click for cell selection
+  const handleClick = (event: ThreeEvent<MouseEvent>) => {
+    if (!onCellClick) return
+
+    const intersection = event.intersections?.[0]
+    if (!intersection || intersection.faceIndex === undefined || intersection.faceIndex === null) {
+      return
+    }
+
+    const mesh = event.object as THREE.Mesh
+    const geometry = mesh.geometry as THREE.BufferGeometry
+    const uvAttribute = geometry.getAttribute('uv')
+    const vertexIndex = intersection.faceIndex * 3
+    const u = uvAttribute.getX(vertexIndex)
+    const v = uvAttribute.getY(vertexIndex)
+
+    const cellIndex = findCellIndexFromUV(u, v)
+    if (cellIndex >= 0) {
+      console.log(`Cell index: ${cellIndex}`)
+      onCellClick(cellIndex)
+    }
+  }
+
+  return (
+    <mesh
+      ref={ref}
+      geometry={geometry}
+      material={material}
+      onPointerMove={handlePointerMove}
+      onClick={handleClick}
+    >
+      {/* Material is already set via shader */}
+    </mesh>
+  )
   }
 )

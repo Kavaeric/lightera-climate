@@ -1,0 +1,10 @@
+export type VisualisationModeId =
+  | 'terrain'
+  | 'elevation'
+  | 'waterDepth'
+  | 'iceThickness'
+  | 'salinity'
+  | 'albedo'
+  | 'solarFlux'
+  | 'surfaceTemperature'
+  | 'atmosphericTemperature'

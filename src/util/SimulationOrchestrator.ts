@@ -1,4 +1,6 @@
 import { SimulationExecutor, type ExecutorConfig } from './SimulationExecutor'
+import type { TextureGridSimulation } from './TextureGridSimulation'
+import * as THREE from 'three'
 
 /**
  * Configuration for the orchestrator
@@ -33,13 +35,25 @@ export interface Milestone {
 }
 
 /**
+ * GPU resources needed for rendering
+ */
+export interface GPUResources {
+  solarFluxMaterial: THREE.ShaderMaterial
+  surfaceIncidentMaterial: THREE.ShaderMaterial
+  mesh: THREE.Mesh
+  scene: THREE.Scene
+  camera: THREE.OrthographicCamera
+}
+
+/**
  * SimulationOrchestrator - Manages simulation control flow
  *
  * Responsibilities:
  * - Track orbits and physics steps
- * - Handle play/pause/step control
+ * - Handle play/pause control
+ * - Execute simulation steps via the executor
  * - Emit milestones (orbit completion, simulation completion)
- * - No GPU rendering logic (delegates to executor)
+ * - Coordinate with recorder for data collection
  */
 export class SimulationOrchestrator {
   private executor: SimulationExecutor
@@ -48,20 +62,13 @@ export class SimulationOrchestrator {
   private orbitIdx: number = 0
   private physicsStep: number = 0
   private controlState: ControlState = 'idle'
-  private pendingSteps: number = 0
 
   private milestoneCallbacks: ((milestone: Milestone) => void)[] = []
+  private stepCallbacks: ((physicsStep: number, orbitIdx: number) => void)[] = []
 
   constructor(config: OrchestratorConfig, errorCallback?: (error: Error) => void) {
     this.config = config
     this.executor = new SimulationExecutor(config, errorCallback)
-  }
-
-  /**
-   * Get current executor (for rendering)
-   */
-  getExecutor(): SimulationExecutor {
-    return this.executor
   }
 
   /**
@@ -80,6 +87,14 @@ export class SimulationOrchestrator {
    */
   onMilestone(callback: (milestone: Milestone) => void): void {
     this.milestoneCallbacks.push(callback)
+  }
+
+  /**
+   * Register a callback that fires after each physics step
+   * Used by recorder to track simulation progress
+   */
+  onStep(callback: (physicsStep: number, orbitIdx: number) => void): void {
+    this.stepCallbacks.push(callback)
   }
 
   /**
@@ -103,92 +118,98 @@ export class SimulationOrchestrator {
   }
 
   /**
-   * Request a single physics step (for manual stepping)
-   * The step will be executed on the next render cycle
-   * Returns true if the step was queued, false if simulation is complete
+   * Execute one frame of simulation
+   * This is the main entry point called from the render loop
+   *
+   * @param stepsPerFrame - Number of physics steps to execute per frame
+   * @param gl - WebGL renderer
+   * @param simulation - Simulation textures
+   * @param gpuResources - GPU materials and geometry
+   * @returns Number of steps executed
    */
-  stepOnce(): boolean {
-    if (this.controlState === 'completed') {
-      return false
-    }
-    this.pendingSteps++
-    return true
-  }
-
-  /**
-   * Request multiple physics steps
-   * The steps will be executed on the next render cycle
-   * Returns the number of steps queued
-   */
-  requestSteps(numSteps: number): number {
-    if (this.controlState === 'completed' || numSteps <= 0) {
-      return 0
-    }
-    this.pendingSteps += numSteps
-    return numSteps
-  }
-
-  /**
-   * Execute any pending steps that were requested via stepOnce() or requestSteps()
-   * This should be called from the render loop after rendering
-   * Returns the number of steps actually executed
-   */
-  executePendingSteps(): number {
-    if (this.pendingSteps === 0) {
-      return 0
-    }
-    const stepsToExecute = this.pendingSteps
-    this.pendingSteps = 0
-    return this.step(stepsToExecute)
-  }
-
-  /**
-   * Execute an arbitrary number of physics steps
-   * Can be called regardless of control state (unlike executeSteps which requires running)
-   * Returns the number of steps actually executed
-   */
-  step(numSteps: number): number {
-    if (this.controlState === 'completed' || numSteps <= 0) {
-      return 0
-    }
-
-    let executed = 0
-    for (let i = 0; i < numSteps; i++) {
-      // Advance one physics step
-      this.physicsStep++
-
-      // Check if we've completed an orbit
-      if (this.physicsStep >= this.config.stepsPerOrbit) {
-        this.physicsStep = 0
-        this.orbitIdx++
-
-        // Emit orbit completion milestone
-        this.emitMilestone({
-          type: 'orbit_complete',
-          orbitIdx: this.orbitIdx,
-          physicsStep: this.physicsStep,
-        })
-      }
-
-      // Advance executor state after tracking the step
-      this.executor.step()
-      executed++
-    }
-
-    return executed
-  }
-
-  /**
-   * Execute multiple physics steps (for continuous running)
-   * Only works when control state is 'running'
-   * Returns the number of steps actually executed
-   */
-  executeSteps(numSteps: number): number {
+  tick(
+    stepsPerFrame: number,
+    gl: THREE.WebGLRenderer,
+    simulation: TextureGridSimulation,
+    gpuResources: GPUResources
+  ): number {
+    // Only execute if running
     if (this.controlState !== 'running') {
       return 0
     }
 
-    return this.step(numSteps)
+    let stepsExecuted = 0
+
+    // Execute multiple steps per frame for performance
+    for (let i = 0; i < stepsPerFrame; i++) {
+      const success = this.executeStep(gl, simulation, gpuResources)
+      if (!success) {
+        // Stop execution on error
+        break
+      }
+      stepsExecuted++
+    }
+
+    return stepsExecuted
+  }
+
+  /**
+   * Execute a single physics step
+   * Returns true on success, false on error
+   */
+  private executeStep(
+    gl: THREE.WebGLRenderer,
+    simulation: TextureGridSimulation,
+    gpuResources: GPUResources
+  ): boolean {
+    // Render the GPU step
+    const success = this.executor.renderStep(
+      gl,
+      simulation,
+      {
+        solarFluxMaterial: gpuResources.solarFluxMaterial,
+        surfaceIncidentMaterial: gpuResources.surfaceIncidentMaterial,
+      },
+      gpuResources.mesh,
+      gpuResources.scene,
+      gpuResources.camera
+    )
+
+    if (!success) {
+      return false
+    }
+
+    // Update state tracking
+    this.advanceStep()
+
+    return true
+  }
+
+  /**
+   * Advance internal step counters and emit events
+   */
+  private advanceStep(): void {
+    // Advance one physics step
+    this.physicsStep++
+
+    // Check if we've completed an orbit
+    if (this.physicsStep >= this.config.stepsPerOrbit) {
+      this.physicsStep = 0
+      this.orbitIdx++
+
+      // Emit orbit completion milestone
+      this.emitMilestone({
+        type: 'orbit_complete',
+        orbitIdx: this.orbitIdx,
+        physicsStep: this.physicsStep,
+      })
+    }
+
+    // Advance executor state
+    this.executor.step()
+
+    // Notify step callbacks (for recorder)
+    this.emitStepCallbacks()
   }
 
   /**
@@ -198,15 +219,7 @@ export class SimulationOrchestrator {
     this.orbitIdx = 0
     this.physicsStep = 0
     this.controlState = 'idle'
-    this.pendingSteps = 0
     this.executor.reset()
-  }
-
-  /**
-   * Get the number of pending steps
-   */
-  getPendingSteps(): number {
-    return this.pendingSteps
   }
 
   /**
@@ -226,6 +239,12 @@ export class SimulationOrchestrator {
   private emitMilestone(milestone: Milestone): void {
     for (const callback of this.milestoneCallbacks) {
       callback(milestone)
+    }
+  }
+
+  private emitStepCallbacks(): void {
+    for (const callback of this.stepCallbacks) {
+      callback(this.physicsStep, this.orbitIdx)
     }
   }
 }
