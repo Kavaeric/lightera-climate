@@ -19,7 +19,7 @@ export function withTextureAccessors(shaderCode: string): string {
 }
 
 /**
- * Generate a visualization shader for a specific accessor function with colourmap applied
+ * Generate a visualisation shader for a specific accessor function with colourmap applied
  * This eliminates the need to manually track which channel corresponds to which data
  * or handle colourmap uniforms separately
  *
