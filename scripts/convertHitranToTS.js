@@ -28,7 +28,7 @@ const __dirname = path.dirname(__filename);
 
 // === CONFIGURATION ===
 const NUM_BINS = 128;              // Output spectral bins (performance-critical)
-const NUM_K_VALUES = 8;            // k-values per bin (higher = more accurate, slower)
+const NUM_K_VALUES = 4;            // k-values per bin (higher = more accurate, slower)
 const HIGH_RES_MULTIPLIER = 32;    // Internal oversampling factor
 const WAVELENGTH_MIN = 1.0;        // μm
 const WAVELENGTH_MAX = 70.0;       // μm
@@ -100,7 +100,7 @@ function processHitranFile(csvPath) {
 		wavelength => WAVENUMBER_TO_WAVELENGTH_CONVERSION / wavelength
 	);
 
-	// Initialize cross-section array
+	// Initialise cross-section array
 	const highResCrossSections = new Array(numHighResBins).fill(0);
 	let linesProcessed = 0;
 	let linesInRange = 0;

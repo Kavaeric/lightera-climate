@@ -358,7 +358,7 @@ export const HitranLineExperiment: React.FC = () => {
 
 				return (
 					<div>
-						<h2>H₂O k-Distribution Spectrum</h2>
+						<h2>H₂O k-distribution spectrum</h2>
 						<svg width={width} height={400}>
 							<Group left={margin.left} top={margin.top}>
 								<GridRows

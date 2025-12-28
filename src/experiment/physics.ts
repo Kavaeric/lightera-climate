@@ -163,7 +163,7 @@ export const calculateMixtureTransmission = (
 	const refWavelengths = spectra[refGas].wavelengths;
 	const numBins = refWavelengths.length;
 
-	// Initialize total transmission (start at 1 = fully transparent)
+	// Initialise total transmission (start at 1 = fully transparent)
 	const totalTransmission = new Array(numBins).fill(1.0);
 
 	// Calculate total atmospheric column
