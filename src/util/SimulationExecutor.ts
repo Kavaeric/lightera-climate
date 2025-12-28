@@ -115,6 +115,7 @@ export class SimulationExecutor {
     materials: {
       solarFluxMaterial: THREE.ShaderMaterial
       surfaceIncidentMaterial: THREE.ShaderMaterial
+      surfaceRadiationMaterial: THREE.ShaderMaterial
     },
     mesh: THREE.Mesh,
     scene: THREE.Scene,
@@ -177,7 +178,6 @@ export class SimulationExecutor {
       gl.setRenderTarget(null)
 
       // Copy working buffer 1 back to working buffer 0 for next pass
-      // (When we add more passes, we'll ping-pong between buffers instead)
       this.copyMaterial.uniforms.sourceTexture.value = simulation.getSurfaceWorkingBuffer(1).texture
       mesh.material = this.copyMaterial
       gl.setRenderTarget(simulation.getSurfaceWorkingBuffer(0))
@@ -185,7 +185,27 @@ export class SimulationExecutor {
       gl.render(scene, camera)
       gl.setRenderTarget(null)
 
-      // Pass 3-6: TODO - will read from working buffers and ping-pong between them
+      // Pass 3: Calculate surface radiation (Stefan-Boltzmann cooling)
+      const { surfaceRadiationMaterial } = materials
+      // Set input textures for pass 3
+      surfaceRadiationMaterial.uniforms.surfaceData.value = simulation.getSurfaceWorkingBuffer(0).texture
+
+      // Render pass 3: reads from working buffer 0, writes to working buffer 1
+      mesh.material = surfaceRadiationMaterial
+      gl.setRenderTarget(simulation.getSurfaceWorkingBuffer(1))
+      gl.clear()
+      gl.render(scene, camera)
+      gl.setRenderTarget(null)
+
+      // Copy working buffer 1 back to working buffer 0 for next pass
+      this.copyMaterial.uniforms.sourceTexture.value = simulation.getSurfaceWorkingBuffer(1).texture
+      mesh.material = this.copyMaterial
+      gl.setRenderTarget(simulation.getSurfaceWorkingBuffer(0))
+      gl.clear()
+      gl.render(scene, camera)
+      gl.setRenderTarget(null)
+
+      // Pass 4-6: TODO - will read from working buffers and ping-pong between them
 
       // FINAL STEP: Copy final working buffer state to next frame targets
       // Copy final surface state from working buffer to next target

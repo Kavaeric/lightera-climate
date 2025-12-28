@@ -12,6 +12,7 @@ import { PHYSICS_CONSTANTS } from '../config/physics'
 import fullscreenVertexShader from '../shaders/fullscreen.vert'
 import solarFluxFragmentShader from '../climate/pass/01-solar-flux/solarFlux.frag'
 import surfaceIncidentFragmentShader from '../climate/pass/02-surface-incident/surfaceIncident.frag'
+import surfaceRadiationFragmentShader from '../climate/pass/03-surface-radiation/surfaceRadiation.frag'
 
 interface GPUResources {
   scene: THREE.Scene
@@ -19,6 +20,7 @@ interface GPUResources {
   geometry: THREE.BufferGeometry
   solarFluxMaterial: THREE.ShaderMaterial
   surfaceIncidentMaterial: THREE.ShaderMaterial
+  surfaceRadiationMaterial: THREE.ShaderMaterial
   blankRenderTarget: THREE.WebGLRenderTarget
   mesh: THREE.Mesh
 }
@@ -45,7 +47,7 @@ function validateGPUResources(
   resources: GPUResources
 ): void {
   // Check that materials were created
-  if (!resources.solarFluxMaterial || !resources.surfaceIncidentMaterial) {
+  if (!resources.solarFluxMaterial || !resources.surfaceIncidentMaterial || !resources.surfaceRadiationMaterial) {
     throw new Error('GPU materials were not created')
   }
 
@@ -154,6 +156,17 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       },
     })
 
+    // Create surface radiation material (Pass 3)
+    const surfaceRadiationMaterial = new THREE.ShaderMaterial({
+      vertexShader: fullscreenVertexShader,
+      fragmentShader: surfaceRadiationFragmentShader,
+      uniforms: {
+        cellInformation: { value: simulation.cellInformation },
+        surfaceData: { value: null }, // Will be set to working buffer texture each frame
+        terrainData: { value: simulation.terrainData },
+        dt: { value: dt },
+      },
+    })
     // Create initialisation material
     // Initialise thermal surface texture: RGBA = [temperature, -, -, albedo]
     const initMaterial = new THREE.ShaderMaterial({
@@ -168,7 +181,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       `,
       uniforms: {
         initTemp: { value: PHYSICS_CONSTANTS.COSMIC_BACKGROUND_TEMP },
-        initAlbedo: { value: 0.3 }, // Default albedo
+        initAlbedo: { value: 0.15 }, // Default albedo
       },
     })
 
@@ -253,6 +266,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       geometry,
       solarFluxMaterial,
       surfaceIncidentMaterial,
+      surfaceRadiationMaterial,
       blankRenderTarget,
       mesh,
     }
@@ -328,6 +342,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       gpuResources.geometry.dispose()
       gpuResources.solarFluxMaterial.dispose()
       gpuResources.surfaceIncidentMaterial.dispose()
+      gpuResources.surfaceRadiationMaterial.dispose()
       gpuResources.blankRenderTarget.dispose()
       gpuResources.scene.clear()
     }

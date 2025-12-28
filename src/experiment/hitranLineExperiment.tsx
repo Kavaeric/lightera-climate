@@ -19,7 +19,8 @@ const SQUARE_METERS_TO_SQUARE_CM = 1e4; // 1 m² = 10⁴ cm²
 // === HELPER FUNCTIONS ===
 
 /**
- * Calculate total atmospheric column density
+ * Calculates the total atmospheric column density.
+ * 
  * N_total = (P / g) × (1 / m_mean)
  * Units: (Pa / (m/s²)) × (1 / kg) = molecules/m² → molecules/cm²
  */
@@ -30,24 +31,26 @@ const calculateAtmosphericColumn = (atmosphere: AtmosphereConfig): number => {
 };
 
 /**
- * Calculate atmospheric transmission using correlated-k distributions
+ * Calculates the atmospheric transmission using correlated-k distributions.
  *
  * For each gas and wavelength bin:
- *   1. Get k-distribution (k-values + weights) from cross-section data
- *   2. Calculate column density N (molecules/cm²) from atmosphere params
- *   3. For each k-value: calculate τ_i = k_i × N and T_i = exp(-τ_i)
- *   4. Weight-average transmissions: T_bin = Σ w_i × T_i
- *   5. Multiply transmissions from all gases
+ *   1. Get k-distribution (k-values + weights) from cross-section data.
+ *   2. Calculate column density N (molecules/cm²) from atmosphere params.
+ *   3. For each k-value: calculate τ_i = k_i × N and T_i = exp(-τ_i).
+ *   4. Weight-average transmissions: T_bin = Σ w_i × T_i.
+ *   5. Multiply transmissions from all gases.
  *
  * This correctly handles spectral variation within bins, solving the
- * Jensen inequality problem: exp(-avg(σ)N) ≠ avg(exp(-σN))
+ * Jensen inequality problem: exp(-avg(σ)N) ≠ avg(exp(-σN)).
  */
 const calculateMixtureTransmission = (
 	spectra: Record<string, HitranCrossSectionSpectrum>,
 	gases: GasConfig[],
 	atmosphere: AtmosphereConfig
 ): { wavelengths: number[]; transmission: number[] } => {
+
 	// Use first available gas's wavelength grid as reference
+	// In the actual simulation code, I'd probably just supply a templated wavelength grid to use.
 	const refGas = Object.keys(spectra)[0];
 	const refWavelengths = spectra[refGas].wavelengths;
 	const numBins = refWavelengths.length;
@@ -63,7 +66,7 @@ const calculateMixtureTransmission = (
 	for (const { gas, concentration } of gases) {
 		const spectrum = spectra[gas];
 		if (!spectrum) {
-			console.warn(`No cross-section data for gas: ${gas}`);
+			console.warn(`No cross-section data for gas: ${gas}. Assuming transparent.`);
 			continue;
 		}
 
@@ -91,6 +94,7 @@ const calculateMixtureTransmission = (
 				maxOpticalDepth = Math.max(maxOpticalDepth, opticalDepth);
 
 				// Weight-average transmission: exp(-τ)
+				// Potentially look at ways to optimise when porting to GPU code, exponential calculations are spensy
 				binTransmission += weight * Math.exp(-opticalDepth);
 			}
 
@@ -107,8 +111,8 @@ const calculateMixtureTransmission = (
 };
 
 /**
- * Calculate blackbody-weighted transmission coefficient
- * Integrates transmission weighted by Planck spectrum
+ * Calculates the blackbody-weighted transmission coefficient.
+ * Integrates transmission weighted by Planck spectrum.	
  */
 const calculateBlackbodyWeightedTransmission = (
 	wavelengths: number[],
@@ -118,6 +122,9 @@ const calculateBlackbodyWeightedTransmission = (
 	let totalFlux = 0;
 	let transmittedFlux = 0;
 
+	// For actual simulation code: currently using Riemann sum approximation (Trapezoidal rule) for integration.
+	// But potentially look at integate-adaptive-simpson or flo-gauss-quadrature.
+	// Assuming the above matters because all this crap's gonna be running on GPU lol
 	for (let i = 0; i < wavelengths.length - 1; i++) {
 		const wavelength = wavelengths[i];
 		const wavelengthBinWidth = wavelengths[i + 1] - wavelength;
@@ -138,10 +145,12 @@ export const HitranLineExperiment: React.FC = () => {
 
 	const { wavelengths, transmission } = calculateMixtureTransmission(spectra, atmosphere.composition, atmosphere);
 
-	const SURFACE_TEMP = 288;
 	// 288K for Earth
 	// 213K for Mars
 	// 737K for Venus
+	// In the actual simulation code this would be part of a configuration
+	// rather than being hardcoded randomly in here.
+	const SURFACE_TEMP = 288;
 
 	const blackbodyWeightedTransmission = calculateBlackbodyWeightedTransmission(
 		wavelengths, transmission, SURFACE_TEMP
