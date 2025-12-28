@@ -11,17 +11,36 @@ import { Group } from '@visx/group';
 import { PHYSICS_CONSTANTS, planckSpectralExitance } from './physics';
 import type { GasConfig } from './gases';
 import type { AtmosphereConfig } from './atmosphere';
-import { EARTH_ATMOSPHERE, MARS_ATMOSPHERE, VENUS_ATMOSPHERE } from './atmosphere';
+import { EARTH_ATMOSPHERE } from './atmosphere';
+
+// === PHYSICS CONSTANTS ===
+const SQUARE_METERS_TO_SQUARE_CM = 1e4; // 1 m² = 10⁴ cm²
+
+// === HELPER FUNCTIONS ===
 
 /**
- * Calculate atmospheric transmission using absorption cross-sections
+ * Calculate total atmospheric column density
+ * N_total = (P / g) × (1 / m_mean)
+ * Units: (Pa / (m/s²)) × (1 / kg) = molecules/m² → molecules/cm²
+ */
+const calculateAtmosphericColumn = (atmosphere: AtmosphereConfig): number => {
+	const columnDensity_m2 = (atmosphere.surfacePressure_Pa / atmosphere.surfaceGravity_m_s2)
+		/ atmosphere.meanMolecularMass_kg;
+	return columnDensity_m2 / SQUARE_METERS_TO_SQUARE_CM;
+};
+
+/**
+ * Calculate atmospheric transmission using correlated-k distributions
  *
- * For each gas and wavelength:
- *   1. Get absorption cross-section σ (cm²/molecule) from cross-section data
+ * For each gas and wavelength bin:
+ *   1. Get k-distribution (k-values + weights) from cross-section data
  *   2. Calculate column density N (molecules/cm²) from atmosphere params
- *   3. Calculate optical depth: τ = σ × N
- *   4. Calculate transmission: T = exp(-τ)
+ *   3. For each k-value: calculate τ_i = k_i × N and T_i = exp(-τ_i)
+ *   4. Weight-average transmissions: T_bin = Σ w_i × T_i
  *   5. Multiply transmissions from all gases
+ *
+ * This correctly handles spectral variation within bins, solving the
+ * Jensen inequality problem: exp(-avg(σ)N) ≠ avg(exp(-σN))
  */
 const calculateMixtureTransmission = (
 	spectra: Record<string, HitranCrossSectionSpectrum>,
@@ -36,14 +55,7 @@ const calculateMixtureTransmission = (
 	// Initialise total transmission at each wavelength (start at 1 = fully transparent)
 	const totalTransmission = new Array(numBins).fill(1.0);
 
-	// Calculate total atmospheric column (molecules/cm²)
-	// N_total = (P / g) × (1 / m_mean)
-	// Units: (Pa / (m/s²)) × (1 / kg) = (kg·m/s²)/m² / (m/s²) / kg = molecules/m²
-	const totalColumn_m2 = (atmosphere.surfacePressure_Pa / atmosphere.surfaceGravity_m_s2)
-		/ atmosphere.meanMolecularMass_kg;
-
-	// Convert to molecules/cm²
-	const totalColumn_cm2 = totalColumn_m2 / 1e4; // 1 m² = 10⁴ cm²
+	const totalColumn_cm2 = calculateAtmosphericColumn(atmosphere);
 
 	console.log(`Total atmospheric column: ${totalColumn_cm2.toExponential(3)} molecules/cm²`);
 
@@ -56,26 +68,36 @@ const calculateMixtureTransmission = (
 		}
 
 		// Calculate column density for this gas
-		const gasColumn_cm2 = totalColumn_cm2 * concentration;
+		const gasColumnDensity = totalColumn_cm2 * concentration;
 
-		console.log(`${gas}: column = ${gasColumn_cm2.toExponential(3)} molecules/cm², max cross-section = ${Math.max(...spectrum.crossSections).toExponential(3)}`);
+		// Get max k-value for logging
+		const allKValues = spectrum.kDistributions.flatMap(kd => kd.kValues);
+		const maxK = Math.max(...allKValues);
+		console.log(`${gas}: column = ${gasColumnDensity.toExponential(3)} molecules/cm², max k = ${maxK.toExponential(3)}`);
 
-		// For each wavelength bin
-		let maxTau = 0;
+		// For each wavelength bin, calculate transmission
+		let maxOpticalDepth = 0;
 		for (let i = 0; i < numBins; i++) {
-			const crossSection = spectrum.crossSections[i]; // cm/molecule (HITRAN units)
+			const kDist = spectrum.kDistributions[i];
 
-			// Calculate optical depth
-			const tau = crossSection * gasColumn_cm2;
-			maxTau = Math.max(maxTau, tau);
+			// Calculate transmission using k-distribution: T_bin = Σ w_i × exp(-k_i × N)
+			let binTransmission = 0;
+			for (let j = 0; j < kDist.kValues.length; j++) {
+				const kValue = kDist.kValues[j];
+				const weight = kDist.weights[j];
 
-			// Calculate transmission for this gas
-			const transmission = Math.exp(-tau);
+				// Calculate optical depth: τ = k × N
+				const opticalDepth = kValue * gasColumnDensity;
+				maxOpticalDepth = Math.max(maxOpticalDepth, opticalDepth);
+
+				// Weight-average transmission: exp(-τ)
+				binTransmission += weight * Math.exp(-opticalDepth);
+			}
 
 			// Multiply into total (transmissions combine multiplicatively)
-			totalTransmission[i] *= transmission;
+			totalTransmission[i] *= binTransmission;
 		}
-		console.log(`${gas}: max optical depth = ${maxTau.toExponential(3)}`);
+		console.log(`${gas}: max optical depth = ${maxOpticalDepth.toExponential(3)}`);
 	}
 
 	const finalTransmission = totalTransmission.filter(t => t < 0.99);
@@ -84,7 +106,10 @@ const calculateMixtureTransmission = (
 	return { wavelengths: refWavelengths, transmission: totalTransmission };
 };
 
-// Calculate blackbody-weighted transmission coefficient
+/**
+ * Calculate blackbody-weighted transmission coefficient
+ * Integrates transmission weighted by Planck spectrum
+ */
 const calculateBlackbodyWeightedTransmission = (
 	wavelengths: number[],
 	transmission: number[],
@@ -94,15 +119,14 @@ const calculateBlackbodyWeightedTransmission = (
 	let transmittedFlux = 0;
 
 	for (let i = 0; i < wavelengths.length - 1; i++) {
-		const λ1 = wavelengths[i];
-		const λ2 = wavelengths[i + 1];
-		const dλ = λ2 - λ1;
+		const wavelength = wavelengths[i];
+		const wavelengthBinWidth = wavelengths[i + 1] - wavelength;
 
-		const exitance = planckSpectralExitance(λ1, temperature_K);
-		const flux = exitance * dλ;
+		const spectralExitance = planckSpectralExitance(wavelength, temperature_K);
+		const binFlux = spectralExitance * wavelengthBinWidth;
 
-		totalFlux += flux;
-		transmittedFlux += flux * transmission[i];
+		totalFlux += binFlux;
+		transmittedFlux += binFlux * transmission[i];
 	}
 
 	return transmittedFlux / totalFlux;
@@ -123,11 +147,14 @@ export const HitranLineExperiment: React.FC = () => {
 		wavelengths, transmission, SURFACE_TEMP
 	);
 
+	// Pre-calculate total column for reuse in component
+	const totalColumn_cm2 = calculateAtmosphericColumn(atmosphere);
+
 	// Calculate blackbody spectrum for visualisation
-	const blackbodySpectrum = wavelengths.map((λ, i) => ({
-		wavelength: λ,
-		exitance: planckSpectralExitance(λ, SURFACE_TEMP),
-		transmitted: planckSpectralExitance(λ, SURFACE_TEMP) * transmission[i],
+	const blackbodySpectrum = wavelengths.map((wavelength, i) => ({
+		wavelength,
+		exitance: planckSpectralExitance(wavelength, SURFACE_TEMP),
+		transmitted: planckSpectralExitance(wavelength, SURFACE_TEMP) * transmission[i],
 	}));
 
 	// Chart dimensions
@@ -162,15 +189,13 @@ export const HitranLineExperiment: React.FC = () => {
 				<p>Surface pressure: {atmosphere.surfacePressure_Pa.toFixed(0)} Pa ({(atmosphere.surfacePressure_Pa / 101325).toFixed(2)} atm)</p>
 				<p>Surface gravity: {atmosphere.surfaceGravity_m_s2} m/s²</p>
 				<p>Mean molecular mass: {(atmosphere.meanMolecularMass_kg * PHYSICS_CONSTANTS.AVOGADRO * 1000).toFixed(1)} g/mol</p>
-				<p>Total column: {((atmosphere.surfacePressure_Pa / atmosphere.surfaceGravity_m_s2) / atmosphere.meanMolecularMass_kg / 1e4).toExponential(3)} molecules/cm²</p>
+				<p>Total column: {totalColumn_cm2.toExponential(3)} molecules/cm²</p>
 			</div>
 
 			<div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 				<h2>Atmospheric composition</h2>
 				{atmosphere.composition.map((g) => {
-					const totalColumn_cm2 = (atmosphere.surfacePressure_Pa / atmosphere.surfaceGravity_m_s2)
-						/ atmosphere.meanMolecularMass_kg / 1e4;
-					const column = totalColumn_cm2 * g.concentration;
+					const gasColumnDensity = totalColumn_cm2 * g.concentration;
 					const hasData = spectra[g.gas] !== undefined;
 					const spectrum = spectra[g.gas];
 
@@ -186,11 +211,12 @@ export const HitranLineExperiment: React.FC = () => {
 						range: [0, miniInnerWidth],
 					});
 
-					// Log scale for cross-sections (they vary over many orders of magnitude)
-					const maxCrossSection = hasData ? Math.max(...spectrum.crossSections.filter(v => v > 0)) : 1;
-					const minCrossSection = hasData ? Math.min(...spectrum.crossSections.filter(v => v > 0)) : 1e-30;
+					// Log scale for k-values (they vary over many orders of magnitude)
+					const allKValues = hasData ? spectrum.kDistributions.flatMap(kd => kd.kValues).filter(v => v > 0) : [];
+					const maxK = hasData && allKValues.length > 0 ? Math.max(...allKValues) : 1;
+					const minK = hasData && allKValues.length > 0 ? Math.min(...allKValues) : 1e-30;
 					const miniYScale = scaleLog({
-						domain: [minCrossSection, maxCrossSection * 10],
+						domain: [minK, maxK * 10],
 						range: [miniInnerHeight, 0],
 					});
 
@@ -198,21 +224,34 @@ export const HitranLineExperiment: React.FC = () => {
 						<div key={g.gas} style={{ backgroundColor: 'rgba(255 255 255 / 0.1)', padding: '12px' }}>
 							<h3>{g.gas.toUpperCase()}</h3>
 							<p>Concentration: {(g.concentration * 100).toFixed(6)}% ({(g.concentration * 1e6).toFixed(2)} ppm)</p>
-							<p>Column density: {column.toExponential(3)} molecules/cm²</p>
-							{hasData && (
+							<p>Column density: {gasColumnDensity.toExponential(3)} molecules/cm²</p>
+							{hasData && allKValues.length > 0 && (
 								<>
 									<p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)' }}>
-										Cross-section range: {minCrossSection.toExponential(2)} - {maxCrossSection.toExponential(2)} cm²/molecule
+										k-value range: {minK.toExponential(2)} - {maxK.toExponential(2)} cm²/molecule
 									</p>
 									<svg width={miniWidth} height={miniHeight}>
 										<Group left={miniMargin.left} top={miniMargin.top}>
-											<LinePath
-												data={spectrum.wavelengths.map((λ, i) => ({ x: λ, y: spectrum.crossSections[i] })).filter(d => d.y > 0)}
-												x={d => miniXScale(d.x)}
-												y={d => miniYScale(d.y)}
-												stroke="cyan"
-												strokeWidth={1}
-											/>
+											{/* Plot all k-values as vertical ranges */}
+											{spectrum.wavelengths.map((wavelength, i) => {
+												const kDist = spectrum.kDistributions[i];
+												const validKValues = kDist.kValues.filter(v => v > 0);
+												if (validKValues.length === 0) return null;
+												const minKBin = Math.min(...validKValues);
+												const maxKBin = Math.max(...validKValues);
+												return (
+													<line
+														key={i}
+														x1={miniXScale(wavelength)}
+														x2={miniXScale(wavelength)}
+														y1={miniYScale(minKBin)}
+														y2={miniYScale(maxKBin)}
+														stroke="cyan"
+														strokeWidth={1}
+														opacity={0.5}
+													/>
+												);
+											})}
 											<AxisBottom
 												top={miniInnerHeight}
 												scale={miniXScale}
@@ -307,6 +346,71 @@ export const HitranLineExperiment: React.FC = () => {
 					</Group>
 				</svg>
 			</div>
+
+			{spectra.h2o && (() => {
+				const h2oKValues = spectra.h2o.kDistributions.flatMap(kd => kd.kValues).filter(v => v > 0);
+				const minH2OK = Math.min(...h2oKValues);
+				const maxH2OK = Math.max(...h2oKValues);
+				const h2oYScale = scaleLog({
+					domain: [minH2OK, maxH2OK * 10],
+					range: [300, 0]
+				});
+
+				return (
+					<div>
+						<h2>H₂O k-Distribution Spectrum</h2>
+						<svg width={width} height={400}>
+							<Group left={margin.left} top={margin.top}>
+								<GridRows
+									scale={h2oYScale}
+									width={innerWidth}
+									stroke="rgba(255,255,255,0.1)"
+								/>
+
+								{/* Draw k-distribution ranges as vertical lines */}
+								{spectra.h2o.wavelengths.map((wavelength, i) => {
+									const kDist = spectra.h2o.kDistributions[i];
+									const validKValues = kDist.kValues.filter(v => v > 0);
+									if (validKValues.length === 0) return null;
+									const minK = Math.min(...validKValues);
+									const maxK = Math.max(...validKValues);
+									return (
+										<line
+											key={i}
+											x1={xScale(wavelength)}
+											x2={xScale(wavelength)}
+											y1={h2oYScale(minK)}
+											y2={h2oYScale(maxK)}
+											stroke="cyan"
+											strokeWidth={1.5}
+											opacity={0.6}
+										/>
+									);
+								})}
+
+								<AxisBottom
+									top={300}
+									scale={xScale}
+									label="Wavelength (μm)"
+									stroke="white"
+									tickStroke="white"
+									tickLabelProps={() => ({ fill: 'white', fontSize: 11, textAnchor: 'middle' })}
+									labelProps={{ fill: 'white', fontSize: 14, textAnchor: 'middle' }}
+								/>
+								<AxisLeft
+									scale={h2oYScale}
+									label="k-value (cm²/molecule)"
+									stroke="white"
+									tickStroke="white"
+									tickFormat={v => Number(v).toExponential(0)}
+									tickLabelProps={() => ({ fill: 'white', fontSize: 11, textAnchor: 'end', dy: '0.33em' })}
+									labelProps={{ fill: 'white', fontSize: 14, textAnchor: 'middle' }}
+								/>
+							</Group>
+						</svg>
+					</div>
+				);
+			})()}
 
 			<div>
 				<h2>Transmission spectrum</h2>

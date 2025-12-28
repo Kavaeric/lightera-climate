@@ -26,7 +26,7 @@ export const EARTH_ATMOSPHERE_COMPOSITION: GasConfig[] = [
 	{ gas: 'h2o', concentration: 0.015 },       // ~1.5% (varies 0-3%)
 	{ gas: 'ch4', concentration: 1.9e-6 },      // 1.9 ppm
 	{ gas: 'n2o', concentration: 0.33e-6 },     // 0.33 ppm
-	{ gas: 'o3', concentration: 0.6e-6 },       // 0.6 ppm average
+	{ gas: 'o3', concentration: 0.3e-6 },       // 0.3 ppm average
 ];
 
 /**
