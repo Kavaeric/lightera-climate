@@ -30,7 +30,7 @@ export interface ClimateEngineConfig {
   orbitalConfig: OrbitalConfig
   planetaryConfig: PlanetaryConfig
   simulationConfig: SimulationConfig
-  stepsPerFrame: number
+  getStepsPerFrame: () => number
   samplesPerOrbit: number
   registerOrchestrator: (orchestrator: SimulationOrchestrator | null) => void
   registerRecorder: (recorder: SimulationRecorder | null) => void
@@ -80,7 +80,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
     orbitalConfig,
     planetaryConfig,
     simulationConfig,
-    stepsPerFrame,
+    getStepsPerFrame,
     samplesPerOrbit,
     registerOrchestrator,
     registerRecorder,
@@ -348,7 +348,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
     // Start simulation loop
     const simulationLoop = () => {
       // Execute simulation frame - orchestrator handles all control flow
-      orchestrator!.tick(stepsPerFrame, gl, simulation, gpuResources!)
+      orchestrator!.tick(getStepsPerFrame(), gl, simulation, gpuResources!)
 
       // Restore render target to canvas
       gl.setRenderTarget(null)

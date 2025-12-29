@@ -45,6 +45,12 @@ function Scene({ simulation, showLatLonGrid, hoveredCell, selectedCell, onHoverC
   } = useSimulation()
   const { displayConfig } = useDisplayConfig()
 
+  // Use ref for stepsPerFrame so changes don't re-initialize the engine
+  const stepsPerFrameRef = useRef(stepsPerFrame)
+  useEffect(() => {
+    stepsPerFrameRef.current = stepsPerFrame
+  }, [stepsPerFrame])
+
   // Initialise climate engine
   useEffect(() => {
     return createClimateEngine({
@@ -53,7 +59,7 @@ function Scene({ simulation, showLatLonGrid, hoveredCell, selectedCell, onHoverC
       orbitalConfig: activeOrbitalConfig,
       planetaryConfig: activePlanetaryConfig,
       simulationConfig: activeSimulationConfig,
-      stepsPerFrame,
+      getStepsPerFrame: () => stepsPerFrameRef.current,
       samplesPerOrbit,
       registerOrchestrator,
       registerRecorder,
@@ -67,7 +73,6 @@ function Scene({ simulation, showLatLonGrid, hoveredCell, selectedCell, onHoverC
     activeSimulationConfig,
     activeOrbitalConfig,
     activePlanetaryConfig,
-    stepsPerFrame,
     samplesPerOrbit,
     registerOrchestrator,
     registerRecorder,

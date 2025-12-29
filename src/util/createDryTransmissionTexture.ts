@@ -220,7 +220,6 @@ export function createDryTransmissionTexture(
 
 	// Calculate total column density
 	const totalColumn = calculateColumnDensity(surfacePressure, surfaceGravity, meanMolecularMass)
-	console.log(`  Total column density: ${totalColumn.toExponential(3)} molecules/cm²`)
 
 	// Calculate column densities for each dry gas
 	const columnDensities = [
@@ -234,11 +233,6 @@ export function createDryTransmissionTexture(
 		totalColumn * gasConcentrations.hf,
 	]
 
-	console.log('  Gas column densities:')
-	DRY_GAS_DATA.forEach((gas, idx) => {
-		console.log(`    ${gas.name}: ${columnDensities[idx].toExponential(3)} molecules/cm²`)
-	})
-
 	// Allocate texture data
 	const data = new Float32Array(numTemps)
 
@@ -248,7 +242,7 @@ export function createDryTransmissionTexture(
 	}
 
 	// Log some sample values for debugging
-	const sampleTemps = [200, 255, 288, 300, 400]
+	const sampleTemps = [250, 288, 300, 350]
 	console.log('  Sample transmission values:')
 	sampleTemps.forEach(temp => {
 		const idx = temp - DRY_TRANSMISSION_CONFIG.tempMin

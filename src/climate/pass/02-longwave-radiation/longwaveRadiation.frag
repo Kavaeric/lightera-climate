@@ -66,7 +66,7 @@ void main() {
 
 	// Read humidity from atmosphere texture
 	// TODO: Currently humidity is not dynamically calculated, set to 0
-	// Future: Read from atmosphere state or separate hydrology texture
+	//       Read from atmosphere state or separate hydrology texture
 	float humidity = 0.0;
 
 	// Calculate H2O column density for per-cell transmission calculation
