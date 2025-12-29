@@ -4,6 +4,13 @@
  * Implements the correlated-k method to calculate atmospheric transmission
  * using pre-computed k-distributions from HITRAN line-by-line data.
  *
+ * HYBRID APPROACH (Optimised):
+ * - Dry gases (CO2, CH4, N2O, O3): Pre-computed 1D lookup by temperature
+ * - Water vapour (H2O): Per-cell calculation with full 128-bin resolution
+ *
+ * This reduces texture fetches from ~1800 to ~385 per transmission calculation
+ * while supporting spatially-varying humidity.
+ *
  * The correlated-k method correctly handles spectral variation within wavelength
  * bins, avoiding Jensen's inequality: exp(-avg(σ)N) ≠ avg(exp(-σN))
  *
@@ -26,9 +33,11 @@ precision highp float;
 // Note: Constants like SQUARE_METRES_TO_SQUARE_CM and Planck constants
 // are expected to be defined by the including shader via constants.glsl
 
+// === FULL RESOLUTION CONFIGURATION ===
 // Wavelength bins (128 bins, log-spaced from 1 to 70 μm)
 const int NUM_WAVELENGTH_BINS = 128;
 const int NUM_K_VALUES_PER_BIN = 4;
+
 
 // Pre-computed Planck constants for performance
 // Numerator: 2πhc² (W·m²)
@@ -87,10 +96,20 @@ const int NUM_GASES = 7;
 uniform sampler2D wavelengthBinWidthTexture;
 
 // Planck lookup texture uniform (optional - for performance)
-// Texture layout: 128 (wavelengths) × 201 (temperatures), R = spectral exitance in W/(m²·μm)
+// Texture layout: 128 (wavelengths) × 1000 (temperatures), R = spectral exitance in W/(m²·μm)
 uniform sampler2D planckLookupTexture;
 uniform float planckTempMin; // Minimum temperature in lookup table (K)
 uniform float planckTempMax; // Maximum temperature in lookup table (K)
+
+// === HYBRID TRANSMISSION TEXTURES ===
+
+// Dry transmission lookup texture (pre-computed for CO2, CH4, N2O, O3)
+// Texture layout: 1000×1, R = transmission coefficient [0,1]
+// Indexed by temperature (1-1000K)
+uniform sampler2D dryTransmissionTexture;
+uniform float dryTransmissionTempMin;
+uniform float dryTransmissionTempMax;
+
 
 /**
  * Get Planck spectral exitance from lookup table (optimised version)
@@ -217,4 +236,96 @@ float calculateMultiGasTransmission(
 
 	// Return fraction transmitted
 	return transmittedFlux / totalFlux;
+}
+
+// =============================================================================
+// HYBRID TRANSMISSION FUNCTIONS (OPTIMISED)
+// =============================================================================
+
+/**
+ * Look up pre-computed dry gas transmission from texture
+ *
+ * Returns the blackbody-weighted transmission for dry gases (CO2, CH4, N2O, O3)
+ * at the specified temperature. This replaces ~500 texture fetches with 1.
+ *
+ * @param temperature_K Temperature in Kelvin
+ * @return Dry gas transmission coefficient [0,1]
+ */
+float getDryTransmission(float temperature_K) {
+	// Clamp temperature to lookup table range
+	float temp = clamp(temperature_K, dryTransmissionTempMin, dryTransmissionTempMax);
+
+	// Calculate texture u coordinate (temperature)
+	float u = (temp - dryTransmissionTempMin) / (dryTransmissionTempMax - dryTransmissionTempMin);
+
+	// Sample with linear interpolation
+	return texture(dryTransmissionTexture, vec2(u, 0.5)).r;
+}
+
+/**
+ * Calculate blackbody-weighted H2O transmission using full resolution
+ *
+ * Uses all 128 wavelength bins for accurate spectral integration.
+ *
+ * @param temperature_K Blackbody temperature in Kelvin
+ * @param h2oColumnDensity H2O column density in molecules/cm²
+ * @return H2O transmission coefficient [0,1]
+ */
+float calculateH2OTransmission(float temperature_K, float h2oColumnDensity) {
+	// Early exit if no water vapour
+	if (h2oColumnDensity <= 0.0) {
+		return 1.0;
+	}
+
+	float totalFlux = 0.0;
+	float transmittedFlux = 0.0;
+
+	// Integrate over all wavelength bins
+	for (int i = 0; i < NUM_WAVELENGTH_BINS - 1; i++) {
+		// Read wavelength and binWidth
+		float u = (float(i) + 0.5) / float(NUM_WAVELENGTH_BINS);
+		vec2 wavelengthData = texture(wavelengthBinWidthTexture, vec2(u, 0.5)).rg;
+		float binWidth = wavelengthData.g;
+
+		// Get Planck spectral exitance from lookup table
+		float spectralExitance = planckSpectralExitanceLookup(wavelengthData.r, temperature_K, i);
+		float binFlux = spectralExitance * binWidth;
+
+		// Calculate H2O transmission for this bin
+		float h2oTransmission = calculateBinTransmission(i, GAS_H2O, h2oColumnDensity);
+
+		// Accumulate weighted fluxes
+		totalFlux += binFlux;
+		transmittedFlux += binFlux * h2oTransmission;
+	}
+
+	// Return fraction transmitted
+	return totalFlux > 0.0 ? transmittedFlux / totalFlux : 1.0;
+}
+
+/**
+ * Calculate total atmospheric transmission using hybrid approach
+ *
+ * HYBRID METHOD:
+ * - Dry gases (CO2, CH4, N2O, O3): Single texture lookup (pre-computed)
+ * - Water vapour (H2O): Per-cell calculation with full 128-bin resolution
+ *
+ * Total transmission = T_dry × T_H2O (Beer's law, multiplicative)
+ *
+ * Performance: ~385 texture fetches vs ~1800 for full 7-gas calculation
+ * (~79% reduction while supporting per-cell humidity variation)
+ *
+ * @param temperature_K Blackbody temperature in Kelvin
+ * @param h2oColumnDensity H2O column density in molecules/cm²
+ * @return Total transmission coefficient [0,1]
+ */
+float calculateHybridTransmission(float temperature_K, float h2oColumnDensity) {
+	// Get pre-computed dry gas transmission (1 texture fetch)
+	float dryTransmission = getDryTransmission(temperature_K);
+
+	// Calculate H2O transmission per-cell (~384 texture fetches: 128 bins × 3 textures)
+	float h2oTransmission = calculateH2OTransmission(temperature_K, h2oColumnDensity);
+
+	// Combine multiplicatively (Beer's law)
+	return dryTransmission * h2oTransmission;
 }

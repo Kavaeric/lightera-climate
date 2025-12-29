@@ -8,6 +8,7 @@ import type { SimulationConfig } from '../config/simulationConfig'
 import { PHYSICS_CONSTANTS } from '../config/physics'
 import { createMultiGasKDistributionTexture, createWavelengthBinWidthTexture } from '../util/createGasTextures'
 import { createPlanckLookupTexture, getPlanckLookupConfig } from '../util/createPlanckLookupTexture'
+import { createDryTransmissionTexture, getDryTransmissionConfig } from '../util/createDryTransmissionTexture'
 
 // Import shaders (includes are processed automatically by vite-plugin-glsl)
 // Note: Import without ?raw to allow plugin to process #include directives
@@ -162,6 +163,8 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
     })
 
     // Create multi-gas k-distribution texture for atmospheric radiative transfer
+    // Note: This is kept for backwards compatibility but the hybrid approach uses
+    // pre-computed dry transmission + reduced H2O textures instead
     const multiGasKDistributionTexture = createMultiGasKDistributionTexture()
     const wavelengthBinWidthTexture = createWavelengthBinWidthTexture()
 
@@ -175,8 +178,24 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
     console.log(`  Mean molecular mass: ${(meanMolecularMass * 6.022e23 * 1000).toFixed(2)} g/mol`)
     console.log(`  Atmosphere heat capacity: ${atmosphereHeatCapacity.toExponential(3)} J/(m²·K)`)
 
+    // Create dry transmission lookup texture (pre-computed for CO2, CH4, N2O, O3)
+    // This must be created after meanMolecularMass is calculated
+    const dryTransmissionTexture = createDryTransmissionTexture({
+      surfacePressure: planetaryConfig.surfacePressure || 101325,
+      surfaceGravity: planetaryConfig.surfaceGravity,
+      meanMolecularMass: meanMolecularMass,
+      gasConcentrations: {
+        co2: planetaryConfig.co2Concentration || 420e-6,
+        ch4: planetaryConfig.ch4Concentration || 1.9e-6,
+        n2o: planetaryConfig.n2oConcentration || 0.335e-6,
+        o3: planetaryConfig.o3Concentration || 0.04e-6,
+      },
+    })
+    const dryTransmissionConfig = getDryTransmissionConfig()
+
     // Create longwave radiation material (Pass 3)
     // Combined pass handling surface emission, atmospheric absorption, and back-radiation
+    // Uses hybrid transmission approach: pre-computed dry gases + per-cell H2O
     const longwaveRadiationMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: longwaveRadiationFragmentShader,
@@ -187,23 +206,25 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
         atmosphereData: { value: null }, // Will be set to working buffer texture each frame
         terrainData: { value: simulation.terrainData },
         dt: { value: dt },
-        // Radiative transfer uniforms
+
+        // === LEGACY RADIATIVE TRANSFER UNIFORMS ===
+        // Kept for backwards compatibility with calculateMultiGasTransmission()
         multiGasKDistributionTexture: { value: multiGasKDistributionTexture },
         wavelengthBinWidthTexture: { value: wavelengthBinWidthTexture },
         planckLookupTexture: { value: planckLookupTexture },
         planckTempMin: { value: planckConfig.tempMin },
         planckTempMax: { value: planckConfig.tempMax },
+
+        // === HYBRID TRANSMISSION UNIFORMS (OPTIMISED) ===
+        // Dry gas transmission lookup (pre-computed for CO2, CH4, N2O, O3)
+        dryTransmissionTexture: { value: dryTransmissionTexture },
+        dryTransmissionTempMin: { value: dryTransmissionConfig.tempMin },
+        dryTransmissionTempMax: { value: dryTransmissionConfig.tempMax },
+
+        // === ATMOSPHERIC PROPERTIES ===
         surfacePressure: { value: planetaryConfig.surfacePressure || 101325 },
         surfaceGravity: { value: planetaryConfig.surfaceGravity },
         meanMolecularMass: { value: meanMolecularMass },
-        // Gas concentrations
-        co2Concentration: { value: planetaryConfig.co2Concentration || 420e-6 },
-        ch4Concentration: { value: planetaryConfig.ch4Concentration || 1.9e-6 },
-        n2oConcentration: { value: planetaryConfig.n2oConcentration || 0.335e-6 },
-        o3Concentration: { value: planetaryConfig.o3Concentration || 0.04e-6 },
-        o2Concentration: { value: planetaryConfig.o2Concentration || 0.2095 },
-        n2Concentration: { value: planetaryConfig.n2Concentration || 0.7809 },
-        // Heat capacity
         atmosphereHeatCapacity: { value: atmosphereHeatCapacity },
       },
     })

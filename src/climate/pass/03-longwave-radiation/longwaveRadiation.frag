@@ -1,18 +1,20 @@
 /**
  * Pass 3: Longwave radiation (greenhouse effect)
- * 
+ *
  * The idealised greenhouse model assumes a thin layer atmosphere that emits from
  * two sides: one side facing the surface and one side facing space.
- * 
+ *
  * The ground emits energy as outgoing longwave (IR) radiation, which is then
  * absorbed partially by the atmosphere, with a portion of this energy escaping
  * directly to space.
- * 
+ *
  * The atmosphere then heats up and re-emits across its two surfaces, with some energy
  * escaping out to space, and some returning back to the surface. This returning energy
  * is the primary driver in what is known as the greenhouse effect, where various gases
  * trap heat in the planet's atmosphere.
- * 
+ *
+ * Currently, this atmosphere model assumes that, aside from water vapour (humidity),
+ * the atmosphere is homogenous in its composition and doesn't change over time.
  */
 
 precision highp float;
@@ -30,38 +32,28 @@ uniform float dt;  // Timestep in seconds
 uniform float surfacePressure;  // Pa
 uniform float surfaceGravity;   // m/s²
 
-// Gas concentrations (molar fractions)
-uniform float co2Concentration;
-uniform float ch4Concentration;
-uniform float n2oConcentration;
-uniform float o3Concentration;
-uniform float o2Concentration;
-uniform float n2Concentration;
-
 // Molecular masses (kg/molecule)
 uniform float meanMolecularMass;
 
 // Heat capacity (precomputed from composition)
 uniform float atmosphereHeatCapacity;  // J/(m²·K)
 
+// Note: Gas concentrations for dry gases (CO2, CH4, N2O, O3) are now baked into
+// the pre-computed dryTransmissionTexture. Only H2O needs per-cell calculation.
+
 // Output: Updated surface and atmosphere states (MRT)
 layout(location = 0) out vec4 outSurfaceState;
 layout(location = 1) out vec4 outAtmosphereState;
 
 void main() {
-	// Read cell position
-	vec2 cellLatLon = getCellLatLon(vUv);
+	// Read surface and atmosphere state (combined texture reads for efficiency)
+	vec4 surfaceState = texture(surfaceData, vUv);
+	float surfaceTemperature = surfaceState.r;
+	float surfaceAlbedo = surfaceState.g;
 
-	// Read cell area
-	float cellArea = getCellArea(vUv);
-
-	// Read surface temperature and albedo
-	float surfaceTemperature = getSurfaceTemperature(vUv);
-	float surfaceAlbedo = getSurfaceAlbedo(vUv);
-
-	// Read atmosphere temperature and albedo
-	float atmosphereTemperature = getAtmosphereTemperature(vUv);
-	float atmosphereAlbedo = getAtmosphereAlbedo(vUv);
+	vec4 atmosphereState = texture(atmosphereData, vUv);
+	float atmosphereTemperature = atmosphereState.r;
+	float atmosphereAlbedo = atmosphereState.a;
 
 	// === ATMOSPHERIC COLUMN PROPERTIES ===
 
@@ -72,25 +64,19 @@ void main() {
 		meanMolecularMass
 	);
 
-	// Read humidity from atmosphere texture (blue channel)
+	// Read humidity from atmosphere texture
 	// TODO: Currently humidity is not dynamically calculated, set to 0
+	// Future: Read from atmosphere state or separate hydrology texture
 	float humidity = 0.0;
 
-	// Calculate column densities for all gases
-	// Order: [CO2, H2O, CH4, N2O, O3, O2, N2]
-	// TODO: possibly extract everything but humidity as we're assuming everything but humidity
-	//       is constant and homogenous throughout the atmosphere.
-	float columnDensities[7];
-	columnDensities[0] = totalColumn_cm2 * co2Concentration;
-	columnDensities[1] = totalColumn_cm2 * humidity;
-	columnDensities[2] = totalColumn_cm2 * ch4Concentration;
-	columnDensities[3] = totalColumn_cm2 * n2oConcentration;
-	columnDensities[4] = totalColumn_cm2 * o3Concentration;
-	columnDensities[5] = totalColumn_cm2 * o2Concentration;
-	columnDensities[6] = totalColumn_cm2 * n2Concentration;
+	// Calculate H2O column density for per-cell transmission calculation
+	float h2oColumnDensity = totalColumn_cm2 * humidity;
 
-	// === RADIATIVE TRANSFER ===
-	// 
+	// === RADIATIVE TRANSFER (HYBRID APPROACH) ===
+	//
+	// Uses pre-computed dry gas transmission + per-cell H2O calculation.
+	// This is for better runtime performance.
+	//
 	// Transmission must be calculated at the temperature of the emitting body,
 	// because absorption cross-sections are temperature-dependent (via k-distribution).
 	// The k-distribution method uses blackbody-weighted transmission, so the Planck
@@ -98,17 +84,17 @@ void main() {
 
 	// Calculate transmission at surface temperature (for surface emission)
 	// This determines how much surface radiation escapes to space vs. is absorbed
-	float transmissionSurface = calculateMultiGasTransmission(
+	float transmissionSurface = calculateHybridTransmission(
 		surfaceTemperature,
-		columnDensities
+		h2oColumnDensity
 	);
 
 	// Calculate transmission at atmosphere temperature (for atmosphere emission)
 	// By Kirchhoff's law: emissivity = absorptivity = 1 - transmission
 	// The atmosphere can only emit at wavelengths where it absorbs
-	float transmissionAtmosphere = calculateMultiGasTransmission(
+	float transmissionAtmosphere = calculateHybridTransmission(
 		atmosphereTemperature,
-		columnDensities
+		h2oColumnDensity
 	);
 	float atmosphereEmissivity = 1.0 - transmissionAtmosphere;
 
@@ -181,25 +167,23 @@ void main() {
 	float atmosphereNetPowerPerArea = surfaceToAtmosphere - (atmosphereToSpace + atmosphereToSurface);
 
 	// === TEMPERATURE CHANGES ===
-	// 
-	// Convert power per unit area to total energy, then to temperature change:
-	// Total power = power per area × cell area (W)
-	// Total energy = total power × dt (J)
-	// Total heat capacity = heat capacity per area × cell area (J/K)
-	// Temperature change = total energy / total heat capacity (K)
-	// 
+	//
+	// Convert power per unit area to temperature change:
+	// ΔT = (P/A × dt) / (C/A) = P × dt / C
+	//
+	// Note: cellArea cancels out in the calculation, so we operate directly
+	// on power per unit area and heat capacity per unit area.
+	//
 	// This is a first-order Euler integration. For stability, dt should be
 	// small compared to the thermal relaxation timescale.
 
 	// Surface temperature update
-	// cellArea cancels out, but keeping for clarity and future material variation support.
 	float newSurfaceTemperature = surfaceTemperature +
-		(surfaceNetPowerPerArea * cellArea * dt) / (MATERIAL_ROCK_HEAT_CAPACITY_PER_AREA * cellArea); // K
+		(surfaceNetPowerPerArea * dt) / MATERIAL_ROCK_HEAT_CAPACITY_PER_AREA; // K
 
 	// Atmosphere temperature update
-	// cellArea cancels out, but keeping for clarity and future material variation support.
 	float newAtmosphereTemperature = atmosphereTemperature +
-		(atmosphereNetPowerPerArea * cellArea * dt) / (atmosphereHeatCapacity * cellArea); // K
+		(atmosphereNetPowerPerArea * dt) / atmosphereHeatCapacity; // K
 
 	// === OUTPUT ===
 
