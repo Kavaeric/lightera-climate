@@ -38,8 +38,7 @@ export interface Milestone {
  * GPU resources needed for rendering
  */
 export interface GPUResources {
-  solarFluxMaterial: THREE.ShaderMaterial
-  surfaceIncidentMaterial: THREE.ShaderMaterial
+  shortwaveIncidentMaterial: THREE.ShaderMaterial
   longwaveRadiationMaterial: THREE.ShaderMaterial
   mesh: THREE.Mesh
   scene: THREE.Scene
@@ -168,8 +167,7 @@ export class SimulationOrchestrator {
       gl,
       simulation,
       {
-        solarFluxMaterial: gpuResources.solarFluxMaterial,
-        surfaceIncidentMaterial: gpuResources.surfaceIncidentMaterial,
+        shortwaveIncidentMaterial: gpuResources.shortwaveIncidentMaterial,
         longwaveRadiationMaterial: gpuResources.longwaveRadiationMaterial,
       },
       gpuResources.mesh,

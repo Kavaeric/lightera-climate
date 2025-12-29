@@ -13,16 +13,14 @@ import { createDryTransmissionTexture, getDryTransmissionConfig } from '../util/
 // Import shaders (includes are processed automatically by vite-plugin-glsl)
 // Note: Import without ?raw to allow plugin to process #include directives
 import fullscreenVertexShader from '../shaders/fullscreen.vert'
-import solarFluxFragmentShader from '../climate/pass/01-solar-flux/solarFlux.frag'
-import surfaceIncidentFragmentShader from '../climate/pass/02-surface-incident/surfaceIncident.frag'
-import longwaveRadiationFragmentShader from '../climate/pass/03-longwave-radiation/longwaveRadiation.frag'
+import shortwaveIncidentFragmentShader from '../climate/pass/01-shortwave-incident/shortwaveIncident.frag'
+import longwaveRadiationFragmentShader from '../climate/pass/02-longwave-radiation/longwaveRadiation.frag'
 
 interface GPUResources {
   scene: THREE.Scene
   camera: THREE.OrthographicCamera
   geometry: THREE.BufferGeometry
-  solarFluxMaterial: THREE.ShaderMaterial
-  surfaceIncidentMaterial: THREE.ShaderMaterial
+  shortwaveIncidentMaterial: THREE.ShaderMaterial
   longwaveRadiationMaterial: THREE.ShaderMaterial
   blankRenderTarget: THREE.WebGLRenderTarget
   mesh: THREE.Mesh
@@ -43,14 +41,14 @@ export interface ClimateEngineConfig {
 
 /**
  * Validates that GPU resources were created successfully
- * This is a lightweight check - actual validation happens during first render
+ * This is a lightweight check; actual validation happens during first render
  */
 function validateGPUResources(
   gl: THREE.WebGLRenderer,
   resources: GPUResources
 ): void {
   // Check that materials were created
-  if (!resources.solarFluxMaterial || !resources.surfaceIncidentMaterial || !resources.longwaveRadiationMaterial) {
+  if (!resources.shortwaveIncidentMaterial || !resources.longwaveRadiationMaterial) {
     throw new Error('GPU materials were not created')
   }
 
@@ -132,32 +130,22 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       }
     )
 
-    // Create solar flux material (Pass 1)
-    const solarFluxMaterial = new THREE.ShaderMaterial({
+    // Create shortwave heating material (Pass 1 - combined solar flux + surface incident)
+    const shortwaveIncidentMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
-      fragmentShader: solarFluxFragmentShader,
+      fragmentShader: shortwaveIncidentFragmentShader,
       glslVersion: THREE.GLSL3,
       uniforms: {
         cellInformation: { value: simulation.cellInformation },
+        surfaceData: { value: null }, // Will be set each frame
+        atmosphereData: { value: null }, // Will be set each frame
+        terrainData: { value: simulation.terrainData },
+        // Orbital parameters
         axialTilt: { value: axialTilt },
         yearProgress: { value: 0 },
         subsolarLon: { value: 0 }, // Starts at prime meridian
         solarFlux: { value: solarFlux },
-      },
-    })
-
-    // Create surface incident material (Pass 2)
-    const surfaceIncidentMaterial = new THREE.ShaderMaterial({
-      vertexShader: fullscreenVertexShader,
-      fragmentShader: surfaceIncidentFragmentShader,
-      glslVersion: THREE.GLSL3,
-      uniforms: {
-        cellInformation: { value: simulation.cellInformation },
-        solarFluxData: { value: null }, // Will be set to solarFluxTarget texture each frame
-        surfaceData: { value: null }, // RGBA = [surfaceTemp, albedo, -, -]
-        atmosphereData: { value: null }, // RGBA = [atmosphereTemp, -, -, albedo]
-        hydrologyData: { value: null }, // Will be set to hydrology data texture
-        terrainData: { value: simulation.terrainData },
+        // Physics parameters
         dt: { value: dt },
       },
     })
@@ -326,8 +314,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       scene,
       camera,
       geometry,
-      solarFluxMaterial,
-      surfaceIncidentMaterial,
+      shortwaveIncidentMaterial,
       longwaveRadiationMaterial,
       blankRenderTarget,
       mesh,
@@ -402,8 +389,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
 
     if (gpuResources) {
       gpuResources.geometry.dispose()
-      gpuResources.solarFluxMaterial.dispose()
-      gpuResources.surfaceIncidentMaterial.dispose()
+      gpuResources.shortwaveIncidentMaterial.dispose()
       gpuResources.longwaveRadiationMaterial.dispose()
       gpuResources.blankRenderTarget.dispose()
       gpuResources.scene.clear()

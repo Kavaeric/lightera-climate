@@ -115,8 +115,7 @@ export class SimulationExecutor {
     gl: THREE.WebGLRenderer,
     simulation: TextureGridSimulation,
     materials: {
-      solarFluxMaterial: THREE.ShaderMaterial
-      surfaceIncidentMaterial: THREE.ShaderMaterial
+      shortwaveIncidentMaterial: THREE.ShaderMaterial
       longwaveRadiationMaterial: THREE.ShaderMaterial
     },
     mesh: THREE.Mesh,
@@ -124,38 +123,45 @@ export class SimulationExecutor {
     camera: THREE.OrthographicCamera
   ): boolean {
     try {
-      const { solarFluxMaterial, surfaceIncidentMaterial, longwaveRadiationMaterial } = materials
+      const { shortwaveIncidentMaterial, longwaveRadiationMaterial } = materials
 
-      // Update material uniforms with current orbital state
-      solarFluxMaterial.uniforms.yearProgress.value = this.state.yearProgress
-      solarFluxMaterial.uniforms.subsolarLon.value = this.state.currentSubsolarLon
+      // ===== 2-PASS PHYSICS ARCHITECTURE =====
+      // Pass 1: Shortwave heating (solar flux + surface absorption)
+      // Pass 2: Longwave radiation (surface emission, atmospheric absorption & re-emission)
 
-      // ===== 3-PASS PHYSICS ARCHITECTURE =====
-      // Pass 1: Solar flux at top of atmosphere
-      // Pass 2: Surface incident heating (shortwave absorption)
-      // Pass 3: Longwave radiation (surface emission, atmospheric absorption & re-emission)
+      // Pass 1: Calculate shortwave heating (combined solar flux + surface incident)
+      // Uses MRT to output both surface state (for physics) and solar flux (for visualisation)
+      // Update orbital state uniforms
+      shortwaveIncidentMaterial.uniforms.yearProgress.value = this.state.yearProgress
+      shortwaveIncidentMaterial.uniforms.subsolarLon.value = this.state.currentSubsolarLon
+      // Set input textures
+      shortwaveIncidentMaterial.uniforms.surfaceData.value = simulation.getClimateDataCurrent().texture
+      shortwaveIncidentMaterial.uniforms.atmosphereData.value = simulation.getAtmosphereDataCurrent().texture
 
-      // Pass 1: Calculate solar flux at top of atmosphere
-      mesh.material = solarFluxMaterial
-      gl.setRenderTarget(simulation.getSolarFluxTarget())
+      // Render to MRT (attachment 0 = surface state, attachment 1 = solar flux)
+      const shortwaveMRT = simulation.getShortwaveMRT()
+      mesh.material = shortwaveIncidentMaterial
+      gl.setRenderTarget(shortwaveMRT)
       gl.clear()
       gl.render(scene, camera)
       gl.setRenderTarget(null)
 
-      // Pass 2: Calculate surface incident heating
-      // Read from current buffers, write to working buffer (intermediate result)
-      surfaceIncidentMaterial.uniforms.solarFluxData.value = simulation.getSolarFluxTarget().texture
-      surfaceIncidentMaterial.uniforms.surfaceData.value = simulation.getClimateDataCurrent().texture
-      surfaceIncidentMaterial.uniforms.atmosphereData.value = simulation.getAtmosphereDataCurrent().texture
-      surfaceIncidentMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture
-
-      mesh.material = surfaceIncidentMaterial
+      // Copy MRT attachment 0 → surface working buffer (for longwave pass)
+      this.copyMaterial.uniforms.sourceTexture.value = shortwaveMRT.textures[0]
+      mesh.material = this.copyMaterial
       gl.setRenderTarget(simulation.getSurfaceWorkingBuffer(0))
       gl.clear()
       gl.render(scene, camera)
       gl.setRenderTarget(null)
 
-      // Pass 3: Longwave radiation (combined greenhouse effect)
+      // Copy MRT attachment 1 → auxiliary solar flux target (not used in physics pipeline)
+      this.copyMaterial.uniforms.sourceTexture.value = shortwaveMRT.textures[1]
+      gl.setRenderTarget(simulation.getSolarFluxTarget())
+      gl.clear()
+      gl.render(scene, camera)
+      gl.setRenderTarget(null)
+
+      // Pass 2: Longwave radiation (greenhouse effect)
       // - Surface emits IR radiation (Stefan-Boltzmann)
       // - Atmosphere absorbs part of surface emission
       // - Atmosphere re-emits based on Kirchhoff's law (emissivity = absorptivity)

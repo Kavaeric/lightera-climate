@@ -120,9 +120,9 @@ float getSurfaceTemperature(vec2 uv) {
 }
 
 float getSurfaceAlbedo(vec2 uv) {
-  return texture(surfaceData, uv).g;
+  return texture(surfaceData, uv).a;
 }
 
 vec4 packSurfaceData(float temperature, float albedo) {
-  return vec4(temperature, albedo, 0.0, 0.0);
+  return vec4(temperature, 0.0, 0.0, albedo);
 }

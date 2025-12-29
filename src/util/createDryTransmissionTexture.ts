@@ -241,6 +241,15 @@ export function createDryTransmissionTexture(
 		}
 	})
 
+	// Validate data size matches expected texture size
+	// For RedFormat: expected size = width * height * 1 channel
+	const expectedSize = numTemps * 1 * 1
+	if (data.length !== expectedSize) {
+		throw new Error(
+			`[Dry Transmission] Data size mismatch: expected ${expectedSize} elements, got ${data.length}`
+		)
+	}
+
 	// Create texture
 	const texture = new THREE.DataTexture(
 		data,
@@ -257,7 +266,7 @@ export function createDryTransmissionTexture(
 	texture.wrapT = THREE.ClampToEdgeWrapping
 	texture.needsUpdate = true
 
-	console.log(`[Dry Transmission] Texture created: ${numTemps}×1`)
+	console.log(`[Dry Transmission] Texture created: ${numTemps}×1 (${data.length} elements)`)
 
 	return texture
 }

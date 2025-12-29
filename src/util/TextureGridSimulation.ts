@@ -44,8 +44,8 @@ export class TextureGridSimulation {
   // Each render target RGBA = [atmosphereTemperature, -, -, albedo]
   public atmosphereDataTargets: THREE.WebGLRenderTarget[]
 
-  // Solar flux data storage: Single render target (recalculated each step, no ping-pong needed)
-  // Stores solar flux at top of atmosphere
+  // [Auxiliary] Solar flux data storage: Single render target (recalculated each step, no ping-pong needed)
+  // Not used in physics pipeline - available for visualisation/diagnostics
   // RGBA = [flux (W/m²), reserved, reserved, reserved]
   public solarFluxTarget: THREE.WebGLRenderTarget | null = null
 
@@ -58,6 +58,9 @@ export class TextureGridSimulation {
 
   // MRT for longwave radiation pass (updates both surface and atmosphere)
   public longwaveRadiationMRT: THREE.WebGLRenderTarget<THREE.Texture[]> | null = null
+
+  // MRT for shortwave incident pass (outputs surface state + auxiliary solar flux)
+  public shortwaveMRT: THREE.WebGLRenderTarget<THREE.Texture[]> | null = null
 
   constructor(config: SimulationConfig) {
     this.grid = new Grid(config.resolution)
@@ -114,6 +117,9 @@ export class TextureGridSimulation {
 
     // Create MRT for longwave radiation pass
     this.longwaveRadiationMRT = this.createSurfaceAtmosphereMRT()
+
+    // Create MRT for shortwave incident pass (surface state + solar flux)
+    this.shortwaveMRT = this.createSurfaceAtmosphereMRT()
   }
 
   /**
@@ -600,6 +606,16 @@ export class TextureGridSimulation {
   }
 
   /**
+   * Get MRT for shortwave incident pass (surface state + solar flux)
+   */
+  public getShortwaveMRT(): THREE.WebGLRenderTarget<THREE.Texture[]> {
+    if (!this.shortwaveMRT) {
+      throw new Error('Shortwave MRT not initialised')
+    }
+    return this.shortwaveMRT
+  }
+
+  /**
    * Swap atmosphere buffers for next frame
    */
   public swapAtmosphereBuffers(): void {
@@ -785,6 +801,9 @@ export class TextureGridSimulation {
     }
     if (this.longwaveRadiationMRT) {
       this.longwaveRadiationMRT.dispose()
+    }
+    if (this.shortwaveMRT) {
+      this.shortwaveMRT.dispose()
     }
   }
 }

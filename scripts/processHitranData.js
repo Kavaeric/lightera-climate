@@ -69,7 +69,7 @@ function processHitranFile(csvPath) {
 		wavelength => WAVENUMBER_TO_WAVELENGTH_CONVERSION / wavelength
 	);
 
-	// Initialize high-resolution cross-section array (one per high-res bin)
+	// Initialise high-resolution cross-section array (one per high-res bin)
 	const highResCrossSections = new Float64Array(numHighResBins);
 
 	// Process each spectral line

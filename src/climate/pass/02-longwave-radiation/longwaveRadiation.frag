@@ -49,7 +49,7 @@ void main() {
 	// Read surface and atmosphere state (combined texture reads for efficiency)
 	vec4 surfaceState = texture(surfaceData, vUv);
 	float surfaceTemperature = surfaceState.r;
-	float surfaceAlbedo = surfaceState.g;
+	float surfaceAlbedo = surfaceState.a;
 
 	vec4 atmosphereState = texture(atmosphereData, vUv);
 	float atmosphereTemperature = atmosphereState.r;
@@ -187,7 +187,7 @@ void main() {
 
 	// === OUTPUT ===
 
-	// Update surface state: RGBA = [surfaceTemperature, albedo, reserved, reserved]
+	// Update surface state: RGBA = [surfaceTemperature, reserved, reserved, albedo]
 	outSurfaceState = packSurfaceData(newSurfaceTemperature, surfaceAlbedo);
 
 	// Update atmosphere state: RGBA = [atmosphereTemperature, reserved, reserved, albedo]

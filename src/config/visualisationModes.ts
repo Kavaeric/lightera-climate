@@ -66,7 +66,7 @@ export const VISUALISATION_SURFACE_TEMPERATURE: VisualisationMode = {
  */
 export const VISUALISATION_ELEVATION: VisualisationMode = {
   id: 'elevation',
-  name: 'Elevation (greyscale)',
+  name: 'Elevation',
   colourmap: COLOURMAP_GREYSCALE,
   getRange: (displayConfig) => displayConfig.elevationRange,
   customFragmentShader: createAccessorShader('getElevation', COLOURMAP_GREYSCALE, true, false),
@@ -110,7 +110,7 @@ export const VISUALISATION_WATER_DEPTH: VisualisationMode = {
  */
 export const VISUALISATION_SALINITY: VisualisationMode = {
   id: 'salinity',
-  name: 'Salinity (greyscale)',
+  name: 'Salinity',
   colourmap: COLOURMAP_TEAL_C16,
   getRange: (displayConfig) => displayConfig.salinityRange,
   customFragmentShader: createAccessorShader('getSalinity', COLOURMAP_TEAL_C16, false, false),
@@ -154,7 +154,7 @@ export const VISUALISATION_ICE_THICKNESS: VisualisationMode = {
  */
 export const VISUALISATION_ALBEDO: VisualisationMode = {
   id: 'albedo',
-  name: 'Albedo (greyscale)',
+  name: 'Albedo',
   colourmap: COLOURMAP_GREYSCALE,
   getRange: (displayConfig) => displayConfig.albedoRange,
   customFragmentShader: createAccessorShader('getSurfaceAlbedo', COLOURMAP_GREYSCALE, true, true),

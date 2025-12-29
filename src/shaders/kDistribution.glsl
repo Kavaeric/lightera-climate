@@ -35,6 +35,7 @@ precision highp float;
 
 // === FULL RESOLUTION CONFIGURATION ===
 // Wavelength bins (128 bins, log-spaced from 1 to 70 μm)
+// Ensure these match the actual values in the various offline generated data files (/script/ directory).
 const int NUM_WAVELENGTH_BINS = 128;
 const int NUM_K_VALUES_PER_BIN = 4;
 
