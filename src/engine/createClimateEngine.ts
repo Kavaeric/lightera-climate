@@ -6,6 +6,7 @@ import type { OrbitalConfig } from '../config/orbital'
 import type { PlanetaryConfig } from '../config/planetary'
 import type { SimulationConfig } from '../config/simulationConfig'
 import { PHYSICS_CONSTANTS } from '../config/physics'
+import { createKDistributionTexture, createWavelengthTexture } from '../util/createKDistributionTexture'
 
 // Import shaders (includes are processed automatically by vite-plugin-glsl)
 // Note: Import without ?raw to allow plugin to process #include directives
@@ -79,6 +80,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
     gl,
     simulation,
     orbitalConfig,
+    planetaryConfig,
     simulationConfig,
     stepsPerFrame,
     samplesPerOrbit,
@@ -158,6 +160,10 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       },
     })
 
+    // Create k-distribution textures for atmospheric radiative transfer
+    const kDistributionTexture = createKDistributionTexture()
+    const wavelengthTexture = createWavelengthTexture()
+
     // Create surface radiation material (Pass 3)
     const surfaceRadiationMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
@@ -166,8 +172,16 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       uniforms: {
         cellInformation: { value: simulation.cellInformation },
         surfaceData: { value: null }, // Will be set to working buffer texture each frame
+        atmosphereData: { value: null }, // Will be set to working buffer texture each frame
         terrainData: { value: simulation.terrainData },
         dt: { value: dt },
+        // Radiative transfer uniforms
+        kDistributionTexture: { value: kDistributionTexture },
+        wavelengthTexture: { value: wavelengthTexture },
+        surfacePressure: { value: planetaryConfig.surfacePressure || 101325 }, // Pa (default: Earth)
+        surfaceGravity: { value: planetaryConfig.surfaceGravity }, // m/s²
+        co2Concentration: { value: planetaryConfig.co2Concentration || 412e-6 }, // 412 ppm (Earth default)
+        co2MolecularMass: { value: 7.31e-26 }, // kg/molecule (44.01 g/mol / Avogadro)
       },
     })
     // Create initialisation material

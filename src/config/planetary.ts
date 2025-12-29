@@ -12,6 +12,10 @@ export interface PlanetaryConfig {
 
   // Surface gravity (can be derived from mass and radius, but stored for convenience)
   surfaceGravity: number // m/s²
+
+  // Atmospheric properties (optional, for atmospheric radiative transfer)
+  surfacePressure?: number // Pa (Pascals)
+  co2Concentration?: number // molar fraction (e.g., 412e-6 for 412 ppm)
 }
 
 /**
@@ -30,6 +34,8 @@ export const PLANETARY_CONFIG_EARTH: PlanetaryConfig = {
   radius: 6371000, // 6,371 km
   mass: 5.972e24, // kg
   surfaceGravity: 9.81, // m/s²
+  surfacePressure: 101325, // Pa (1 atm)
+  co2Concentration: 412e-6, // 412 ppm (current Earth atmospheric CO2)
 }
 
 /**

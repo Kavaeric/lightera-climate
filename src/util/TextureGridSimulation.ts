@@ -56,6 +56,9 @@ export class TextureGridSimulation {
   // Thermal atmosphere working buffer: RGBA = [atmosphereTemperature, -, -, albedo]
   public atmosphereWorkingBuffers: THREE.WebGLRenderTarget[] = []
 
+  // MRT for surface radiation pass (updates both surface and atmosphere)
+  public surfaceRadiationMRT: THREE.WebGLRenderTarget<THREE.Texture[]> | null = null
+
   constructor(config: SimulationConfig) {
     this.grid = new Grid(config.resolution)
     this.cells = Array.from(this.grid)
@@ -108,6 +111,9 @@ export class TextureGridSimulation {
     // Two buffers each for surface and atmosphere to allow ping-pong between passes
     this.surfaceWorkingBuffers = [this.createRenderTarget(), this.createRenderTarget()]
     this.atmosphereWorkingBuffers = [this.createRenderTarget(), this.createRenderTarget()]
+
+    // Create MRT for surface radiation pass
+    this.surfaceRadiationMRT = this.createSurfaceAtmosphereMRT()
   }
 
   /**
@@ -499,6 +505,26 @@ export class TextureGridSimulation {
   }
 
   /**
+   * Create MRT for surface radiation pass
+   * Outputs: [0] surface state, [1] atmosphere state
+   *
+   * Note: Three.js automatically creates texture array when count > 1
+   */
+  private createSurfaceAtmosphereMRT(): THREE.WebGLRenderTarget<THREE.Texture[]> {
+    const mrt = new THREE.WebGLRenderTarget(this.textureWidth, this.textureHeight, {
+      minFilter: THREE.NearestFilter,
+      magFilter: THREE.NearestFilter,
+      format: THREE.RGBAFormat,
+      type: THREE.FloatType,
+      wrapS: THREE.ClampToEdgeWrapping,
+      wrapT: THREE.ClampToEdgeWrapping,
+      count: 2, // Number of draw buffers (MRT count)
+    })
+
+    return mrt as unknown as THREE.WebGLRenderTarget<THREE.Texture[]>
+  }
+
+  /**
    * Get the current surface/climate render target (for reading in shaders)
    * Format: RGBA = [surfaceTemperature, albedo, reserved, reserved]
    */
@@ -561,6 +587,16 @@ export class TextureGridSimulation {
    */
   public getAtmosphereWorkingBuffer(index: 0 | 1): THREE.WebGLRenderTarget {
     return this.atmosphereWorkingBuffers[index]
+  }
+
+  /**
+   * Get MRT for surface radiation pass
+   */
+  public getSurfaceRadiationMRT(): THREE.WebGLRenderTarget<THREE.Texture[]> {
+    if (!this.surfaceRadiationMRT) {
+      throw new Error('Surface radiation MRT not initialised')
+    }
+    return this.surfaceRadiationMRT
   }
 
   /**
