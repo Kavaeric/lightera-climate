@@ -50,7 +50,9 @@ ${textureAccessors}
 uniform float valueMin;
 uniform float valueMax;
 
-varying vec2 vUv;
+in vec2 vUv;
+
+out vec4 fragColour;
 
 vec3 sampleColourmap(float t) {
   // Clamp to [0, 1]
@@ -99,7 +101,7 @@ void main() {
                 overflowColour * isOverflow +
                 normalColor * isNormal;
 
-  gl_FragColor = vec4(colour, 1.0);
+  fragColour = vec4(colour, 1.0);
 }
 `
 }

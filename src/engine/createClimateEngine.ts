@@ -132,6 +132,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
     const solarFluxMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: solarFluxFragmentShader,
+      glslVersion: THREE.GLSL3,
       uniforms: {
         cellInformation: { value: simulation.cellInformation },
         axialTilt: { value: axialTilt },
@@ -145,6 +146,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
     const surfaceIncidentMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: surfaceIncidentFragmentShader,
+      glslVersion: THREE.GLSL3,
       uniforms: {
         cellInformation: { value: simulation.cellInformation },
         solarFluxData: { value: null }, // Will be set to solarFluxTarget texture each frame
@@ -160,6 +162,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
     const surfaceRadiationMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: surfaceRadiationFragmentShader,
+      glslVersion: THREE.GLSL3,
       uniforms: {
         cellInformation: { value: simulation.cellInformation },
         surfaceData: { value: null }, // Will be set to working buffer texture each frame

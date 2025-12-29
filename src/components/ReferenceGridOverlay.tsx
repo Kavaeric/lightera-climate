@@ -113,6 +113,7 @@ export function ReferenceGridOverlay({
     return new THREE.ShaderMaterial({
       vertexShader: latlonVertexShader,
       fragmentShader: latlonFragmentShader,
+      glslVersion: THREE.GLSL3,
       uniforms: {
         colour: { value: new THREE.Vector3(colourVec.r, colourVec.g, colourVec.b) },
         opacity: { value: frontOpacity },

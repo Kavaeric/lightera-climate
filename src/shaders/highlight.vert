@@ -2,9 +2,9 @@
 // Passes cell UV coordinates to fragment shader for hit detection
 // Calculates view direction for backface fading effect
 
-varying vec2 vUv;
-varying vec3 vWorldPosition;
-varying vec3 vViewDirection;
+out vec2 vUv;
+out vec3 vWorldPosition;
+out vec3 vViewDirection;
 
 void main() {
   vUv = uv;

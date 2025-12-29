@@ -3,10 +3,13 @@ precision highp float;
 #include "../../../shaders/textureAccessors.glsl"
 #include "../../constants.glsl"
 
-varying vec2 vUv;
+in vec2 vUv;
 
 // Input uniforms
 uniform float dt;  // Timestep in seconds
+
+// Output: Updated surface state (temperature and albedo)
+out vec4 outSurfaceState;
 
 void main() {
 	// Read cell position
@@ -43,5 +46,5 @@ void main() {
 	float newSurfaceTemperature = surfaceTemperature + temperatureChange;
 
 	// Output: RGBA = [surfaceTemperature, albedo, reserved, reserved]
-	gl_FragColor = vec4(newSurfaceTemperature, surfaceAlbedo, 0.0, 0.0);
+	outSurfaceState = vec4(newSurfaceTemperature, surfaceAlbedo, 0.0, 0.0);
 }

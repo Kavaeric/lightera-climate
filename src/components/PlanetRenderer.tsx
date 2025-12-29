@@ -92,6 +92,7 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
     const shaderUniforms = mode.buildCustomUniforms(simulation, displayConfig)
 
     const shaderMaterial = new THREE.ShaderMaterial({
+      glslVersion: THREE.GLSL3,
       uniforms: shaderUniforms,
       vertexShader: visualiseVertexShader,
       fragmentShader: mode.customFragmentShader,

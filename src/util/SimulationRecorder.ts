@@ -85,6 +85,7 @@ export class SimulationRecorder {
     this.copyMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: copyFragmentShader,
+      glslVersion: THREE.GLSL3,
       uniforms: {
         sourceTex: { value: null },
       },
@@ -94,6 +95,7 @@ export class SimulationRecorder {
     this.interpolationMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: interpolateFragmentShader,
+      glslVersion: THREE.GLSL3,
       uniforms: {
         previousTex: { value: null },
         currentTex: { value: null },
@@ -203,7 +205,6 @@ export class SimulationRecorder {
     this.gl.render(this.copyScene, this.copyCamera)
     this.gl.setRenderTarget(prevTarget)
   }
-
 
   /**
    * Record a sample with linear interpolation between previous and current state

@@ -72,6 +72,7 @@ export const CellHighlightOverlay = forwardRef<THREE.Mesh, CellHighlightOverlayP
     // Create shader material for highlighting
     const material = useMemo(() => {
       return new THREE.ShaderMaterial({
+        glslVersion: THREE.GLSL3,
         uniforms: {
           highlightThreshold: { value: 0.0005 },
           hoveredCellIndex: { value: -1 },

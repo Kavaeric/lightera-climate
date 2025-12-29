@@ -14,8 +14,10 @@ uniform float elevationMax;
 uniform float waterDepthMin;
 uniform float waterDepthMax;
 
-varying vec2 vUv;
-varying vec3 vNormal;
+in vec2 vUv;
+in vec3 vNormal;
+
+out vec4 fragColour;
 
 // Elevation colourmap, something that looks like rocky planet terrain
 const vec3 elevationColourmap[10] = vec3[](
@@ -229,5 +231,5 @@ void main() {
   // Overlay ice and water colours on top of elevation colour
   vec3 colour = mix(mix(elevationColour, waterDepthColour, hasWater), iceThicknessColour, hasIce);
 
-  gl_FragColor = vec4(colour, 1.0);
+  fragColour = vec4(colour, 1.0);
 }

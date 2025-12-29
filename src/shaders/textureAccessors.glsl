@@ -4,6 +4,8 @@
 //
 // Uniforms are declared here with standardized names.
 // Just pass the correctly-named uniforms from TypeScript and call the accessor functions.
+//
+// NOTE: This file is included in GLSL ES 3.00 shaders - uses texture() instead of texture2D()
 
 // ============================================================================
 // UNIFORM DECLARATIONS
@@ -22,12 +24,12 @@ uniform sampler2D surfaceData;
 // ============================================================================
 
 vec2 getCellLatLon(vec2 uv) {
-  vec4 data = texture2D(cellInformation, uv);
+  vec4 data = texture(cellInformation, uv);
   return vec2(data.r, data.g); // [latitude, longitude]
 }
 
 float getCellArea(vec2 uv) {
-  return texture2D(cellInformation, uv).b; // Surface area in m²
+  return texture(cellInformation, uv).b; // Surface area in m²
 }
 
 
@@ -38,19 +40,19 @@ float getCellArea(vec2 uv) {
 // ============================================================================
 
 float getElevation(vec2 uv) {
-  return texture2D(terrainData, uv).r;
+  return texture(terrainData, uv).r;
 }
 
 float getTerrainWaterDepth(vec2 uv) {
-  return texture2D(terrainData, uv).g;
+  return texture(terrainData, uv).g;
 }
 
 float getTerrainSalinity(vec2 uv) {
-  return texture2D(terrainData, uv).b;
+  return texture(terrainData, uv).b;
 }
 
 float getBaseAlbedo(vec2 uv) {
-  return texture2D(terrainData, uv).a;
+  return texture(terrainData, uv).a;
 }
 
 // ============================================================================
@@ -59,19 +61,19 @@ float getBaseAlbedo(vec2 uv) {
 // ============================================================================
 
 float getIceThickness(vec2 uv) {
-  return texture2D(hydrologyData, uv).r;
+  return texture(hydrologyData, uv).r;
 }
 
 float getWaterThermalMass(vec2 uv) {
-  return texture2D(hydrologyData, uv).g;
+  return texture(hydrologyData, uv).g;
 }
 
 float getWaterDepth(vec2 uv) {
-  return texture2D(hydrologyData, uv).b;
+  return texture(hydrologyData, uv).b;
 }
 
 float getSalinity(vec2 uv) {
-  return texture2D(hydrologyData, uv).a;
+  return texture(hydrologyData, uv).a;
 }
 
 vec4 packHydrologyData(float iceThickness, float waterThermalMass, float waterDepth, float salinity) {
@@ -84,7 +86,7 @@ vec4 packHydrologyData(float iceThickness, float waterThermalMass, float waterDe
 // ============================================================================
 
 float getSolarFlux(vec2 uv) {
-  return texture2D(solarFluxData, uv).r;
+  return texture(solarFluxData, uv).r;
 }
 
 vec4 packSolarFluxData(float solarFlux) {
@@ -97,11 +99,11 @@ vec4 packSolarFluxData(float solarFlux) {
 // ============================================================================
 
 float getAtmosphereTemperature(vec2 uv) {
-  return texture2D(atmosphereData, uv).r;
+  return texture(atmosphereData, uv).r;
 }
 
 float getAtmosphereAlbedo(vec2 uv) {
-  return texture2D(atmosphereData, uv).a;
+  return texture(atmosphereData, uv).a;
 }
 
 vec4 packAtmosphereData(float temperature, float albedo) {
@@ -114,11 +116,11 @@ vec4 packAtmosphereData(float temperature, float albedo) {
 // ============================================================================
 
 float getSurfaceTemperature(vec2 uv) {
-  return texture2D(surfaceData, uv).r;
+  return texture(surfaceData, uv).r;
 }
 
 float getSurfaceAlbedo(vec2 uv) {
-  return texture2D(surfaceData, uv).g;
+  return texture(surfaceData, uv).g;
 }
 
 vec4 packSurfaceData(float temperature, float albedo) {

@@ -3,10 +3,13 @@ precision highp float;
 #include "../../../shaders/textureAccessors.glsl"
 #include "../../constants.glsl"
 
-varying vec2 vUv;
+in vec2 vUv;
 
 // Input uniforms
 uniform float dt;  // Timestep in seconds
+
+// Output: Updated surface state (temperature and albedo)
+out vec4 outSurfaceState;
 
 void main() {
 	// Read cell position
@@ -34,7 +37,7 @@ void main() {
 	float newSurfaceTemperature = surfaceTemperature + temperatureChange;
 	
 	// Update the texture: RGBA = [surfaceTemperature, albedo, reserved, reserved]
-	gl_FragColor = packSurfaceData(newSurfaceTemperature, surfaceAlbedo);
+	outSurfaceState = packSurfaceData(newSurfaceTemperature, surfaceAlbedo);
 
 	// Calculate thermal energy absorbed by the atmosphere (vs transmitted)
 	// Reference experiment/hitranLineExperiment.tsx for equivalent implementation

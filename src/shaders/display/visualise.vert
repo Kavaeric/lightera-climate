@@ -1,8 +1,8 @@
 // Display vertex shader - maps geodesic mesh to screen
 // Maps UVs to texture coordinates for sampling cell data
 
-varying vec2 vUv;
-varying vec3 vNormal;
+out vec2 vUv;
+out vec3 vNormal;
 
 void main() {
   vUv = uv;

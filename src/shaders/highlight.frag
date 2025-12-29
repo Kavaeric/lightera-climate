@@ -10,9 +10,11 @@ uniform float selectedCellIndex;
 uniform float textureWidth;
 uniform float textureHeight;
 
-varying vec2 vUv;
-varying vec3 vWorldPosition;
-varying vec3 vViewDirection;
+in vec2 vUv;
+in vec3 vWorldPosition;
+in vec3 vViewDirection;
+
+out vec4 fragColour;
 
 void main() {
   // Detect if this fragment is backfacing (for fading effect)
@@ -35,7 +37,7 @@ void main() {
   if (isSelected > 0.5) {
     color = vec3(1.0, 1.0, 1.0); // White highlight for selection
     alpha = 0.8 * isFrontFacing + 0.3 * (1.0 - isFrontFacing); // Stronger on front, dimmer on back
-    gl_FragColor = vec4(color, alpha);
+    fragColour = vec4(color, alpha);
     return;
   }
 
@@ -51,7 +53,7 @@ void main() {
   if (isHovered > 0.5) {
     color = vec3(1.0, 1.0, 1.0); // White highlight for hover
     alpha = 0.3 * isFrontFacing + 0.1 * (1.0 - isFrontFacing); // More subtle than selection
-    gl_FragColor = vec4(color, alpha);
+    fragColour = vec4(color, alpha);
     return;
   }
 

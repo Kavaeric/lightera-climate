@@ -2,8 +2,10 @@
 precision highp float;
 
 uniform sampler2D sourceTex;
-varying vec2 vUv;
+in vec2 vUv;
+
+out vec4 fragColour;
 
 void main() {
-  gl_FragColor = texture2D(sourceTex, vUv);
+  fragColour = texture(sourceTex, vUv);
 }

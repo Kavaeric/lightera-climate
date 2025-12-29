@@ -1,6 +1,6 @@
 // Fullscreen quad vertex shader for render-to-texture operations
 
-varying vec2 vUv;
+out vec2 vUv;
 
 void main() {
   vUv = uv;

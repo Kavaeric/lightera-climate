@@ -3,13 +3,16 @@ precision highp float;
 #include "../../../shaders/textureAccessors.glsl"
 #include "../../constants.glsl"
 
-varying vec2 vUv;
+in vec2 vUv;
 
 // Orbital parameters
 uniform float axialTilt;          // degrees - planet's axial tilt
 uniform float yearProgress;       // 0-1 - current position in orbit
 uniform float subsolarLon;        // degrees - current subsolar longitude (changes with planet rotation)
 uniform float solarFlux;          // W/m² - solar constant at top of atmosphere
+
+// Output: Solar flux at top of atmosphere
+out vec4 outSolarFlux;
 
 /**
  * Convert degrees to radians
@@ -70,5 +73,5 @@ void main() {
   float flux = calculateSolarFlux(cellLatLon.x, cellLatLon.y, subsolarPoint);
 
   // Output for solar flux texture
-  gl_FragColor = packSolarFluxData(flux);
+  outSolarFlux = packSolarFluxData(flux);
 }
