@@ -56,11 +56,8 @@ export class TextureGridSimulation {
   // Thermal atmosphere working buffer: RGBA = [atmosphereTemperature, -, -, albedo]
   public atmosphereWorkingBuffers: THREE.WebGLRenderTarget[] = []
 
-  // MRT for surface radiation pass (updates both surface and atmosphere)
-  public surfaceRadiationMRT: THREE.WebGLRenderTarget<THREE.Texture[]> | null = null
-
-  // MRT for atmosphere emission pass (updates both surface and atmosphere)
-  public atmosphereEmissionMRT: THREE.WebGLRenderTarget<THREE.Texture[]> | null = null
+  // MRT for longwave radiation pass (updates both surface and atmosphere)
+  public longwaveRadiationMRT: THREE.WebGLRenderTarget<THREE.Texture[]> | null = null
 
   constructor(config: SimulationConfig) {
     this.grid = new Grid(config.resolution)
@@ -115,11 +112,8 @@ export class TextureGridSimulation {
     this.surfaceWorkingBuffers = [this.createRenderTarget(), this.createRenderTarget()]
     this.atmosphereWorkingBuffers = [this.createRenderTarget(), this.createRenderTarget()]
 
-    // Create MRT for surface radiation pass
-    this.surfaceRadiationMRT = this.createSurfaceAtmosphereMRT()
-
-    // Create MRT for atmosphere emission pass
-    this.atmosphereEmissionMRT = this.createSurfaceAtmosphereMRT()
+    // Create MRT for longwave radiation pass
+    this.longwaveRadiationMRT = this.createSurfaceAtmosphereMRT()
   }
 
   /**
@@ -596,23 +590,13 @@ export class TextureGridSimulation {
   }
 
   /**
-   * Get MRT for surface radiation pass
+   * Get MRT for longwave radiation pass
    */
-  public getSurfaceRadiationMRT(): THREE.WebGLRenderTarget<THREE.Texture[]> {
-    if (!this.surfaceRadiationMRT) {
-      throw new Error('Surface radiation MRT not initialised')
+  public getLongwaveRadiationMRT(): THREE.WebGLRenderTarget<THREE.Texture[]> {
+    if (!this.longwaveRadiationMRT) {
+      throw new Error('Longwave radiation MRT not initialised')
     }
-    return this.surfaceRadiationMRT
-  }
-
-  /**
-   * Get MRT for atmosphere emission pass
-   */
-  public getAtmosphereEmissionMRT(): THREE.WebGLRenderTarget<THREE.Texture[]> {
-    if (!this.atmosphereEmissionMRT) {
-      throw new Error('Atmosphere emission MRT not initialised')
-    }
-    return this.atmosphereEmissionMRT
+    return this.longwaveRadiationMRT
   }
 
   /**
@@ -799,11 +783,8 @@ export class TextureGridSimulation {
     for (const target of this.atmosphereWorkingBuffers) {
       target.dispose()
     }
-    if (this.surfaceRadiationMRT) {
-      this.surfaceRadiationMRT.dispose()
-    }
-    if (this.atmosphereEmissionMRT) {
-      this.atmosphereEmissionMRT.dispose()
+    if (this.longwaveRadiationMRT) {
+      this.longwaveRadiationMRT.dispose()
     }
   }
 }

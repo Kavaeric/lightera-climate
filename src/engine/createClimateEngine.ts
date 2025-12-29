@@ -14,8 +14,7 @@ import { createPlanckLookupTexture, getPlanckLookupConfig } from '../util/create
 import fullscreenVertexShader from '../shaders/fullscreen.vert'
 import solarFluxFragmentShader from '../climate/pass/01-solar-flux/solarFlux.frag'
 import surfaceIncidentFragmentShader from '../climate/pass/02-surface-incident/surfaceIncident.frag'
-import surfaceRadiationFragmentShader from '../climate/pass/03-surface-radiation/surfaceRadiation.frag'
-import atmosphereEmissionFragmentShader from '../climate/pass/04-atmosphere-emission/atmosphereEmission.frag'
+import longwaveRadiationFragmentShader from '../climate/pass/03-longwave-radiation/longwaveRadiation.frag'
 
 interface GPUResources {
   scene: THREE.Scene
@@ -23,8 +22,7 @@ interface GPUResources {
   geometry: THREE.BufferGeometry
   solarFluxMaterial: THREE.ShaderMaterial
   surfaceIncidentMaterial: THREE.ShaderMaterial
-  surfaceRadiationMaterial: THREE.ShaderMaterial
-  atmosphereEmissionMaterial: THREE.ShaderMaterial
+  longwaveRadiationMaterial: THREE.ShaderMaterial
   blankRenderTarget: THREE.WebGLRenderTarget
   mesh: THREE.Mesh
 }
@@ -51,7 +49,7 @@ function validateGPUResources(
   resources: GPUResources
 ): void {
   // Check that materials were created
-  if (!resources.solarFluxMaterial || !resources.surfaceIncidentMaterial || !resources.surfaceRadiationMaterial || !resources.atmosphereEmissionMaterial) {
+  if (!resources.solarFluxMaterial || !resources.surfaceIncidentMaterial || !resources.longwaveRadiationMaterial) {
     throw new Error('GPU materials were not created')
   }
 
@@ -177,10 +175,11 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
     console.log(`  Mean molecular mass: ${(meanMolecularMass * 6.022e23 * 1000).toFixed(2)} g/mol`)
     console.log(`  Atmosphere heat capacity: ${atmosphereHeatCapacity.toExponential(3)} J/(m²·K)`)
 
-    // Create surface radiation material (Pass 3)
-    const surfaceRadiationMaterial = new THREE.ShaderMaterial({
+    // Create longwave radiation material (Pass 3)
+    // Combined pass handling surface emission, atmospheric absorption, and back-radiation
+    const longwaveRadiationMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
-      fragmentShader: surfaceRadiationFragmentShader,
+      fragmentShader: longwaveRadiationFragmentShader,
       glslVersion: THREE.GLSL3,
       uniforms: {
         cellInformation: { value: simulation.cellInformation },
@@ -189,39 +188,6 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
         terrainData: { value: simulation.terrainData },
         dt: { value: dt },
         // Radiative transfer uniforms
-        multiGasKDistributionTexture: { value: multiGasKDistributionTexture },
-        wavelengthBinWidthTexture: { value: wavelengthBinWidthTexture },
-        planckLookupTexture: { value: planckLookupTexture },
-        planckTempMin: { value: planckConfig.tempMin },
-        planckTempMax: { value: planckConfig.tempMax },
-        surfacePressure: { value: planetaryConfig.surfacePressure || 101325 },
-        surfaceGravity: { value: planetaryConfig.surfaceGravity },
-        meanMolecularMass: { value: meanMolecularMass },
-        // Gas concentrations
-        co2Concentration: { value: planetaryConfig.co2Concentration || 420e-6 },
-        ch4Concentration: { value: planetaryConfig.ch4Concentration || 1.9e-6 },
-        n2oConcentration: { value: planetaryConfig.n2oConcentration || 0.335e-6 },
-        o3Concentration: { value: planetaryConfig.o3Concentration || 0.04e-6 },
-        o2Concentration: { value: planetaryConfig.o2Concentration || 0.2095 },
-        n2Concentration: { value: planetaryConfig.n2Concentration || 0.7809 },
-        // Heat capacity
-        atmosphereHeatCapacity: { value: atmosphereHeatCapacity },
-      },
-    })
-
-    // Create atmosphere emission material (Pass 4)
-    // Uses same gas properties as Pass 3 to implement Kirchhoff's law (emissivity = absorptivity)
-    const atmosphereEmissionMaterial = new THREE.ShaderMaterial({
-      vertexShader: fullscreenVertexShader,
-      fragmentShader: atmosphereEmissionFragmentShader,
-      glslVersion: THREE.GLSL3,
-      uniforms: {
-        cellInformation: { value: simulation.cellInformation },
-        surfaceData: { value: null }, // Will be set to current buffer each frame
-        atmosphereData: { value: null }, // Will be set to current buffer each frame
-        terrainData: { value: simulation.terrainData },
-        dt: { value: dt },
-        // Radiative transfer uniforms (same as Pass 3 for Kirchhoff's law)
         multiGasKDistributionTexture: { value: multiGasKDistributionTexture },
         wavelengthBinWidthTexture: { value: wavelengthBinWidthTexture },
         planckLookupTexture: { value: planckLookupTexture },
@@ -341,8 +307,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       geometry,
       solarFluxMaterial,
       surfaceIncidentMaterial,
-      surfaceRadiationMaterial,
-      atmosphereEmissionMaterial,
+      longwaveRadiationMaterial,
       blankRenderTarget,
       mesh,
     }
@@ -418,8 +383,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       gpuResources.geometry.dispose()
       gpuResources.solarFluxMaterial.dispose()
       gpuResources.surfaceIncidentMaterial.dispose()
-      gpuResources.surfaceRadiationMaterial.dispose()
-      gpuResources.atmosphereEmissionMaterial.dispose()
+      gpuResources.longwaveRadiationMaterial.dispose()
       gpuResources.blankRenderTarget.dispose()
       gpuResources.scene.clear()
     }
