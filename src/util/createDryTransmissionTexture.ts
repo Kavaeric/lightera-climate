@@ -3,6 +3,10 @@ import { kDistributionData as co2K } from '../data/gasTextures/co2'
 import { kDistributionData as ch4K } from '../data/gasTextures/ch4'
 import { kDistributionData as n2oK } from '../data/gasTextures/n2o'
 import { kDistributionData as o3K } from '../data/gasTextures/o3'
+import { kDistributionData as coK } from '../data/gasTextures/co'
+import { kDistributionData as so2K } from '../data/gasTextures/so2'
+import { kDistributionData as hclK } from '../data/gasTextures/hcl'
+import { kDistributionData as hfK } from '../data/gasTextures/hfl'
 import { wavelengthBinWidthData } from '../data/gasTextures/co2'
 import { planckLookupData, PLANCK_LOOKUP_CONFIG } from '../data/gasTextures/planckLookup'
 
@@ -40,6 +44,10 @@ const DRY_GAS_DATA = [
 	{ data: ch4K, name: 'CH4' },
 	{ data: n2oK, name: 'N2O' },
 	{ data: o3K, name: 'O3' },
+	{ data: coK, name: 'CO' },
+	{ data: so2K, name: 'SO2' },
+	{ data: hclK, name: 'HCl' },
+	{ data: hfK, name: 'HF' },
 	// Note: O2 and N2 are excluded as they have negligible IR absorption
 ]
 
@@ -52,6 +60,10 @@ export interface DryGasConcentrations {
 	ch4: number  // molar fraction
 	n2o: number  // molar fraction
 	o3: number   // molar fraction
+	co: number   // molar fraction
+	so2: number  // molar fraction
+	hcl: number  // molar fraction
+	hf: number   // molar fraction
 }
 
 /**
@@ -105,7 +117,7 @@ function getPlanckValue(binIndex: number, tempIndex: number): number {
  * Calculate blackbody-weighted dry transmission for a given temperature
  *
  * This computes the effective transmission coefficient for all dry gases
- * (CO2, CH4, N2O, O3) weighted by the Planck blackbody spectrum.
+ * (CO2, CH4, N2O, O3, CO, SO2, HCl, HF) weighted by the Planck blackbody spectrum.
  *
  * T_eff = (∫ T_total(λ) B(λ,T) dλ) / (∫ B(λ,T) dλ)
  *
@@ -179,9 +191,9 @@ export interface DryTransmissionTextureConfig {
  * Create dry transmission lookup texture
  *
  * Pre-computes the blackbody-weighted transmission coefficient for dry gases
- * (CO2, CH4, N2O, O3) across the temperature range. This allows the GPU to
- * look up dry transmission with a single texture fetch instead of computing
- * ~500 transmission calculations per fragment.
+ * (CO2, CH4, N2O, O3, CO, SO2, HCl, HF) across the temperature range. This allows
+ * the GPU to look up dry transmission with a single texture fetch instead of
+ * computing ~1000 transmission calculations per fragment.
  *
  * The resulting texture is indexed by temperature and returns the effective
  * transmission coefficient for the entire dry atmosphere.
@@ -216,6 +228,10 @@ export function createDryTransmissionTexture(
 		totalColumn * gasConcentrations.ch4,
 		totalColumn * gasConcentrations.n2o,
 		totalColumn * gasConcentrations.o3,
+		totalColumn * gasConcentrations.co,
+		totalColumn * gasConcentrations.so2,
+		totalColumn * gasConcentrations.hcl,
+		totalColumn * gasConcentrations.hf,
 	]
 
 	console.log('  Gas column densities:')

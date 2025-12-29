@@ -6,16 +6,21 @@ import { kDistributionData as n2oK } from '../data/gasTextures/n2o'
 import { kDistributionData as o3K } from '../data/gasTextures/o3'
 import { kDistributionData as o2K } from '../data/gasTextures/o2'
 import { kDistributionData as n2K } from '../data/gasTextures/n2'
+import { kDistributionData as coK } from '../data/gasTextures/co'
+import { kDistributionData as so2K } from '../data/gasTextures/so2'
+import { kDistributionData as hclK } from '../data/gasTextures/hcl'
+import { kDistributionData as hfK } from '../data/gasTextures/hfl'
 
 /**
  * Gas types supported by the radiative transfer model
+ * Includes all 11 gases with HITRAN absorption data
  */
-export type GasType = 'co2' | 'h2o' | 'ch4' | 'n2o' | 'o3' | 'o2' | 'n2'
+export type GasType = 'co2' | 'h2o' | 'ch4' | 'n2o' | 'o3' | 'o2' | 'n2' | 'co' | 'so2' | 'hcl' | 'hf'
 
 /**
  * Create a combined k-distribution texture containing all gases
  *
- * Texture layout: numBins×7 (wavelength bins × 7 gases)
+ * Texture layout: numBins×11 (wavelength bins × 11 gases)
  * Each texel contains RGBA = [k0, k1, k2, k3]
  *
  * Row mapping:
@@ -26,13 +31,17 @@ export type GasType = 'co2' | 'h2o' | 'ch4' | 'n2o' | 'o3' | 'o2' | 'n2'
  *   y=4: O3
  *   y=5: O2
  *   y=6: N2
+ *   y=7: CO
+ *   y=8: SO2
+ *   y=9: HCl
+ *   y=10: HF
  */
 export function createMultiGasKDistributionTexture(): THREE.DataTexture {
-	const numGases = 7
+	const numGases = 11
 	const numKValues = 4 // RGBA channels
 
 	// Gas order matches shader constants
-	const gasData = [co2K, h2oK, ch4K, n2oK, o3K, o2K, n2K]
+	const gasData = [co2K, h2oK, ch4K, n2oK, o3K, o2K, n2K, coK, so2K, hclK, hfK]
 
 	// Detect number of bins from first gas data (all gases should have same size)
 	// Data format: numBins × numKValues
@@ -77,7 +86,7 @@ export function createMultiGasKDistributionTexture(): THREE.DataTexture {
 		)
 	}
 
-	console.log(`[Multi-Gas K-Distribution] Created texture: ${numBins}×${numGases} (${numBins} bins detected from data)`)
+	console.log(`[Multi-Gas K-Distribution] Created texture: ${numBins}×${numGases} (${numBins} bins × 11 gases)`)
 	
 	// Warning: Shader expects 128 bins, but data has ${numBins} bins
 	// This mismatch may cause incorrect radiative transfer calculations

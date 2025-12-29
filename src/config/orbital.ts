@@ -41,3 +41,14 @@ export const ORBITAL_CONFIG_MARS: OrbitalConfig = {
   solarFlux: 586, // W/m² - Mars's solar constant at 1.524 AU
   axialTilt: 25.19, // degrees - Mars's axial tilt (causes seasons)
 }
+
+/**
+ * Venus-like orbital configuration
+ * 225 day year, one rotation per year
+ */
+export const ORBITAL_CONFIG_VENUS: OrbitalConfig = {
+  yearLength: 225 * 24 * 60 * 60, // 225 days in seconds
+  rotationsPerYear: 1, // One rotation per year
+  solarFlux: 2610, // W/m² - Venus's solar constant at 0.723 AU
+  axialTilt: 2.64, // degrees - Venus's axial tilt
+}

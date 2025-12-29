@@ -6,8 +6,6 @@ import type { OrbitalConfig } from '../config/orbital'
 import { calculateMeanMolecularMass, calculateAtmosphereHeatCapacity, type PlanetaryConfig } from '../config/planetary'
 import type { SimulationConfig } from '../config/simulationConfig'
 import { PHYSICS_CONSTANTS } from '../config/physics'
-import { createMultiGasKDistributionTexture, createWavelengthBinWidthTexture } from '../util/createGasTextures'
-import { createPlanckLookupTexture, getPlanckLookupConfig } from '../util/createPlanckLookupTexture'
 import { createDryTransmissionTexture, getDryTransmissionConfig } from '../util/createDryTransmissionTexture'
 
 // Import shaders (includes are processed automatically by vite-plugin-glsl)
@@ -150,33 +148,31 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       },
     })
 
-    // Create multi-gas k-distribution texture for atmospheric radiative transfer
-    // Note: This is kept for backwards compatibility but the hybrid approach uses
-    // pre-computed dry transmission + reduced H2O textures instead
-    const multiGasKDistributionTexture = createMultiGasKDistributionTexture()
-    const wavelengthBinWidthTexture = createWavelengthBinWidthTexture()
-
-    // Create Planck lookup table for optimised radiative transfer (uses pre-computed data)
-    const planckLookupTexture = createPlanckLookupTexture()
-    const planckConfig = getPlanckLookupConfig()
-
     // Calculate atmospheric properties from gas composition
     const meanMolecularMass = calculateMeanMolecularMass(planetaryConfig)
     const atmosphereHeatCapacity = calculateAtmosphereHeatCapacity(planetaryConfig)
     console.log(`  Mean molecular mass: ${(meanMolecularMass * 6.022e23 * 1000).toFixed(2)} g/mol`)
     console.log(`  Atmosphere heat capacity: ${atmosphereHeatCapacity.toExponential(3)} J/(m²·K)`)
 
-    // Create dry transmission lookup texture (pre-computed for CO2, CH4, N2O, O3)
+    // Create dry transmission lookup texture (pre-computed for CO2, CH4, N2O, O3, CO, SO2, HCl, HF)
     // This must be created after meanMolecularMass is calculated
+    // Gas concentrations default to 0 if not specified in config
+    if (planetaryConfig.surfacePressure === undefined) {
+      console.warn('[Climate Engine] surfacePressure not specified in planetary config, atmospheric transmission will be disabled')
+    }
     const dryTransmissionTexture = createDryTransmissionTexture({
-      surfacePressure: planetaryConfig.surfacePressure || 101325,
+      surfacePressure: planetaryConfig.surfacePressure ?? 0,
       surfaceGravity: planetaryConfig.surfaceGravity,
       meanMolecularMass: meanMolecularMass,
       gasConcentrations: {
-        co2: planetaryConfig.co2Concentration || 420e-6,
-        ch4: planetaryConfig.ch4Concentration || 1.9e-6,
-        n2o: planetaryConfig.n2oConcentration || 0.335e-6,
-        o3: planetaryConfig.o3Concentration || 0.04e-6,
+        co2: planetaryConfig.co2Concentration ?? 0,
+        ch4: planetaryConfig.ch4Concentration ?? 0,
+        n2o: planetaryConfig.n2oConcentration ?? 0,
+        o3: planetaryConfig.o3Concentration ?? 0,
+        co: planetaryConfig.coConcentration ?? 0,
+        so2: planetaryConfig.so2Concentration ?? 0,
+        hcl: planetaryConfig.hclConcentration ?? 0,
+        hf: planetaryConfig.hfConcentration ?? 0,
       },
     })
     const dryTransmissionConfig = getDryTransmissionConfig()
@@ -195,15 +191,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
         terrainData: { value: simulation.terrainData },
         dt: { value: dt },
 
-        // === LEGACY RADIATIVE TRANSFER UNIFORMS ===
-        // Kept for backwards compatibility with calculateMultiGasTransmission()
-        multiGasKDistributionTexture: { value: multiGasKDistributionTexture },
-        wavelengthBinWidthTexture: { value: wavelengthBinWidthTexture },
-        planckLookupTexture: { value: planckLookupTexture },
-        planckTempMin: { value: planckConfig.tempMin },
-        planckTempMax: { value: planckConfig.tempMax },
-
-        // === HYBRID TRANSMISSION UNIFORMS (OPTIMISED) ===
+        // === ATMOSPHERIC TRANSMISSION UNIFORMS ===
         // Dry gas transmission lookup (pre-computed for CO2, CH4, N2O, O3)
         dryTransmissionTexture: { value: dryTransmissionTexture },
         dryTransmissionTempMin: { value: dryTransmissionConfig.tempMin },

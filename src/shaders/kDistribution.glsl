@@ -78,8 +78,8 @@ float planckSpectralExitance(float wavelength_um, float temperature_K) {
 }
 
 // Multi-gas k-distribution texture uniform (set in material)
-// Texture layout: 128×7, RGBA = [k0, k1, k2, k3]
-// Rows: 0=CO2, 1=H2O, 2=CH4, 3=N2O, 4=O3, 5=O2, 6=N2
+// Texture layout: 128×11, RGBA = [k0, k1, k2, k3]
+// Rows: 0=CO2, 1=H2O, 2=CH4, 3=N2O, 4=O3, 5=O2, 6=N2, 7=CO, 8=SO2, 9=HCl, 10=HF
 uniform sampler2D multiGasKDistributionTexture;
 
 // Gas indices (match texture row layout)
@@ -90,7 +90,11 @@ const int GAS_N2O = 3;
 const int GAS_O3 = 4;
 const int GAS_O2 = 5;
 const int GAS_N2 = 6;
-const int NUM_GASES = 7;
+const int GAS_CO = 7;
+const int GAS_SO2 = 8;
+const int GAS_HCL = 9;
+const int GAS_HF = 10;
+const int NUM_GASES = 11;
 
 // Wavelength + binWidth texture uniform (set in material)
 // Texture layout: 128×1, RG = [wavelength (μm), binWidth (μm)]
@@ -200,7 +204,7 @@ float calculateBinTransmission(int binIndex, int gasIndex, float columnDensity_c
  *
  * @param temperature_K Blackbody temperature in Kelvin
  * @param columnDensities Array of column densities for each gas (molecules/cm²)
- *        Order: [CO2, H2O, CH4, N2O, O3, O2, N2]
+ *        Order: [CO2, H2O, CH4, N2O, O3, O2, N2, CO, SO2, HCl, HF]
  * @return Effective transmission coefficient [0,1]
  */
 float calculateMultiGasTransmission(
@@ -223,7 +227,7 @@ float calculateMultiGasTransmission(
 		float binFlux = spectralExitance * binWidth;
 
 		// Calculate combined transmission for all gases (multiplicative)
-		// T_total = T_CO2 × T_H2O × T_CH4 × T_N2O × T_O3 × T_O2 × T_N2
+		// T_total = T_CO2 × T_H2O × T_CH4 × T_N2O × T_O3 × T_O2 × T_N2 × T_CO × T_SO2 × T_HCl × T_HF
 		float transmission = 1.0;
 		for (int gasIdx = 0; gasIdx < NUM_GASES; gasIdx++) {
 			float gasTransmission = calculateBinTransmission(i, gasIdx, columnDensities[gasIdx]);
@@ -320,7 +324,7 @@ float calculateH2OTransmission(float temperature_K, float h2oColumnDensity) {
  * @param h2oColumnDensity H2O column density in molecules/cm²
  * @return Total transmission coefficient [0,1]
  */
-float calculateHybridTransmission(float temperature_K, float h2oColumnDensity) {
+float calculateAtmosphericTransmission(float temperature_K, float h2oColumnDensity) {
 	// Get pre-computed dry gas transmission (1 texture fetch)
 	float dryTransmission = getDryTransmission(temperature_K);
 

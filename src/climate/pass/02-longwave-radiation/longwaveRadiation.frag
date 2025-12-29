@@ -84,7 +84,7 @@ void main() {
 
 	// Calculate transmission at surface temperature (for surface emission)
 	// This determines how much surface radiation escapes to space vs. is absorbed
-	float transmissionSurface = calculateHybridTransmission(
+	float transmissionSurface = calculateAtmosphericTransmission(
 		surfaceTemperature,
 		h2oColumnDensity
 	);
@@ -92,7 +92,7 @@ void main() {
 	// Calculate transmission at atmosphere temperature (for atmosphere emission)
 	// By Kirchhoff's law: emissivity = absorptivity = 1 - transmission
 	// The atmosphere can only emit at wavelengths where it absorbs
-	float transmissionAtmosphere = calculateHybridTransmission(
+	float transmissionAtmosphere = calculateAtmosphericTransmission(
 		atmosphereTemperature,
 		h2oColumnDensity
 	);
