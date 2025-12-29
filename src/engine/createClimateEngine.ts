@@ -3,10 +3,11 @@ import { TextureGridSimulation } from '../util/TextureGridSimulation'
 import { SimulationOrchestrator } from '../util/SimulationOrchestrator'
 import { SimulationRecorder } from '../util/SimulationRecorder'
 import type { OrbitalConfig } from '../config/orbital'
-import type { PlanetaryConfig } from '../config/planetary'
+import { calculateMeanMolecularMass, calculateAtmosphereHeatCapacity, type PlanetaryConfig } from '../config/planetary'
 import type { SimulationConfig } from '../config/simulationConfig'
 import { PHYSICS_CONSTANTS } from '../config/physics'
-import { createKDistributionTexture, createWavelengthTexture } from '../util/createKDistributionTexture'
+import { createMultiGasKDistributionTexture, createWavelengthBinWidthTexture } from '../util/createGasTextures'
+import { createPlanckLookupTexture, getPlanckLookupConfig } from '../util/createPlanckLookupTexture'
 
 // Import shaders (includes are processed automatically by vite-plugin-glsl)
 // Note: Import without ?raw to allow plugin to process #include directives
@@ -14,6 +15,7 @@ import fullscreenVertexShader from '../shaders/fullscreen.vert'
 import solarFluxFragmentShader from '../climate/pass/01-solar-flux/solarFlux.frag'
 import surfaceIncidentFragmentShader from '../climate/pass/02-surface-incident/surfaceIncident.frag'
 import surfaceRadiationFragmentShader from '../climate/pass/03-surface-radiation/surfaceRadiation.frag'
+import atmosphereEmissionFragmentShader from '../climate/pass/04-atmosphere-emission/atmosphereEmission.frag'
 
 interface GPUResources {
   scene: THREE.Scene
@@ -22,6 +24,7 @@ interface GPUResources {
   solarFluxMaterial: THREE.ShaderMaterial
   surfaceIncidentMaterial: THREE.ShaderMaterial
   surfaceRadiationMaterial: THREE.ShaderMaterial
+  atmosphereEmissionMaterial: THREE.ShaderMaterial
   blankRenderTarget: THREE.WebGLRenderTarget
   mesh: THREE.Mesh
 }
@@ -48,7 +51,7 @@ function validateGPUResources(
   resources: GPUResources
 ): void {
   // Check that materials were created
-  if (!resources.solarFluxMaterial || !resources.surfaceIncidentMaterial || !resources.surfaceRadiationMaterial) {
+  if (!resources.solarFluxMaterial || !resources.surfaceIncidentMaterial || !resources.surfaceRadiationMaterial || !resources.atmosphereEmissionMaterial) {
     throw new Error('GPU materials were not created')
   }
 
@@ -160,9 +163,19 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       },
     })
 
-    // Create k-distribution textures for atmospheric radiative transfer
-    const kDistributionTexture = createKDistributionTexture()
-    const wavelengthTexture = createWavelengthTexture()
+    // Create multi-gas k-distribution texture for atmospheric radiative transfer
+    const multiGasKDistributionTexture = createMultiGasKDistributionTexture()
+    const wavelengthBinWidthTexture = createWavelengthBinWidthTexture()
+
+    // Create Planck lookup table for optimised radiative transfer (uses pre-computed data)
+    const planckLookupTexture = createPlanckLookupTexture()
+    const planckConfig = getPlanckLookupConfig()
+
+    // Calculate atmospheric properties from gas composition
+    const meanMolecularMass = calculateMeanMolecularMass(planetaryConfig)
+    const atmosphereHeatCapacity = calculateAtmosphereHeatCapacity(planetaryConfig)
+    console.log(`  Mean molecular mass: ${(meanMolecularMass * 6.022e23 * 1000).toFixed(2)} g/mol`)
+    console.log(`  Atmosphere heat capacity: ${atmosphereHeatCapacity.toExponential(3)} J/(m²·K)`)
 
     // Create surface radiation material (Pass 3)
     const surfaceRadiationMaterial = new THREE.ShaderMaterial({
@@ -176,14 +189,59 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
         terrainData: { value: simulation.terrainData },
         dt: { value: dt },
         // Radiative transfer uniforms
-        kDistributionTexture: { value: kDistributionTexture },
-        wavelengthTexture: { value: wavelengthTexture },
-        surfacePressure: { value: planetaryConfig.surfacePressure || 101325 }, // Pa (default: Earth)
-        surfaceGravity: { value: planetaryConfig.surfaceGravity }, // m/s²
-        co2Concentration: { value: planetaryConfig.co2Concentration || 412e-6 }, // 412 ppm (Earth default)
-        co2MolecularMass: { value: 7.31e-26 }, // kg/molecule (44.01 g/mol / Avogadro)
+        multiGasKDistributionTexture: { value: multiGasKDistributionTexture },
+        wavelengthBinWidthTexture: { value: wavelengthBinWidthTexture },
+        planckLookupTexture: { value: planckLookupTexture },
+        planckTempMin: { value: planckConfig.tempMin },
+        planckTempMax: { value: planckConfig.tempMax },
+        surfacePressure: { value: planetaryConfig.surfacePressure || 101325 },
+        surfaceGravity: { value: planetaryConfig.surfaceGravity },
+        meanMolecularMass: { value: meanMolecularMass },
+        // Gas concentrations
+        co2Concentration: { value: planetaryConfig.co2Concentration || 420e-6 },
+        ch4Concentration: { value: planetaryConfig.ch4Concentration || 1.9e-6 },
+        n2oConcentration: { value: planetaryConfig.n2oConcentration || 0.335e-6 },
+        o3Concentration: { value: planetaryConfig.o3Concentration || 0.04e-6 },
+        o2Concentration: { value: planetaryConfig.o2Concentration || 0.2095 },
+        n2Concentration: { value: planetaryConfig.n2Concentration || 0.7809 },
+        // Heat capacity
+        atmosphereHeatCapacity: { value: atmosphereHeatCapacity },
       },
     })
+
+    // Create atmosphere emission material (Pass 4)
+    // Uses same gas properties as Pass 3 to implement Kirchhoff's law (emissivity = absorptivity)
+    const atmosphereEmissionMaterial = new THREE.ShaderMaterial({
+      vertexShader: fullscreenVertexShader,
+      fragmentShader: atmosphereEmissionFragmentShader,
+      glslVersion: THREE.GLSL3,
+      uniforms: {
+        cellInformation: { value: simulation.cellInformation },
+        surfaceData: { value: null }, // Will be set to current buffer each frame
+        atmosphereData: { value: null }, // Will be set to current buffer each frame
+        terrainData: { value: simulation.terrainData },
+        dt: { value: dt },
+        // Radiative transfer uniforms (same as Pass 3 for Kirchhoff's law)
+        multiGasKDistributionTexture: { value: multiGasKDistributionTexture },
+        wavelengthBinWidthTexture: { value: wavelengthBinWidthTexture },
+        planckLookupTexture: { value: planckLookupTexture },
+        planckTempMin: { value: planckConfig.tempMin },
+        planckTempMax: { value: planckConfig.tempMax },
+        surfacePressure: { value: planetaryConfig.surfacePressure || 101325 },
+        surfaceGravity: { value: planetaryConfig.surfaceGravity },
+        meanMolecularMass: { value: meanMolecularMass },
+        // Gas concentrations
+        co2Concentration: { value: planetaryConfig.co2Concentration || 420e-6 },
+        ch4Concentration: { value: planetaryConfig.ch4Concentration || 1.9e-6 },
+        n2oConcentration: { value: planetaryConfig.n2oConcentration || 0.335e-6 },
+        o3Concentration: { value: planetaryConfig.o3Concentration || 0.04e-6 },
+        o2Concentration: { value: planetaryConfig.o2Concentration || 0.2095 },
+        n2Concentration: { value: planetaryConfig.n2Concentration || 0.7809 },
+        // Heat capacity
+        atmosphereHeatCapacity: { value: atmosphereHeatCapacity },
+      },
+    })
+
     // Create initialisation material
     // Initialise thermal surface texture: RGBA = [temperature, -, -, albedo]
     const initMaterial = new THREE.ShaderMaterial({
@@ -284,6 +342,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       solarFluxMaterial,
       surfaceIncidentMaterial,
       surfaceRadiationMaterial,
+      atmosphereEmissionMaterial,
       blankRenderTarget,
       mesh,
     }
@@ -360,6 +419,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       gpuResources.solarFluxMaterial.dispose()
       gpuResources.surfaceIncidentMaterial.dispose()
       gpuResources.surfaceRadiationMaterial.dispose()
+      gpuResources.atmosphereEmissionMaterial.dispose()
       gpuResources.blankRenderTarget.dispose()
       gpuResources.scene.clear()
     }

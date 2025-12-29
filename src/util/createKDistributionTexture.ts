@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { kDistributionData, wavelengthData } from '../data/gasTextures/co2'
+import { kDistributionData, wavelengthBinWidthData } from '../data/gasTextures/co2'
 
 /**
  * Create texture containing k-distribution data for radiative transfer
@@ -34,24 +34,21 @@ export function createKDistributionTexture(): THREE.DataTexture {
 }
 
 /**
- * Create texture containing wavelength bin centers
- *
- * Wraps pre-computed wavelength data in a GPU texture.
- * The data is pre-processed by scripts/convertHitranToTS.js to avoid runtime overhead.
+ * Create texture containing wavelength bin centers and widths
  *
  * Texture format:
  *   - Size: 128×1 (one texel per wavelength bin)
- *   - Format: RED (single channel, wavelength in μm)
+ *   - Format: RG (R = wavelength in μm, G = binWidth in μm)
  *   - Type: FloatType (high precision)
  *
- * @returns DataTexture containing wavelengths in micrometers for CO2
+ * @returns DataTexture containing wavelength + binWidth for CO2
  */
-export function createWavelengthTexture(): THREE.DataTexture {
+export function createWavelengthBinWidthTexture(): THREE.DataTexture {
 	const texture = new THREE.DataTexture(
-		wavelengthData,
+		wavelengthBinWidthData,
 		128, // width
 		1,   // height
-		THREE.RedFormat,
+		THREE.RGFormat,
 		THREE.FloatType
 	)
 
@@ -62,4 +59,17 @@ export function createWavelengthTexture(): THREE.DataTexture {
 	texture.needsUpdate = true
 
 	return texture
+}
+
+/**
+ * Get wavelength data for use in Planck lookup table generation.
+ * Extracts wavelength values from the combined wavelength + binWidth data.
+ */
+export function getWavelengthData(): Float32Array {
+	// Extract R channel (wavelength) from RG format
+	const wavelengths = new Float32Array(128);
+	for (let i = 0; i < 128; i++) {
+		wavelengths[i] = wavelengthBinWidthData[i * 2]; // R channel
+	}
+	return wavelengths;
 }

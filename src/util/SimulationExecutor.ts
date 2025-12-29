@@ -118,19 +118,20 @@ export class SimulationExecutor {
       solarFluxMaterial: THREE.ShaderMaterial
       surfaceIncidentMaterial: THREE.ShaderMaterial
       surfaceRadiationMaterial: THREE.ShaderMaterial
+      atmosphereEmissionMaterial: THREE.ShaderMaterial
     },
     mesh: THREE.Mesh,
     scene: THREE.Scene,
     camera: THREE.OrthographicCamera
   ): boolean {
     try {
-      const { solarFluxMaterial, surfaceIncidentMaterial, surfaceRadiationMaterial } = materials
+      const { solarFluxMaterial, surfaceIncidentMaterial, surfaceRadiationMaterial, atmosphereEmissionMaterial } = materials
 
       // Update material uniforms with current orbital state
       solarFluxMaterial.uniforms.yearProgress.value = this.state.yearProgress
       solarFluxMaterial.uniforms.subsolarLon.value = this.state.currentSubsolarLon
 
-      // ===== OPTIMIZED PASS-BASED PHYSICS ARCHITECTURE =====
+      // ===== OPTIMISED PASS-BASED PHYSICS ARCHITECTURE =====
       // Eliminated excessive buffer copying by writing directly to next targets
       // Before: 10 copy operations per timestep
       // After: 0 copy operations per timestep (direct writes only)
@@ -186,6 +187,41 @@ export class SimulationExecutor {
       gl.setRenderTarget(null)
 
       // Swap climate and atmosphere pointers for next timestep
+      simulation.swapClimateBuffers()
+      simulation.swapAtmosphereBuffers()
+
+      // Pass 4: Atmospheric emission (greenhouse effect)
+      // Atmosphere re-emits absorbed energy: half upward (to space), half downward (to surface)
+      // Read from current buffers (both updated by Pass 3)
+      atmosphereEmissionMaterial.uniforms.atmosphereData.value = simulation.getAtmosphereDataCurrent().texture
+      atmosphereEmissionMaterial.uniforms.surfaceData.value = simulation.getClimateDataCurrent().texture
+
+      // Get MRT for atmosphere emission
+      const atmosphereEmissionMRT = simulation.getAtmosphereEmissionMRT()
+
+      mesh.material = atmosphereEmissionMaterial
+      gl.setRenderTarget(atmosphereEmissionMRT)
+      gl.clear()
+      gl.render(scene, camera)
+      gl.setRenderTarget(null)
+
+      // Copy MRT outputs to next frame targets
+      // MRT attachment 0 → next surface state (gains greenhouse warming)
+      this.copyMaterial.uniforms.sourceTexture.value = atmosphereEmissionMRT.textures[0]
+      mesh.material = this.copyMaterial
+      gl.setRenderTarget(simulation.getClimateDataNext())
+      gl.clear()
+      gl.render(scene, camera)
+      gl.setRenderTarget(null)
+
+      // MRT attachment 1 → next atmosphere state (loses energy from emission)
+      this.copyMaterial.uniforms.sourceTexture.value = atmosphereEmissionMRT.textures[1]
+      gl.setRenderTarget(simulation.getAtmosphereDataNext())
+      gl.clear()
+      gl.render(scene, camera)
+      gl.setRenderTarget(null)
+
+      // Swap buffers again for next timestep
       simulation.swapClimateBuffers()
       simulation.swapAtmosphereBuffers()
 

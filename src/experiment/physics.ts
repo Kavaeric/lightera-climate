@@ -20,12 +20,12 @@ export const PHYSICS_CONSTANTS = {
 // =============================================================================
 
 /**
- * Planck's law for blackbody radiation - spectral exitance
+ * Planck's law for blackbody radiation for spectral exitance
  *
  * Calculates the spectral exitance (power per unit area per unit wavelength)
  * emitted by a blackbody at a given temperature.
  *
- * @param wavelength_um - Wavelength in micrometers
+ * @param wavelength_um - Wavelength in micrometres
  * @param temperature_K - Temperature in Kelvin
  * @returns Spectral exitance in W/(m²·μm)
  */
@@ -46,7 +46,7 @@ export const planckSpectralExitance = (wavelength_um: number, temperature_K: num
 // =============================================================================
 
 /**
- * Calculate total atmospheric column density from surface pressure and gravity
+ * Calculates the total atmospheric column density from surface pressure and gravity.
  *
  * Uses hydrostatic equilibrium: the total mass of atmosphere per unit area
  * is P/g. Converting to molecules gives N = (P/g) / m_mean.
@@ -67,7 +67,7 @@ export const calculateTotalColumnDensity = (atmosphere: AtmosphereConfig): numbe
 };
 
 /**
- * Calculate column density for a specific gas
+ * Calculates the column density for a specific gas.
  *
  * @param atmosphere - Atmosphere configuration
  * @param concentration - Molar fraction of the gas (e.g., 412e-6 for 412 ppm)
@@ -93,7 +93,7 @@ export interface TransmissionSpectrum {
 }
 
 /**
- * Calculate atmospheric transmission through a single gas using correlated-k method
+ * Calculates atmospheric transmission through a single gas using correlated-k method.
  *
  * For each wavelength bin:
  *   1. Get k-distribution (absorption coefficients + weights)
@@ -134,7 +134,7 @@ export const calculateGasTransmission = (
 };
 
 /**
- * Calculate atmospheric transmission through a gas mixture
+ * Calculates atmospheric transmission through a gas mixture.
  *
  * Combines transmission from multiple gases multiplicatively, using the
  * correlated-k method for each gas to handle spectral variation within bins.
@@ -196,7 +196,7 @@ export const calculateMixtureTransmission = (
 };
 
 /**
- * Calculate blackbody-weighted transmission coefficient
+ * Calculates blackbody-weighted transmission coefficient.
  *
  * Integrates the transmission spectrum weighted by blackbody emission
  * to get a single effective transmission coefficient.

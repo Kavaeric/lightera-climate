@@ -14,7 +14,7 @@ import type { AtmosphereConfig } from './atmosphere';
 import { EARTH_ATMOSPHERE } from './atmosphere';
 
 // === PHYSICS CONSTANTS ===
-const SQUARE_METERS_TO_SQUARE_CM = 1e4; // 1 m² = 10⁴ cm²
+const SQUARE_METRES_TO_SQUARE_CM = 1e4; // 1 m² = 10⁴ cm²
 
 // === HELPER FUNCTIONS ===
 
@@ -27,7 +27,7 @@ const SQUARE_METERS_TO_SQUARE_CM = 1e4; // 1 m² = 10⁴ cm²
 const calculateAtmosphericColumn = (atmosphere: AtmosphereConfig): number => {
 	const columnDensity_m2 = (atmosphere.surfacePressure_Pa / atmosphere.surfaceGravity_m_s2)
 		/ atmosphere.meanMolecularMass_kg;
-	return columnDensity_m2 / SQUARE_METERS_TO_SQUARE_CM;
+	return columnDensity_m2 / SQUARE_METRES_TO_SQUARE_CM;
 };
 
 /**

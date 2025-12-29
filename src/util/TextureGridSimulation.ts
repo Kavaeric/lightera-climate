@@ -59,6 +59,9 @@ export class TextureGridSimulation {
   // MRT for surface radiation pass (updates both surface and atmosphere)
   public surfaceRadiationMRT: THREE.WebGLRenderTarget<THREE.Texture[]> | null = null
 
+  // MRT for atmosphere emission pass (updates both surface and atmosphere)
+  public atmosphereEmissionMRT: THREE.WebGLRenderTarget<THREE.Texture[]> | null = null
+
   constructor(config: SimulationConfig) {
     this.grid = new Grid(config.resolution)
     this.cells = Array.from(this.grid)
@@ -114,6 +117,9 @@ export class TextureGridSimulation {
 
     // Create MRT for surface radiation pass
     this.surfaceRadiationMRT = this.createSurfaceAtmosphereMRT()
+
+    // Create MRT for atmosphere emission pass
+    this.atmosphereEmissionMRT = this.createSurfaceAtmosphereMRT()
   }
 
   /**
@@ -600,6 +606,16 @@ export class TextureGridSimulation {
   }
 
   /**
+   * Get MRT for atmosphere emission pass
+   */
+  public getAtmosphereEmissionMRT(): THREE.WebGLRenderTarget<THREE.Texture[]> {
+    if (!this.atmosphereEmissionMRT) {
+      throw new Error('Atmosphere emission MRT not initialised')
+    }
+    return this.atmosphereEmissionMRT
+  }
+
+  /**
    * Swap atmosphere buffers for next frame
    */
   public swapAtmosphereBuffers(): void {
@@ -782,6 +798,12 @@ export class TextureGridSimulation {
     }
     for (const target of this.atmosphereWorkingBuffers) {
       target.dispose()
+    }
+    if (this.surfaceRadiationMRT) {
+      this.surfaceRadiationMRT.dispose()
+    }
+    if (this.atmosphereEmissionMRT) {
+      this.atmosphereEmissionMRT.dispose()
     }
   }
 }

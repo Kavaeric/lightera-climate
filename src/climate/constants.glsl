@@ -43,9 +43,4 @@ const float SPEED_OF_LIGHT = 299792458.0;   // m/s
 const float BOLTZMANN_CONST = 1.380649e-23; // J/K
 
 // Unit conversions
-const float SQUARE_METERS_TO_SQUARE_CM = 1e4; // 1 m² = 10⁴ cm²
-
-// Atmospheric properties (simplified isothermal column)
-// Heat capacity per unit area = (mass per area) × specific heat
-// For Earth: ~10,000 kg/m² × 1000 J/(kg·K) = 1e7 J/(m²·K)
-const float ATMOSPHERE_HEAT_CAPACITY_PER_AREA = 1.0e7; // J/(m²·K)
+const float SQUARE_METRES_TO_SQUARE_CM = 1e4; // 1 m² = 10⁴ cm²

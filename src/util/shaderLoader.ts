@@ -24,17 +24,20 @@ export function withTextureAccessors(shaderCode: string): string {
  * or handle colourmap uniforms separately
  *
  * @param accessorFunctionName The name of the accessor function (e.g., 'getSurfaceTemperature')
- * @param textureUniformName The name of the texture uniform (e.g., 'dataTex')
  * @param colourmap The colourmap definition with colours and underflow/overflow colours
+ * @param inclusiveUnderflow If true, values equal to the minimum count as underflow (default: false)
+ * @param inclusiveOverflow If true, values equal to the maximum count as overflow (default: false)
  * @returns A fragment shader that calls the accessor, normalizes with value range, and applies colourmap
  *
  * @example
- * createAccessorShader('getSurfaceTemperature', 'dataTex', COLOURMAP_PLASMA)
+ * createAccessorShader('getSurfaceTemperature', COLOURMAP_PLASMA)
  * // Generates a shader that reads temperature, normalizes it, and applies the plasma colourmap
  */
 export function createAccessorShader(
   accessorFunctionName: string,
-  colourmap: Colourmap
+  colourmap: Colourmap,
+  inclusiveUnderflow: boolean = false,
+  inclusiveOverflow: boolean = false
 ): string {
   // Convert colourmap colours (THREE.Vector3) to GLSL vec3 array assignments
   const colourmapAssignments = colourmap.colours
@@ -53,6 +56,14 @@ uniform float valueMax;
 in vec2 vUv;
 
 out vec4 fragColour;
+
+// Flag for if the minimum value should count as underflow.
+// e.g. if true, then 0.0 will be marked with the underflow colour.
+const float inclusiveUnderflow = ${inclusiveUnderflow ? '1.0' : '0.0'};
+
+// Flag for if the maximum value should count as overflow.
+// e.g. if true, then 1.0 will be marked with the overflow colour.
+const float inclusiveOverflow = ${inclusiveOverflow ? '1.0' : '0.0'};
 
 vec3 sampleColourmap(float t) {
   // Clamp to [0, 1]
@@ -87,8 +98,13 @@ void main() {
   float normalised = (value - valueMin) / (valueMax - valueMin);
 
   // Detect underflow/overflow for fallback colouring
-  float isUnderflow = step(normalised, 0.0 + 1e-6);
-  float isOverflow = step(1.0 + 1e-6, normalised);
+  // Branchless: step() includes equality, so subtract it when inclusive (to exclude from underflow/overflow)
+  float atMin = step(normalised, 0.0) * step(0.0, normalised);  // normalised == 0.0
+  float atMax = step(1.0, normalised) * step(normalised, 1.0);  // normalised == 1.0
+
+  float isUnderflow = step(normalised, 0.0) - atMin * inclusiveUnderflow;
+  float isOverflow = step(1.0, normalised) - atMax * inclusiveOverflow;
+
   float isNormal = (1.0 - isUnderflow) * (1.0 - isOverflow);
 
   // Sample colour from colourmap or use overflow/underflow colours

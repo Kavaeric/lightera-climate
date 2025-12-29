@@ -47,7 +47,7 @@ export const VISUALISATION_SURFACE_TEMPERATURE: VisualisationMode = {
   name: 'Surface temperature',
   colourmap: COLOURMAP_PLASMA,
   getRange: (displayConfig) => displayConfig.surfaceTemperatureRange,
-  customFragmentShader: createAccessorShader('getSurfaceTemperature', COLOURMAP_PLASMA),
+  customFragmentShader: createAccessorShader('getSurfaceTemperature', COLOURMAP_PLASMA, false, false),
   buildCustomUniforms: (simulation, displayConfig) => {
     const range = displayConfig.surfaceTemperatureRange
     return {
@@ -69,7 +69,7 @@ export const VISUALISATION_ELEVATION: VisualisationMode = {
   name: 'Elevation (greyscale)',
   colourmap: COLOURMAP_GREYSCALE,
   getRange: (displayConfig) => displayConfig.elevationRange,
-  customFragmentShader: createAccessorShader('getElevation', COLOURMAP_GREYSCALE),
+  customFragmentShader: createAccessorShader('getElevation', COLOURMAP_GREYSCALE, true, false),
   buildCustomUniforms: (simulation, displayConfig) => {
     const range = displayConfig.elevationRange
     return {
@@ -91,7 +91,7 @@ export const VISUALISATION_WATER_DEPTH: VisualisationMode = {
   name: 'Water depth',
   colourmap: COLOURMAP_BLUE_B1,
   getRange: (displayConfig) => displayConfig.waterDepthRange,
-  customFragmentShader: createAccessorShader('getWaterDepth', COLOURMAP_BLUE_B1),
+  customFragmentShader: createAccessorShader('getWaterDepth', COLOURMAP_BLUE_B1, false, true),
   buildCustomUniforms: (simulation, displayConfig) => {
     const range = displayConfig.waterDepthRange
     return {
@@ -113,7 +113,7 @@ export const VISUALISATION_SALINITY: VisualisationMode = {
   name: 'Salinity (greyscale)',
   colourmap: COLOURMAP_TEAL_C16,
   getRange: (displayConfig) => displayConfig.salinityRange,
-  customFragmentShader: createAccessorShader('getSalinity', COLOURMAP_TEAL_C16),
+  customFragmentShader: createAccessorShader('getSalinity', COLOURMAP_TEAL_C16, false, false),
   buildCustomUniforms: (simulation, displayConfig) => {
     const range = displayConfig.salinityRange
     return {
@@ -135,7 +135,7 @@ export const VISUALISATION_ICE_THICKNESS: VisualisationMode = {
   name: 'Ice thickness',
   colourmap: COLOURMAP_BLUE_SD,
   getRange: (displayConfig) => displayConfig.iceThicknessRange,
-  customFragmentShader: createAccessorShader('getIceThickness', COLOURMAP_BLUE_SD),
+  customFragmentShader: createAccessorShader('getIceThickness', COLOURMAP_BLUE_SD, false, false),
   buildCustomUniforms: (simulation, displayConfig) => {
     const range = displayConfig.iceThicknessRange
     return {
@@ -157,7 +157,7 @@ export const VISUALISATION_ALBEDO: VisualisationMode = {
   name: 'Albedo (greyscale)',
   colourmap: COLOURMAP_GREYSCALE,
   getRange: (displayConfig) => displayConfig.albedoRange,
-  customFragmentShader: createAccessorShader('getSurfaceAlbedo', COLOURMAP_GREYSCALE),
+  customFragmentShader: createAccessorShader('getSurfaceAlbedo', COLOURMAP_GREYSCALE, true, true),
   buildCustomUniforms: (simulation, displayConfig) => {
     const range = displayConfig.albedoRange
     return {
@@ -179,7 +179,7 @@ export const VISUALISATION_ATMOSPHERIC_TEMPERATURE: VisualisationMode = {
   name: 'Atmospheric temperature',
   colourmap: COLOURMAP_PLASMA,
   getRange: (displayConfig) => displayConfig.atmosphericTemperatureRange,
-  customFragmentShader: createAccessorShader('getAtmosphereTemperature', COLOURMAP_PLASMA),
+  customFragmentShader: createAccessorShader('getAtmosphereTemperature', COLOURMAP_PLASMA, true, true),
   buildCustomUniforms: (simulation, displayConfig) => {
     const range = displayConfig.atmosphericTemperatureRange
     return {
@@ -201,7 +201,7 @@ export const VISUALISATION_SOLAR_FLUX: VisualisationMode = {
   name: 'Solar flux',
   colourmap: COLOURMAP_YELLOW_YEL15,
   getRange: (displayConfig) => displayConfig.solarFluxRange,
-  customFragmentShader: createAccessorShader('getSolarFlux', COLOURMAP_YELLOW_YEL15),
+  customFragmentShader: createAccessorShader('getSolarFlux', COLOURMAP_YELLOW_YEL15, true, true),
   buildCustomUniforms: (simulation, displayConfig) => {
     const range = displayConfig.solarFluxRange
     return {

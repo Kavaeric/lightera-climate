@@ -15,14 +15,14 @@ const float WATER_FREEZE_POINT = 273.15;  // K - freshwater freezing point (0°C
 const float STANDARD_PRESSURE = 101325.0; // Pa - standard atmospheric pressure (1 atm)
 const float WATER_BOIL_POINT_1ATM = 373.15; // K - boiling point at 1 atm (100°C)
 
-// Phase change rates (meters per frame)
+// Phase change rates (metres per frame)
 const float MAX_FREEZE_RATE = 0.25;       // m/frame - maximum ice formation rate
 const float MAX_MELT_RATE = 0.25;         // m/frame - maximum ice melting rate
 const float MAX_EVAPORATION_RATE = 10.0;  // m/frame - maximum water evaporation rate
 
 // Quantisation increment for water/ice depths (prevents floating point drift)
 // NOTE: This value must match DEPTH_QUANTUM in src/config/simulationConfig.ts
-const float DEPTH_QUANTUM = 0.1; // meters - all depths quantised to 10cm increments
+const float DEPTH_QUANTUM = 0.1; // metres - all depths quantised to 10cm increments
 
 /**
  * Quantise depth value to DEPTH_QUANTUM increments

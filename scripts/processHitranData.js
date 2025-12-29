@@ -1,8 +1,8 @@
 /**
- * Convert HITRAN line-by-line CSV data into correlated-k distributions
+ * Process HITRAN line-by-line data into correlated-k distributions
  *
  * Input: HITRAN CSV files with columns: nu, sw, elower, gamma_air, n_air, etc.
- * Output: TypeScript file with k-distributions for radiative transfer
+ * Output: Gas absorption data (k-distributions) for GPU radiative transfer
  *
  * Physics:
  * - Uses correlated-k method to handle spectral variation within bins
@@ -15,23 +15,21 @@
  * - Sort cross-sections and extract percentiles as k-values
  * - Store k-values + weights for accurate transmission calculation
  *
- * Usage: node scripts/convertHitranToTS.js
+ * Usage: node scripts/processHitranData.js
  */
 
 import fs from 'fs';
 import path from 'path';
 import Papa from 'papaparse';
 import { fileURLToPath } from 'url';
+import { generateLogBins, getBinCenters, NUM_BINS, WAVELENGTH_MIN, WAVELENGTH_MAX } from './generateSpectralBins.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // === CONFIGURATION ===
-const NUM_BINS = 128;              // Output spectral bins (performance-critical)
 const NUM_K_VALUES = 4;            // k-values per bin (higher = more accurate, slower)
 const HIGH_RES_MULTIPLIER = 32;    // Internal oversampling factor
-const WAVELENGTH_MIN = 1.0;        // μm
-const WAVELENGTH_MAX = 70.0;       // μm
 
 // Gases to process (must match directory names in public/hitran-line/)
 const GASES = ['ch4', 'co', 'co2', 'h2o', 'n2', 'n2o', 'o2', 'o3', 'so2', 'hcl', 'hfl'];
@@ -39,35 +37,6 @@ const GASES = ['ch4', 'co', 'co2', 'h2o', 'n2', 'n2o', 'o2', 'o3', 'so2', 'hcl',
 // === PHYSICS CONSTANTS ===
 const WAVENUMBER_TO_WAVELENGTH_CONVERSION = 10000.0; // cm⁻¹ to μm
 const LINE_WING_CUTOFF_HALFWIDTHS = 25; // Line shape negligible beyond this
-
-// === HELPER FUNCTIONS ===
-
-/**
- * Generate log-spaced bin edges
- * Returns array of length NUM_BINS+1 (bin edges)
- */
-function generateLogBins(min, max, numBins) {
-	const logMin = Math.log10(min);
-	const logMax = Math.log10(max);
-	const step = (logMax - logMin) / numBins;
-
-	const edges = [];
-	for (let i = 0; i <= numBins; i++) {
-		edges.push(Math.pow(10, logMin + i * step));
-	}
-	return edges;
-}
-
-/**
- * Get bin centers from edges (geometric mean for log-spaced bins)
- */
-function getBinCenters(edges) {
-	const centers = [];
-	for (let i = 0; i < edges.length - 1; i++) {
-		centers.push(Math.sqrt(edges[i] * edges[i + 1]));
-	}
-	return centers;
-}
 
 /**
  * Convert wavenumber (cm⁻¹) to wavelength (μm)
@@ -100,91 +69,105 @@ function processHitranFile(csvPath) {
 		wavelength => WAVENUMBER_TO_WAVELENGTH_CONVERSION / wavelength
 	);
 
-	// Initialise cross-section array
-	const highResCrossSections = new Array(numHighResBins).fill(0);
+	// Initialize high-resolution cross-section array (one per high-res bin)
+	const highResCrossSections = new Float64Array(numHighResBins);
+
+	// Process each spectral line
 	let linesProcessed = 0;
 	let linesInRange = 0;
+	let maxCrossSection = 0;
 
-	// Process each HITRAN line with proper line shape
 	for (const row of parsed.data) {
 		linesProcessed++;
 
-		const lineCenter_wavenumber = parseFloat(row.nu);     // cm⁻¹
-		const lineIntensity = parseFloat(row.sw);             // cm⁻¹/(molecule·cm⁻²)
-		const halfWidth = parseFloat(row.gamma_air);          // cm⁻¹/atm at 296K
+		const nu = parseFloat(row.nu);           // Wavenumber (cm⁻¹)
+		const sw = parseFloat(row.sw);           // Line intensity (cm⁻¹/(molecule·cm⁻²))
+		const gamma_air = parseFloat(row.gamma_air); // Air-broadened half-width (cm⁻¹/atm)
 
-		if (isNaN(lineCenter_wavenumber) || isNaN(lineIntensity) || isNaN(halfWidth)) continue;
+		const lineWavelength = wavenumberToWavelength(nu);
 
-		const wavelength = wavenumberToWavelength(lineCenter_wavenumber);
-
-		if (wavelength < WAVELENGTH_MIN || wavelength > WAVELENGTH_MAX) continue;
+		// Skip lines outside our wavelength range
+		if (lineWavelength < WAVELENGTH_MIN || lineWavelength > WAVELENGTH_MAX) {
+			continue;
+		}
 
 		linesInRange++;
 
-		// Calculate Lorentzian line shape contribution to cross-section
-		// L(ν) = (1/π) × [γ / ((ν - ν₀)² + γ²)]
-		// σ(ν) = S × L(ν)
-		// where S is line intensity and γ is half-width at half-maximum (HWHM)
+		// Calculate line contribution to each high-resolution bin
+		// Using Lorentzian line shape (collisional broadening dominates in atmosphere)
+		for (let binIdx = 0; binIdx < numHighResBins; binIdx++) {
+			const binWavenumber = highResBinCenters_wavenumber[binIdx];
+			const delta_nu = binWavenumber - nu;
 
-		// Only calculate contribution within cutoff distance (beyond this, negligible)
-		const cutoffDistance = LINE_WING_CUTOFF_HALFWIDTHS * halfWidth;
+			// Skip if too far from line center (saves computation)
+			if (Math.abs(delta_nu) > LINE_WING_CUTOFF_HALFWIDTHS * gamma_air) {
+				continue;
+			}
 
-		for (let i = 0; i < numHighResBins; i++) {
-			const binWavenumber = highResBinCenters_wavenumber[i];
-			const distanceFromLineCenter = Math.abs(binWavenumber - lineCenter_wavenumber);
+			// Lorentzian line shape: L(ν) = (γ/π) / ((ν-ν₀)² + γ²)
+			// Cross-section: σ(ν) = S × L(ν)
+			const lorentzian = gamma_air / (Math.PI * (delta_nu * delta_nu + gamma_air * gamma_air));
+			const crossSection = sw * lorentzian;
 
-			if (distanceFromLineCenter > cutoffDistance) continue;
-
-			// Lorentzian line shape function
-			const lorentzianValue = halfWidth / (Math.PI * (distanceFromLineCenter * distanceFromLineCenter + halfWidth * halfWidth));
-
-			// Add this line's contribution to the bin's cross-section
-			highResCrossSections[i] += lineIntensity * lorentzianValue;
+			highResCrossSections[binIdx] += crossSection;
+			maxCrossSection = Math.max(maxCrossSection, highResCrossSections[binIdx]);
 		}
 	}
 
-	console.log(`  Processed ${linesProcessed} lines, ${linesInRange} in wavelength range`);
+	// Compute average cross-section
+	const avgCrossSection = highResCrossSections.reduce((a, b) => a + b, 0) / numHighResBins;
 
-	// Build k-distributions from high-res data
+	console.log(`  Processed ${linesProcessed} lines, ${linesInRange} in wavelength range`);
+	console.log(`  Max cross-section: ${maxCrossSection.toExponential(3)} cm²/molecule`);
+	console.log(`  Avg cross-section: ${avgCrossSection.toExponential(3)} cm²/molecule`);
+
+	// === CORRELATED-K METHOD ===
+	// For each output bin, extract k-distribution from high-resolution data
+
 	const kDistributions = [];
 
-	for (let i = 0; i < NUM_BINS; i++) {
-		// Extract high-res cross-sections that fall within this output bin
-		const startIdx = i * HIGH_RES_MULTIPLIER;
-		const endIdx = (i + 1) * HIGH_RES_MULTIPLIER;
-		const binnedCrossSections = highResCrossSections.slice(startIdx, endIdx);
+	for (let outBinIdx = 0; outBinIdx < NUM_BINS; outBinIdx++) {
+		// Find all high-resolution bins that belong to this output bin
+		const highResBinsPerOutputBin = HIGH_RES_MULTIPLIER;
+		const startIdx = outBinIdx * highResBinsPerOutputBin;
+		const endIdx = startIdx + highResBinsPerOutputBin;
 
-		// Sort cross-sections
-		const sorted = [...binnedCrossSections].sort((a, b) => a - b);
+		// Extract cross-sections for this bin
+		const binCrossSections = Array.from(highResCrossSections.slice(startIdx, endIdx));
 
-		// Extract k-values at percentiles
+		// Sort cross-sections to find percentiles (k-values)
+		binCrossSections.sort((a, b) => a - b);
+
+		// Extract k-values at equal-weight percentiles
+		// For 4 k-values: 12.5%, 37.5%, 62.5%, 87.5%
 		const kValues = [];
-		const weights = [];
-		for (let k = 0; k < NUM_K_VALUES; k++) {
-			// Evenly spaced percentiles
-			const percentile = (k + 0.5) / NUM_K_VALUES;
-			const idx = Math.floor(percentile * sorted.length);
-			kValues.push(sorted[Math.min(idx, sorted.length - 1)]);
-			weights.push(1.0 / NUM_K_VALUES);
+		for (let i = 0; i < NUM_K_VALUES; i++) {
+			const percentile = (i + 0.5) / NUM_K_VALUES;
+			const idx = Math.floor(percentile * binCrossSections.length);
+			kValues.push(binCrossSections[idx]);
 		}
+
+		// Equal weights for simplicity (could be refined with spectral mapping)
+		const weights = new Array(NUM_K_VALUES).fill(1.0 / NUM_K_VALUES);
 
 		kDistributions.push({ kValues, weights });
 	}
 
-	const maxCrossSection = Math.max(...highResCrossSections);
-	const avgCrossSection = highResCrossSections.reduce((a, b) => a + b, 0) / highResCrossSections.length;
-	console.log(`  Max cross-section: ${maxCrossSection.toExponential(3)} cm²/molecule`);
-	console.log(`  Avg cross-section: ${avgCrossSection.toExponential(3)} cm²/molecule`);
 	console.log(`  k-distributions: ${NUM_BINS} bins × ${NUM_K_VALUES} k-values`);
 
 	return { wavelengths, kDistributions };
 }
 
 /**
- * Find the CSV file for a given gas
+ * Find CSV file for a gas in public/hitran-line/{gas}/
  */
 function findGasCSV(gas) {
 	const gasDir = path.join(__dirname, '..', 'public', 'hitran-line', gas);
+
+	if (!fs.existsSync(gasDir)) {
+		throw new Error(`Gas directory not found: ${gasDir}`);
+	}
+
 	const files = fs.readdirSync(gasDir);
 	const csvFile = files.find(f => f.endsWith('.csv'));
 
@@ -199,7 +182,7 @@ function findGasCSV(gas) {
  * Main processing function
  */
 function main() {
-	console.log('Converting HITRAN line-by-line data to binned cross-sections');
+	console.log('Processing HITRAN line-by-line data to k-distributions');
 	console.log(`Bins: ${NUM_BINS} log-spaced from ${WAVELENGTH_MIN} to ${WAVELENGTH_MAX} μm\n`);
 
 	const results = {};
@@ -215,9 +198,10 @@ function main() {
 		}
 	}
 
-	// Generate TypeScript output
-	let tsContent = '// HITRAN line-by-line data converted to correlated-k distributions\n';
-	tsContent += '// Generated by scripts/convertHitranToTS.js\n';
+	// === OUTPUT: MAIN DATA FILE ===
+	// Generate TypeScript output with full k-distributions
+	let tsContent = '// Gas absorption data (correlated-k distributions from HITRAN)\n';
+	tsContent += '// Generated by scripts/processHitranData.js\n';
 	tsContent += '//\n';
 	tsContent += '// Data format: Correlated-k method for accurate radiative transfer\n';
 	tsContent += `//   Spectral bins: ${NUM_BINS} log-spaced from ${WAVELENGTH_MIN} to ${WAVELENGTH_MAX} μm\n`;
@@ -238,16 +222,16 @@ function main() {
 	tsContent += '\tweights: number[];   // Spectral weights (sum to 1.0)\n';
 	tsContent += '};\n\n';
 
-	tsContent += 'export type HitranCrossSectionSpectrum = {\n';
+	tsContent += 'export type GasAbsorptionSpectrum = {\n';
 	tsContent += '\twavelengths: number[];        // μm (bin centers)\n';
 	tsContent += '\tkDistributions: KDistribution[];  // One per wavelength bin\n';
 	tsContent += '};\n\n';
 
 	// Write data for each gas
 	for (const [gas, data] of Object.entries(results)) {
-		const varName = `${gas}CrossSection`;
+		const varName = `${gas}Absorption`;
 
-		tsContent += `export const ${varName}: HitranCrossSectionSpectrum = {\n`;
+		tsContent += `export const ${varName}: GasAbsorptionSpectrum = {\n`;
 		tsContent += '\twavelengths: [\n\t\t';
 		tsContent += data.wavelengths.map(w => w.toExponential(6)).join(', ');
 		tsContent += '\n\t],\n';
@@ -259,7 +243,7 @@ function main() {
 			tsContent += kDist.kValues.map(k => k.toExponential(6)).join(', ');
 			tsContent += '],\n';
 			tsContent += '\t\t\tweights: [';
-			tsContent += kDist.weights.map(w => w.toFixed(6)).join(', ');
+			tsContent += kDist.weights.join(', ');
 			tsContent += ']\n';
 			tsContent += '\t\t},\n';
 		}
@@ -268,27 +252,20 @@ function main() {
 		tsContent += '};\n\n';
 	}
 
-	// Write aggregated data structure
-	tsContent += 'export const allHitranCrossSections: Record<string, HitranCrossSectionSpectrum> = {\n';
-	for (const gas of GASES) {
-		tsContent += `\t${gas}: ${gas}CrossSection,\n`;
-	}
-	tsContent += '};\n\n';
-
-	// Write main output file (k-distribution data structures)
-	const mainOutputPath = path.join(__dirname, '..', 'src', 'data', 'hitranCrossSections.ts');
+	const mainOutputPath = path.join(__dirname, '..', 'src', 'data', 'gasAbsorptionData.ts');
 	fs.writeFileSync(mainOutputPath, tsContent, 'utf8');
 
-	// Generate separate GPU texture data files for each gas
+	// === OUTPUT: GPU TEXTURE FILES ===
+	// Generate individual files per gas for GPU texture data
 	const textureDir = path.join(__dirname, '..', 'src', 'data', 'gasTextures');
 	if (!fs.existsSync(textureDir)) {
 		fs.mkdirSync(textureDir, { recursive: true });
 	}
 
 	for (const [gas, data] of Object.entries(results)) {
-		let gasTextureContent = '// GPU texture data for radiative transfer\n';
+		let gasTextureContent = '// GPU texture data for ' + gas.toUpperCase() + '\n';
 		gasTextureContent += `// Gas: ${gas.toUpperCase()}\n`;
-		gasTextureContent += '// Generated by scripts/convertHitranToTS.js\n';
+		gasTextureContent += '// Generated by scripts/processHitranData.js\n';
 		gasTextureContent += '// Pre-computed to avoid runtime overhead\n\n';
 
 		// Create k-distribution texture data (128x1 RGBA)
@@ -305,18 +282,30 @@ function main() {
 		gasTextureContent += Array.from(kData).map(v => v.toExponential(6)).join(', ');
 		gasTextureContent += '\n]);\n\n';
 
-		// Create wavelength texture data (128x1 RED)
-		gasTextureContent += '/** Wavelength bin centers (128×1 RED, micrometers) */\n';
-		gasTextureContent += 'export const wavelengthData = new Float32Array([\n\t';
-		gasTextureContent += data.wavelengths.map(w => w.toExponential(6)).join(', ');
+		// Create wavelength + binWidth texture data (128x1 RG)
+		// RG format: R = wavelength (μm), G = binWidth (μm)
+		const wavelengthBinWidthData = new Float32Array(NUM_BINS * 2);
+		for (let i = 0; i < NUM_BINS; i++) {
+			const wavelength = data.wavelengths[i];
+			const wavelengthNext = i < NUM_BINS - 1 ? data.wavelengths[i + 1] : wavelength;
+			const binWidth = wavelengthNext - wavelength;
+
+			wavelengthBinWidthData[i * 2 + 0] = wavelength;  // R channel
+			wavelengthBinWidthData[i * 2 + 1] = binWidth;    // G channel
+		}
+
+		gasTextureContent += '/** Wavelength + bin width texture data (128×1 RG, μm) */\n';
+		gasTextureContent += '// R = wavelength bin center, G = bin width\n';
+		gasTextureContent += 'export const wavelengthBinWidthData = new Float32Array([\n\t';
+		gasTextureContent += Array.from(wavelengthBinWidthData).map(v => v.toExponential(6)).join(', ');
 		gasTextureContent += '\n]);\n';
 
 		const gasFilePath = path.join(textureDir, `${gas}.ts`);
 		fs.writeFileSync(gasFilePath, gasTextureContent, 'utf8');
 	}
 
-	console.log(`\nOutput written to: ${mainOutputPath}`);
-	console.log(`GPU texture files written to: ${textureDir}`);
+	console.log(`\nMain output: ${mainOutputPath}`);
+	console.log(`GPU texture files: ${textureDir}`);
 	console.log('\nSummary:');
 	for (const [gas, data] of Object.entries(results)) {
 		// Compute average k-values across all bins

@@ -41,6 +41,7 @@ export interface GPUResources {
   solarFluxMaterial: THREE.ShaderMaterial
   surfaceIncidentMaterial: THREE.ShaderMaterial
   surfaceRadiationMaterial: THREE.ShaderMaterial
+  atmosphereEmissionMaterial: THREE.ShaderMaterial
   mesh: THREE.Mesh
   scene: THREE.Scene
   camera: THREE.OrthographicCamera
@@ -171,6 +172,7 @@ export class SimulationOrchestrator {
         solarFluxMaterial: gpuResources.solarFluxMaterial,
         surfaceIncidentMaterial: gpuResources.surfaceIncidentMaterial,
         surfaceRadiationMaterial: gpuResources.surfaceRadiationMaterial,
+        atmosphereEmissionMaterial: gpuResources.atmosphereEmissionMaterial,
       },
       gpuResources.mesh,
       gpuResources.scene,

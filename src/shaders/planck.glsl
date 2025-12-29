@@ -13,11 +13,11 @@
 precision highp float;
 
 /**
- * Calculate spectral exitance using Planck's law
+ * Calculates spectral exitance using Planck's law.
  *
  * M_λ(λ, T) = (2πhc² / λ⁵) / (e^(hc/λkT) - 1)
  *
- * @param wavelength_um Wavelength in micrometers (μm)
+ * @param wavelength_um Wavelength in micrometres (μm)
  * @param temperature_K Temperature in Kelvin (K)
  * @return Spectral exitance in W/(m²·μm)
  */
@@ -37,6 +37,6 @@ float planckSpectralExitance(float wavelength_um, float temperature_K) {
 	float spectralRadiance = numerator / denominator;
 
 	// Convert to spectral exitance: M_λ = π × B_λ (W/(m²·m))
-	// Then convert from per-meter to per-micrometer: multiply by 1e-6
+	// Then convert from per-metre to per-micrometre: multiply by 1e-6
 	return spectralRadiance * PI * 1e-6; // W/(m²·μm)
 }
