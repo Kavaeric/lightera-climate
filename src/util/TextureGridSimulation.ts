@@ -125,8 +125,8 @@ export class TextureGridSimulation {
     // Create MRT for shortwave incident pass (surface state + solar flux)
     this.shortwaveMRT = this.createSurfaceAtmosphereMRT()
 
-    // Create MRT for hydrology pass (hydrology state + auxiliary water state)
-    this.hydrologyMRT = this.createSurfaceAtmosphereMRT()
+    // Create MRT for hydrology pass (hydrology state + auxiliary water state + surface state)
+    this.hydrologyMRT = this.createHydrologyMRT()
   }
 
   /**
@@ -538,6 +538,24 @@ export class TextureGridSimulation {
   }
 
   /**
+   * Create a 3-attachment MRT for hydrology pass
+   * Outputs: [0] hydrology state, [1] auxiliary data, [2] surface state with latent heat correction
+   */
+  private createHydrologyMRT(): THREE.WebGLRenderTarget<THREE.Texture[]> {
+    const mrt = new THREE.WebGLRenderTarget(this.textureWidth, this.textureHeight, {
+      minFilter: THREE.NearestFilter,
+      magFilter: THREE.NearestFilter,
+      format: THREE.RGBAFormat,
+      type: THREE.FloatType,
+      wrapS: THREE.ClampToEdgeWrapping,
+      wrapT: THREE.ClampToEdgeWrapping,
+      count: 3, // Number of draw buffers: hydrology + auxiliary + surface
+    })
+
+    return mrt as unknown as THREE.WebGLRenderTarget<THREE.Texture[]>
+  }
+
+  /**
    * Get the current surface/climate render target (for reading in shaders)
    * Format: RGBA = [surfaceTemperature, albedo, reserved, reserved]
    */
@@ -624,7 +642,7 @@ export class TextureGridSimulation {
   }
 
   /**
-   * Get MRT for hydrology pass (hydrology state + auxiliary water state)
+   * Get MRT for hydrology pass (hydrology state + auxiliary water state + surface state)
    */
   public getHydrologyMRT(): THREE.WebGLRenderTarget<THREE.Texture[]> {
     if (!this.hydrologyMRT) {

@@ -3,28 +3,32 @@
  *
  * Handles water cycle dynamics including:
  * - Ice/water phase transitions (freezing and melting)
+ * - Latent heat effects on surface temperature
  * - Evaporation from water surfaces (future)
  * - Precipitation from atmosphere (future)
  *
  * Phase change assumptions:
  * - 1m of water freezes to 1m of ice (and vice versa)
  * - Uses 50m scale depth consistent with thermal calculations
- * - Latent heat not currently modelled
+ * - Latent heat absorbed during melting cools the surface
+ * - Latent heat released during freezing warms the surface
  */
 
 precision highp float;
 
 #include "../../../shaders/textureAccessors.glsl"
 #include "../../constants.glsl"
+#include "../../../shaders/surfaceThermal.glsl"
 
 in vec2 vUv;
 
 // Input uniforms
 uniform float dt;  // Timestep in seconds
 
-// Output: Updated hydrology state + auxiliary water state
+// Output: Updated hydrology state + auxiliary water state + surface state
 layout(location = 0) out vec4 outHydrologyState;
 layout(location = 1) out vec4 outAuxiliary;
+layout(location = 2) out vec4 outSurfaceState;
 
 // Approximation of vaporisation temperature of water as a function of pressure
 // Calibrated to yield T = 375.15 K at P = 101325 Pa
@@ -92,6 +96,7 @@ void main() {
 
 	vec4 surfaceState = texture(surfaceData, vUv);
 	float surfaceTemperature = surfaceState.r;
+	float surfaceAlbedo = surfaceState.a;
 
 	vec4 currentAuxiliary = texture(auxiliaryData, vUv);
 	float solarFlux = currentAuxiliary.r;
@@ -113,9 +118,10 @@ void main() {
 	// Rate is in m/s, independent of ice/water depth (surface-limited process)
 	float phaseChangeAmount = calculatePhaseChangeRate(deltaT) * dt;
 
-	// Apply phase change
+	// Apply phase change and track actual amount changed
 	float newWaterDepth = waterDepth;
 	float newIceThickness = iceThickness;
+	float actualPhaseChange = 0.0; // Positive = melting, negative = freezing
 
 	if (deltaT > 0.0) {
 		// Above melting point: ice melts to water
@@ -123,6 +129,7 @@ void main() {
 		float meltAmount = min(phaseChangeAmount, iceThickness);
 		newIceThickness = iceThickness - meltAmount;
 		newWaterDepth = waterDepth + meltAmount;
+		actualPhaseChange = meltAmount;
 	} else {
 		// Below melting point: water freezes to ice
 		// phaseChangeAmount is negative, so negate it
@@ -130,22 +137,48 @@ void main() {
 		float freezeAmount = min(-phaseChangeAmount, waterDepth);
 		newWaterDepth = waterDepth - freezeAmount;
 		newIceThickness = iceThickness + freezeAmount;
+		actualPhaseChange = -freezeAmount;
 	}
 
 	// Ensure non-negative values
 	newWaterDepth = max(0.0, newWaterDepth);
 	newIceThickness = max(0.0, newIceThickness);
 
+	// === LATENT HEAT CORRECTION ===
+	//
+	// Phase change absorbs or releases energy, affecting surface temperature:
+	// - Melting (ice → water): Absorbs latent heat, keeping the surface cooler
+	// - Freezing (water → ice): Releases latent heat, keeping the surface warmer
+	//
+	// Calculate temperature change due to latent heat absorption/release
+	//
+	// Energy involved: E = ρ × depth_change × L_f  (J/m²)
+	// Temperature change: ΔT = -E / C  (K)
+	//   where C = heat capacity per unit area (J/(m²·K))
+	//
+	// Sign convention: actualPhaseChange > 0 for melting (absorbs heat, cools surface)
+	//                  actualPhaseChange < 0 for freezing (releases heat, warms surface)
+
+	float latentHeatEnergy = actualPhaseChange * MATERIAL_WATER_DENSITY * MATERIAL_WATER_LATENT_HEAT_FUSION;
+	float heatCapacity = getSurfaceHeatCapacity(newWaterDepth, newIceThickness);
+	float latentHeatTemperatureChange = -latentHeatEnergy / heatCapacity;
+
+	// Apply latent heat correction to surface temperature
+	float newSurfaceTemperature = surfaceTemperature + latentHeatTemperatureChange;
+
 	// === WATER STATE FOR VISUALISATION ===
 	// Determine water state based on temperature thresholds
 	// 0.0 = solid (frozen), 0.5 = liquid, 1.0 = vapour (above boiling)
-	float isAboveBoilingPoint = step(boilingPoint, surfaceTemperature);
-	float isAboveMeltingPoint = step(freezingPoint, surfaceTemperature) * (1.0 - isAboveBoilingPoint);
+	float isAboveBoilingPoint = step(boilingPoint, newSurfaceTemperature);
+	float isAboveMeltingPoint = step(freezingPoint, newSurfaceTemperature) * (1.0 - isAboveBoilingPoint);
 	float waterState = isAboveMeltingPoint * 0.5 + isAboveBoilingPoint;
 
-	// Output: RGBA = [waterDepth, iceThickness, unused, salinity]
+	// Output 0: RGBA = [waterDepth, iceThickness, unused, salinity]
 	outHydrologyState = packHydrologyData(newWaterDepth, newIceThickness, salinity);
 
-	// Output auxiliary: RGBA = [solarFlux (preserved), waterState, unused, unused]
+	// Output 1 (auxiliary): RGBA = [solarFlux (preserved), waterState, unused, unused]
 	outAuxiliary = packAuxiliaryData(solarFlux, waterState);
+
+	// Output 2 (surface state): RGBA = [temperature, unused, unused, albedo]
+	outSurfaceState = packSurfaceData(newSurfaceTemperature, surfaceAlbedo);
 }

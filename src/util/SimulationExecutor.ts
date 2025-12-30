@@ -199,16 +199,17 @@ export class SimulationExecutor {
       gl.setRenderTarget(null)
 
       // Pass 3: Hydrology (water cycle dynamics)
-      // - Evaporation from water surfaces
-      // - Precipitation from atmosphere
-      // - Ice formation and melting
-      // Uses MRT to output both hydrology state and auxiliary water state
+      // - Ice/water phase transitions (freezing and melting)
+      // - Latent heat effects on surface temperature
+      // - Evaporation from water surfaces (future)
+      // - Precipitation from atmosphere (future)
+      // Uses MRT to output hydrology state, auxiliary water state, and latent-heat-corrected surface state
       hydrologyMaterial.uniforms.surfaceData.value = longwaveRadiationMRT.textures[0]
       hydrologyMaterial.uniforms.atmosphereData.value = longwaveRadiationMRT.textures[1]
       hydrologyMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture
       hydrologyMaterial.uniforms.auxiliaryData.value = simulation.getAuxiliaryTarget().texture
 
-      // Render to hydrology MRT (attachment 0 = hydrology state, attachment 1 = auxiliary)
+      // Render to hydrology MRT (attachment 0 = hydrology state, attachment 1 = auxiliary, attachment 2 = surface state)
       const hydrologyMRT = simulation.getHydrologyMRT()
       mesh.material = hydrologyMaterial
       gl.setRenderTarget(hydrologyMRT)
@@ -227,6 +228,13 @@ export class SimulationExecutor {
       // Copy MRT attachment 1 → auxiliary target (contains solar flux + water state)
       this.copyMaterial.uniforms.sourceTexture.value = hydrologyMRT.textures[1]
       gl.setRenderTarget(simulation.getAuxiliaryTarget())
+      gl.clear()
+      gl.render(scene, camera)
+      gl.setRenderTarget(null)
+
+      // Copy MRT attachment 2 → next surface state (overwrites longwave output with latent-heat-corrected temperature)
+      this.copyMaterial.uniforms.sourceTexture.value = hydrologyMRT.textures[2]
+      gl.setRenderTarget(simulation.getClimateDataNext())
       gl.clear()
       gl.render(scene, camera)
       gl.setRenderTarget(null)
