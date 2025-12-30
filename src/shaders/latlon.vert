@@ -13,7 +13,5 @@ void main() {
   // cameraPosition is a built-in uniform provided by Three.js
   vViewDirection = normalize(cameraPosition - worldPosition.xyz);
 
-  vec4 offset = vec4(0.0, 0.0, 0.0, 0.0);
-
-  gl_Position = projectionMatrix * viewMatrix * worldPosition + offset;
+  gl_Position = projectionMatrix * viewMatrix * worldPosition;
 }
