@@ -28,7 +28,7 @@ export class TextureGridSimulation {
 
   // Hydrology data storage: TWO render targets (current and next frame)
   // Tracks ice and water phase transitions independently of climate
-  // Each render target RGBA = [iceThickness, waterThermalMass, waterDepth, salinity]
+  // Each render target RGBA = [waterDepth, iceThickness, unused, salinity]
   public hydrologyDataTargets: THREE.WebGLRenderTarget[]
 
   // Hydrology initialisation data (temporary storage for setHydrologyData)
@@ -40,20 +40,21 @@ export class TextureGridSimulation {
   public climateDataTargets: THREE.WebGLRenderTarget[]
 
   // Atmosphere data storage: TWO render targets (current and next frame)
-  // Thermal atmosphere texture: temperature and albedo (cloud cover)
-  // Each render target RGBA = [atmosphereTemperature, -, -, albedo]
+  // Atmosphere texture: temperature, precipitable water, and albedo (cloud cover)
+  // Each render target RGBA = [atmosphereTemperature, -, precipitableWater, albedo]
+  // precipitableWater: Total column water vapour in mm (1mm = 1 kg/m²), Earth avg ~25mm
   public atmosphereDataTargets: THREE.WebGLRenderTarget[]
 
-  // [Auxiliary] Solar flux data storage: Single render target (recalculated each step, no ping-pong needed)
+  // Auxiliary data storage: Single render target (recalculated each step, no ping-pong needed)
   // Not used in physics pipeline - available for visualisation/diagnostics
-  // RGBA = [flux (W/m²), reserved, reserved, reserved]
-  public solarFluxTarget: THREE.WebGLRenderTarget | null = null
+  // RGBA = [solarFlux (W/m²), waterState (0=solid, 1=liquid), reserved, reserved]
+  public auxiliaryTarget: THREE.WebGLRenderTarget | null = null
 
   // Working buffers for pass-based physics architecture
   // These are used for intermediate results within a single timestep
   // Thermal surface working buffer: RGBA = [surfaceTemperature, -, -, albedo]
   public surfaceWorkingBuffers: THREE.WebGLRenderTarget[] = []
-  // Thermal atmosphere working buffer: RGBA = [atmosphereTemperature, -, -, albedo]
+  // Atmosphere working buffer: RGBA = [atmosphereTemperature, -, precipitableWater, albedo]
   public atmosphereWorkingBuffers: THREE.WebGLRenderTarget[] = []
 
   // MRT for longwave radiation pass (updates both surface and atmosphere)
@@ -61,6 +62,9 @@ export class TextureGridSimulation {
 
   // MRT for shortwave incident pass (outputs surface state + auxiliary solar flux)
   public shortwaveMRT: THREE.WebGLRenderTarget<THREE.Texture[]> | null = null
+
+  // MRT for hydrology pass (outputs hydrology state + auxiliary water state)
+  public hydrologyMRT: THREE.WebGLRenderTarget<THREE.Texture[]> | null = null
 
   constructor(config: SimulationConfig) {
     this.grid = new Grid(config.resolution)
@@ -103,12 +107,12 @@ export class TextureGridSimulation {
     this.climateDataTargets = [this.createRenderTarget(), this.createRenderTarget()]
 
     // Create atmosphere data storage (two render targets: current and next frame)
-    // Stores atmospheric temperature: RGBA = [atmosphereTemperature, reserved, reserved, reserved]
+    // Stores atmospheric state: RGBA = [atmosphereTemperature, -, precipitableWater, albedo]
     this.atmosphereDataTargets = [this.createRenderTarget(), this.createRenderTarget()]
     this.initialiseAtmosphereTargets()
 
-    // Create solar flux data storage (single target, no ping-pong)
-    this.solarFluxTarget = this.createRenderTarget()
+    // Create auxiliary data storage (single target, no ping-pong)
+    this.auxiliaryTarget = this.createRenderTarget()
 
     // Create working buffers for pass-based architecture
     // Two buffers each for surface and atmosphere to allow ping-pong between passes
@@ -120,6 +124,9 @@ export class TextureGridSimulation {
 
     // Create MRT for shortwave incident pass (surface state + solar flux)
     this.shortwaveMRT = this.createSurfaceAtmosphereMRT()
+
+    // Create MRT for hydrology pass (hydrology state + auxiliary water state)
+    this.hydrologyMRT = this.createSurfaceAtmosphereMRT()
   }
 
   /**
@@ -410,7 +417,7 @@ export class TextureGridSimulation {
     }
 
     // Create hydrology data texture
-    // RGBA = [iceThickness, waterThermalMass, waterDepth, salinity]
+    // RGBA = [waterDepth, iceThickness, unused, salinity]
     const hydrologyData = new Float32Array(this.textureWidth * this.textureHeight * 4)
     for (let i = 0; i < this.cellCount; i++) {
       const coords = this.indexTo2D(i)
@@ -420,10 +427,10 @@ export class TextureGridSimulation {
       const quantisedIce = Math.round(iceThickness[i] / DEPTH_QUANTUM) * DEPTH_QUANTUM
       const quantisedWater = Math.round(waterDepth[i] / DEPTH_QUANTUM) * DEPTH_QUANTUM
 
-      hydrologyData[dataIndex + 0] = quantisedIce        // R = iceThickness (quantised)
-      hydrologyData[dataIndex + 1] = 0                    // G = waterThermalMass (start at 0)
-      hydrologyData[dataIndex + 2] = quantisedWater      // B = waterDepth (quantised)
-      hydrologyData[dataIndex + 3] = salinity[i]          // A = salinity
+      hydrologyData[dataIndex + 0] = quantisedWater      // R = waterDepth (quantised)
+      hydrologyData[dataIndex + 1] = quantisedIce        // G = iceThickness (quantised)
+      hydrologyData[dataIndex + 2] = 0                   // B = unused
+      hydrologyData[dataIndex + 3] = salinity[i]         // A = salinity
     }
 
     const hydrologyTexture = new THREE.DataTexture(
@@ -557,7 +564,7 @@ export class TextureGridSimulation {
 
   /**
    * Get the current atmosphere render target (for reading in shaders)
-   * Format: RGBA = [atmosphereTemperature, reserved, reserved, reserved]
+   * Format: RGBA = [atmosphereTemperature, -, precipitableWater, albedo]
    */
   public getAtmosphereDataCurrent(): THREE.WebGLRenderTarget {
     return this.atmosphereDataTargets[0]
@@ -565,20 +572,21 @@ export class TextureGridSimulation {
 
   /**
    * Get the next atmosphere render target (for writing in shaders)
-   * Format: RGBA = [atmosphereTemperature, reserved, reserved, reserved]
+   * Format: RGBA = [atmosphereTemperature, -, precipitableWater, albedo]
    */
   public getAtmosphereDataNext(): THREE.WebGLRenderTarget {
     return this.atmosphereDataTargets[1]
   }
 
   /**
-   * Get solar flux data target
+   * Get auxiliary data target
+   * RGBA = [solarFlux, waterState, reserved, reserved]
    */
-  public getSolarFluxTarget(): THREE.WebGLRenderTarget {
-    if (!this.solarFluxTarget) {
-      throw new Error('Solar flux target not initialised')
+  public getAuxiliaryTarget(): THREE.WebGLRenderTarget {
+    if (!this.auxiliaryTarget) {
+      throw new Error('Auxiliary target not initialised')
     }
-    return this.solarFluxTarget
+    return this.auxiliaryTarget
   }
 
   /**
@@ -613,6 +621,16 @@ export class TextureGridSimulation {
       throw new Error('Shortwave MRT not initialised')
     }
     return this.shortwaveMRT
+  }
+
+  /**
+   * Get MRT for hydrology pass (hydrology state + auxiliary water state)
+   */
+  public getHydrologyMRT(): THREE.WebGLRenderTarget<THREE.Texture[]> {
+    if (!this.hydrologyMRT) {
+      throw new Error('Hydrology MRT not initialised')
+    }
+    return this.hydrologyMRT
   }
 
   /**
@@ -716,8 +734,8 @@ export class TextureGridSimulation {
     renderer.readRenderTargetPixels(target, coords.x, coords.y, 1, 1, buffer)
 
     return {
-      iceThickness: buffer[0],       // R channel
-      waterDepth: buffer[2],         // B channel
+      waterDepth: buffer[0],         // R channel
+      iceThickness: buffer[1],       // G channel
       salinity: buffer[3],           // A channel
     }
   }
@@ -743,12 +761,13 @@ export class TextureGridSimulation {
   }
 
   /**
-   * Read back current atmosphere data (atmospheric temperature and pressure) for a specific cell
+   * Read back current atmosphere data for a specific cell
+   * Format: RGBA = [atmosphereTemperature, pressure, precipitableWater, albedo]
    */
   async getAtmosphereDataForCell(
     cellIndex: number,
     renderer: THREE.WebGLRenderer
-  ): Promise<{ atmosphericTemperature: number; atmosphericPressure: number }> {
+  ): Promise<{ atmosphericTemperature: number; pressure: number; precipitableWater: number }> {
     const coords = this.indexTo2D(cellIndex)
     const buffer = new Float32Array(4)
 
@@ -757,7 +776,8 @@ export class TextureGridSimulation {
 
     return {
       atmosphericTemperature: buffer[0], // R channel = atmosphericTemperature
-      atmosphericPressure: buffer[1], // G channel = P_local
+      pressure: buffer[1],               // G channel = pressure (Pa)
+      precipitableWater: buffer[2],      // B channel = precipitableWater (mm)
     }
   }
 
@@ -790,8 +810,8 @@ export class TextureGridSimulation {
     for (const target of this.atmosphereDataTargets) {
       target.dispose()
     }
-    if (this.solarFluxTarget) {
-      this.solarFluxTarget.dispose()
+    if (this.auxiliaryTarget) {
+      this.auxiliaryTarget.dispose()
     }
     for (const target of this.surfaceWorkingBuffers) {
       target.dispose()
@@ -804,6 +824,9 @@ export class TextureGridSimulation {
     }
     if (this.shortwaveMRT) {
       this.shortwaveMRT.dispose()
+    }
+    if (this.hydrologyMRT) {
+      this.hydrologyMRT.dispose()
     }
   }
 }

@@ -6,5 +6,8 @@ export type VisualisationModeId =
   | 'salinity'
   | 'albedo'
   | 'solarFlux'
+  | 'waterState'
   | 'surfaceTemperature'
   | 'atmosphericTemperature'
+  | 'precipitableWater'
+  | 'surfacePressure'

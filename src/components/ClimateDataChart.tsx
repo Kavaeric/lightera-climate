@@ -7,7 +7,7 @@ interface ClimateDataPoint {
   day: number
   surfaceTemperature: number
   atmosphericTemperature: number
-  atmosphericPressure: number
+  precipitableWater: number
   waterDepth: number
   iceThickness: number
   salinity: number
@@ -56,12 +56,15 @@ export function ClimateDataChart({ data, cellIndex, cellLatLon, onClose }: Clima
 
   // Calculate hydrology stats
   const hydrologyStats = useMemo(() => {
-    if (data.length === 0) return { waterDepthMax: 0, iceThicknessMax: 0 }
+    if (data.length === 0) return { waterDepthMax: 0, iceThicknessMax: 0, salinity: 0 }
     const waterDepths = data.map((d) => d.waterDepth).filter((d) => d > 0)
     const iceThicknesses = data.map((d) => d.iceThickness).filter((d) => d > 0)
+    // Salinity is the same for all samples (current state), so just get the first one
+    const salinity = data[0]?.salinity ?? 0
     return {
       waterDepthMax: waterDepths.length > 0 ? Math.max(...waterDepths) : 0,
       iceThicknessMax: iceThicknesses.length > 0 ? Math.max(...iceThicknesses) : 0,
+      salinity,
     }
   }, [data])
 
@@ -79,11 +82,11 @@ export function ClimateDataChart({ data, cellIndex, cellLatLon, onClose }: Clima
     return data[0]?.elevation ?? 0
   }, [data])
 
-  // Get atmospheric pressure (current value, not time-series)
-  const atmosphericPressure = useMemo(() => {
+  // Get precipitable water (current value, not time-series)
+  const precipitableWater = useMemo(() => {
     if (data.length === 0) return 0
-    // Atmospheric pressure is the same for all samples (current state), so just get the first one
-    return data[0]?.atmosphericPressure ?? 0
+    // Precipitable water is the same for all samples (current state), so just get the first one
+    return data[0]?.precipitableWater ?? 0
   }, [data])
 
   if (cellIndex === null) return null
@@ -189,21 +192,27 @@ export function ClimateDataChart({ data, cellIndex, cellLatLon, onClose }: Clima
           Elevation: <strong>{elevation.toFixed(1)} m</strong>
         </div>
         <div>
+          Albedo: <strong>{albedo.toFixed(2)}</strong>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 16, fontSize: 16 }}>
+        <div>
           Water depth: <strong>{hydrologyStats.waterDepthMax.toFixed(3)} m</strong>
         </div>
         <div>
           Ice thickness: <strong>{hydrologyStats.iceThicknessMax.toFixed(3)} m</strong>
         </div>
         <div>
-          Albedo: <strong>{albedo.toFixed(2)}</strong>
+          Salinity: <strong>{hydrologyStats.salinity.toFixed(3)} PSU</strong>
         </div>
       </div>
 
       <div style={{ display: 'flex', gap: 16, fontSize: 16, marginTop: 8 }}>
         <div>
-          Atmospheric pressure: <strong>{(atmosphericPressure / 1000).toFixed(2)} kPa</strong>
+          Precipitable water: <strong>{precipitableWater.toFixed(1)} mm</strong>
           <br />
-          <span style={{ fontSize: 14, opacity: 0.8 }}>({atmosphericPressure.toFixed(0)} Pa)</span>
+          <span style={{ fontSize: 14, opacity: 0.8 }}>(column water vapour)</span>
         </div>
       </div>
 

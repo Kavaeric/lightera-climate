@@ -13,6 +13,7 @@ import { createDryTransmissionTexture, getDryTransmissionConfig } from '../util/
 import fullscreenVertexShader from '../shaders/fullscreen.vert'
 import shortwaveIncidentFragmentShader from '../climate/pass/01-shortwave-incident/shortwaveIncident.frag'
 import longwaveRadiationFragmentShader from '../climate/pass/02-longwave-radiation/longwaveRadiation.frag'
+import hydrologyFragmentShader from '../climate/pass/03-hydrology/hydrology.frag'
 
 interface GPUResources {
   scene: THREE.Scene
@@ -20,6 +21,7 @@ interface GPUResources {
   geometry: THREE.BufferGeometry
   shortwaveIncidentMaterial: THREE.ShaderMaterial
   longwaveRadiationMaterial: THREE.ShaderMaterial
+  hydrologyMaterial: THREE.ShaderMaterial
   blankRenderTarget: THREE.WebGLRenderTarget
   mesh: THREE.Mesh
 }
@@ -46,7 +48,9 @@ function validateGPUResources(
   resources: GPUResources
 ): void {
   // Check that materials were created
-  if (!resources.shortwaveIncidentMaterial || !resources.longwaveRadiationMaterial) {
+  if (!resources.shortwaveIncidentMaterial
+   || !resources.longwaveRadiationMaterial
+   || !resources.hydrologyMaterial) {
     throw new Error('GPU materials were not created')
   }
 
@@ -137,6 +141,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
         cellInformation: { value: simulation.cellInformation },
         surfaceData: { value: null }, // Will be set each frame
         atmosphereData: { value: null }, // Will be set each frame
+        hydrologyData: { value: null }, // Will be set each frame (for surface thermal properties)
         terrainData: { value: simulation.terrainData },
         // Orbital parameters
         axialTilt: { value: axialTilt },
@@ -188,6 +193,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
         cellInformation: { value: simulation.cellInformation },
         surfaceData: { value: null }, // Will be set to working buffer texture each frame
         atmosphereData: { value: null }, // Will be set to working buffer texture each frame
+        hydrologyData: { value: null }, // Will be set each frame (for surface thermal properties)
         terrainData: { value: simulation.terrainData },
         dt: { value: dt },
 
@@ -202,6 +208,24 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
         surfaceGravity: { value: planetaryConfig.surfaceGravity },
         meanMolecularMass: { value: meanMolecularMass },
         atmosphereHeatCapacity: { value: atmosphereHeatCapacity },
+      },
+    })
+
+    // Create hydrology material (Pass 3)
+    // Handles water cycle dynamics: evaporation, precipitation, ice formation
+    // Uses MRT to output both hydrology state and auxiliary water state
+    const hydrologyMaterial = new THREE.ShaderMaterial({
+      vertexShader: fullscreenVertexShader,
+      fragmentShader: hydrologyFragmentShader,
+      glslVersion: THREE.GLSL3,
+      uniforms: {
+        cellInformation: { value: simulation.cellInformation },
+        surfaceData: { value: null }, // Will be set each frame
+        hydrologyData: { value: null }, // Will be set each frame
+        terrainData: { value: simulation.terrainData },
+        atmosphereData: { value: null }, // Will be set each frame
+        auxiliaryData: { value: null }, // Will be set each frame (to preserve solar flux)
+        dt: { value: dt },
       },
     })
 
@@ -263,20 +287,26 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
 
     // Initialise atmosphere render targets with same temperature as surface to avoid initial shock
     // The atmosphere will equilibrate to its own temperature based on solar absorption and IR loss
-    // Thermal atmosphere texture: RGBA = [temperature, -, -, albedo]
+    // Atmosphere texture: RGBA = [temperature, pressure, precipitableWater, albedo]
     const initAtmosphereTemp = PHYSICS_CONSTANTS.COSMIC_BACKGROUND_TEMP
+    const initAtmospherePressure = planetaryConfig.surfacePressure ?? 101325 // Pa
+    const initPrecipitableWater = 0.0 // mm (completely dry atmosphere initially)
     const atmosphereInitMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: `
         precision highp float;
         uniform float initTemp;
+        uniform float initPressure;
+        uniform float initPrecipitableWater;
         uniform float initAlbedo;
         void main() {
-          gl_FragColor = vec4(initTemp, 0.0, 0.0, initAlbedo);
+          gl_FragColor = vec4(initTemp, initPressure, initPrecipitableWater, initAlbedo);
         }
       `,
       uniforms: {
         initTemp: { value: initAtmosphereTemp },
+        initPressure: { value: initAtmospherePressure },
+        initPrecipitableWater: { value: initPrecipitableWater },
         initAlbedo: { value: 0.0 }, // Atmosphere starts with no albedo (no cloud cover)
       },
     })
@@ -304,6 +334,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       geometry,
       shortwaveIncidentMaterial,
       longwaveRadiationMaterial,
+      hydrologyMaterial,
       blankRenderTarget,
       mesh,
     }
@@ -379,6 +410,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       gpuResources.geometry.dispose()
       gpuResources.shortwaveIncidentMaterial.dispose()
       gpuResources.longwaveRadiationMaterial.dispose()
+      gpuResources.hydrologyMaterial.dispose()
       gpuResources.blankRenderTarget.dispose()
       gpuResources.scene.clear()
     }

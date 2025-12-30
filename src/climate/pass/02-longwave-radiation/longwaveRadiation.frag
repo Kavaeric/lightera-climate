@@ -22,6 +22,7 @@ precision highp float;
 #include "../../../shaders/textureAccessors.glsl"
 #include "../../constants.glsl"
 #include "../../../shaders/kDistribution.glsl"
+#include "../../../shaders/surfaceThermal.glsl"
 
 in vec2 vUv;
 
@@ -53,21 +54,33 @@ void main() {
 
 	vec4 atmosphereState = texture(atmosphereData, vUv);
 	float atmosphereTemperature = atmosphereState.r;
+	float atmospherePressure = atmosphereState.g;
+	float precipitableWater_mm = atmosphereState.b;
 	float atmosphereAlbedo = atmosphereState.a;
+
+	// Read hydrology state to determine surface type
+	float waterDepth = getWaterDepth(vUv);
+	float iceThickness = getIceThickness(vUv);
 
 	// === ATMOSPHERIC COLUMN PROPERTIES ===
 
 	// Calculate total atmospheric column density from pressure and gravity
 	float totalColumn_cm2 = calculateColumnDensity(
-		surfacePressure,
+		atmospherePressure,
 		surfaceGravity,
 		meanMolecularMass
 	);
 
-	// Read humidity from atmosphere texture
-	// TODO: Currently humidity is not dynamically calculated, set to 0
-	//       Read from atmosphere state or separate hydrology texture
-	float humidity = 0.0;
+	// Convert precipitable water to H2O molar fraction
+	// Formula: x_h2o = pw × g × (M_air/M_h2o) / (P × 1000)
+	// Where:
+	//   pw = precipitable water in mm (= kg/m²)
+	//   g = surface gravity (m/s²)
+	//   M_air/M_h2o ≈ 29/18 ≈ 1.611 (ratio of mean air to water molecular mass)
+	//   P = surface pressure (Pa)
+	//   1000 converts mm to m
+	const float MOLAR_MASS_RATIO = 1.611; // M_air / M_h2o
+	float humidity = precipitableWater_mm * surfaceGravity * MOLAR_MASS_RATIO / (atmospherePressure * 1000.0);
 
 	// Calculate H2O column density for per-cell transmission calculation
 	float h2oColumnDensity = totalColumn_cm2 * humidity;
@@ -99,14 +112,15 @@ void main() {
 	float atmosphereEmissivity = 1.0 - transmissionAtmosphere;
 
 	// === LONGWAVE RADIATION FLUXES ===
-	// 
+	//
 	// Both surface and atmosphere emit as grey bodies (emissivity < 1.0).
-	// Surface emissivity is a material property (rock ≈ 0.90).
+	// Surface emissivity depends on surface type (rock ≈ 0.90, water ≈ 0.96).
 	// Atmosphere emissivity equals absorptivity by Kirchhoff's law.
 
 	// Surface emission (Stefan-Boltzmann law)
 	// Power per unit area: P = ε * σ * T^4 (W/m²)
-	float surfaceEmission = MATERIAL_ROCK_EMISSIVITY * STEFAN_BOLTZMANN_CONST * pow(surfaceTemperature, 4.0);
+	float surfaceEmissivity = getSurfaceEmissivity(waterDepth, iceThickness);
+	float surfaceEmission = surfaceEmissivity * STEFAN_BOLTZMANN_CONST * pow(surfaceTemperature, 4.0);
 
 	// Atmosphere emission (Kirchhoff's law: emits according to absorptivity)
 	// A good absorber is a good emitter at the same wavelengths
@@ -178,8 +192,10 @@ void main() {
 	// small compared to the thermal relaxation timescale.
 
 	// Surface temperature update
+	// Heat capacity depends on surface type (rock vs water/ice)
+	float surfaceHeatCapacity = getSurfaceHeatCapacity(waterDepth, iceThickness);
 	float newSurfaceTemperature = surfaceTemperature +
-		(surfaceNetPowerPerArea * dt) / MATERIAL_ROCK_HEAT_CAPACITY_PER_AREA; // K
+		(surfaceNetPowerPerArea * dt) / surfaceHeatCapacity; // K
 
 	// Atmosphere temperature update
 	float newAtmosphereTemperature = atmosphereTemperature +
@@ -190,6 +206,7 @@ void main() {
 	// Update surface state: RGBA = [surfaceTemperature, reserved, reserved, albedo]
 	outSurfaceState = packSurfaceData(newSurfaceTemperature, surfaceAlbedo);
 
-	// Update atmosphere state: RGBA = [atmosphereTemperature, reserved, reserved, albedo]
-	outAtmosphereState = packAtmosphereData(newAtmosphereTemperature, atmosphereAlbedo);
+	// Update atmosphere state: RGBA = [atmosphereTemperature, pressure, precipitableWater, albedo]
+	// Note: pressure and precipitableWater_mm are passed through unchanged (no dynamics yet)
+	outAtmosphereState = packAtmosphereData(newAtmosphereTemperature, atmospherePressure, precipitableWater_mm, atmosphereAlbedo);
 }

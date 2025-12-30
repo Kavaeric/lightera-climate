@@ -40,6 +40,7 @@ export interface Milestone {
 export interface GPUResources {
   shortwaveIncidentMaterial: THREE.ShaderMaterial
   longwaveRadiationMaterial: THREE.ShaderMaterial
+  hydrologyMaterial: THREE.ShaderMaterial
   mesh: THREE.Mesh
   scene: THREE.Scene
   camera: THREE.OrthographicCamera
@@ -169,6 +170,7 @@ export class SimulationOrchestrator {
       {
         shortwaveIncidentMaterial: gpuResources.shortwaveIncidentMaterial,
         longwaveRadiationMaterial: gpuResources.longwaveRadiationMaterial,
+        hydrologyMaterial: gpuResources.hydrologyMaterial,
       },
       gpuResources.mesh,
       gpuResources.scene,

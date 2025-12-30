@@ -117,17 +117,19 @@ export class SimulationExecutor {
     materials: {
       shortwaveIncidentMaterial: THREE.ShaderMaterial
       longwaveRadiationMaterial: THREE.ShaderMaterial
+      hydrologyMaterial: THREE.ShaderMaterial
     },
     mesh: THREE.Mesh,
     scene: THREE.Scene,
     camera: THREE.OrthographicCamera
   ): boolean {
     try {
-      const { shortwaveIncidentMaterial, longwaveRadiationMaterial } = materials
+      const { shortwaveIncidentMaterial, longwaveRadiationMaterial, hydrologyMaterial } = materials
 
-      // ===== 2-PASS PHYSICS ARCHITECTURE =====
+      // ===== 3-PASS PHYSICS ARCHITECTURE =====
       // Pass 1: Shortwave heating (solar flux + surface absorption)
       // Pass 2: Longwave radiation (surface emission, atmospheric absorption & re-emission)
+      // Pass 3: Hydrology (water cycle dynamics)
 
       // Pass 1: Calculate shortwave heating (combined solar flux + surface incident)
       // Uses MRT to output both surface state (for physics) and solar flux (for visualisation)
@@ -137,6 +139,7 @@ export class SimulationExecutor {
       // Set input textures
       shortwaveIncidentMaterial.uniforms.surfaceData.value = simulation.getClimateDataCurrent().texture
       shortwaveIncidentMaterial.uniforms.atmosphereData.value = simulation.getAtmosphereDataCurrent().texture
+      shortwaveIncidentMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture
 
       // Render to MRT (attachment 0 = surface state, attachment 1 = solar flux)
       const shortwaveMRT = simulation.getShortwaveMRT()
@@ -154,9 +157,9 @@ export class SimulationExecutor {
       gl.render(scene, camera)
       gl.setRenderTarget(null)
 
-      // Copy MRT attachment 1 → auxiliary solar flux target (not used in physics pipeline)
+      // Copy MRT attachment 1 → auxiliary target R channel (solar flux, not used in physics pipeline)
       this.copyMaterial.uniforms.sourceTexture.value = shortwaveMRT.textures[1]
-      gl.setRenderTarget(simulation.getSolarFluxTarget())
+      gl.setRenderTarget(simulation.getAuxiliaryTarget())
       gl.clear()
       gl.render(scene, camera)
       gl.setRenderTarget(null)
@@ -168,6 +171,7 @@ export class SimulationExecutor {
       // - Half of atmospheric emission goes to space, half back to surface
       longwaveRadiationMaterial.uniforms.surfaceData.value = simulation.getSurfaceWorkingBuffer(0).texture
       longwaveRadiationMaterial.uniforms.atmosphereData.value = simulation.getAtmosphereDataCurrent().texture
+      longwaveRadiationMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture
 
       // Get MRT configured to write directly to next targets
       const longwaveRadiationMRT = simulation.getLongwaveRadiationMRT()
@@ -194,9 +198,43 @@ export class SimulationExecutor {
       gl.render(scene, camera)
       gl.setRenderTarget(null)
 
-      // Swap climate and atmosphere pointers for next timestep
+      // Pass 3: Hydrology (water cycle dynamics)
+      // - Evaporation from water surfaces
+      // - Precipitation from atmosphere
+      // - Ice formation and melting
+      // Uses MRT to output both hydrology state and auxiliary water state
+      hydrologyMaterial.uniforms.surfaceData.value = longwaveRadiationMRT.textures[0]
+      hydrologyMaterial.uniforms.atmosphereData.value = longwaveRadiationMRT.textures[1]
+      hydrologyMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture
+      hydrologyMaterial.uniforms.auxiliaryData.value = simulation.getAuxiliaryTarget().texture
+
+      // Render to hydrology MRT (attachment 0 = hydrology state, attachment 1 = auxiliary)
+      const hydrologyMRT = simulation.getHydrologyMRT()
+      mesh.material = hydrologyMaterial
+      gl.setRenderTarget(hydrologyMRT)
+      gl.clear()
+      gl.render(scene, camera)
+      gl.setRenderTarget(null)
+
+      // Copy MRT attachment 0 → next hydrology state
+      this.copyMaterial.uniforms.sourceTexture.value = hydrologyMRT.textures[0]
+      mesh.material = this.copyMaterial
+      gl.setRenderTarget(simulation.getHydrologyDataNext())
+      gl.clear()
+      gl.render(scene, camera)
+      gl.setRenderTarget(null)
+
+      // Copy MRT attachment 1 → auxiliary target (contains solar flux + water state)
+      this.copyMaterial.uniforms.sourceTexture.value = hydrologyMRT.textures[1]
+      gl.setRenderTarget(simulation.getAuxiliaryTarget())
+      gl.clear()
+      gl.render(scene, camera)
+      gl.setRenderTarget(null)
+
+      // Swap climate, atmosphere, and hydrology pointers for next timestep
       simulation.swapClimateBuffers()
       simulation.swapAtmosphereBuffers()
+      simulation.swapHydrologyBuffers()
 
       return true
     } catch (error) {

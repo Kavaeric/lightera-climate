@@ -5,7 +5,7 @@ precision highp float;
 varying vec2 vUv;
 
 // Input textures
-uniform sampler2D previousHydrology;      // Current frame hydrology: RGBA = [iceThickness, waterThermalMass, waterDepth, salinity]
+uniform sampler2D previousHydrology;      // Current frame hydrology: RGBA = [waterDepth, iceThickness, unused, salinity]
 uniform sampler2D currentTemperature;     // Surface temperature from climate layer (same frame) - RGBA = [surfaceTemperature, albedo, reserved, reserved]
 uniform sampler2D atmosphereData;         // Atmospheric data from previous frame: RGBA = [T_atm, P_local, reserved, reserved]
 uniform sampler2D terrainData;            // Static terrain: RGBA = [elevation, reserved, reserved, reserved]
@@ -79,6 +79,6 @@ void main() {
   // TODO: Rebuild physics architecture
 
   // Output new hydrology state
-  // RGBA = [iceThickness, waterThermalMass, waterDepth, salinity]
+  // RGBA = [waterDepth, iceThickness, unused, salinity]
   gl_FragColor = hydro;
 }

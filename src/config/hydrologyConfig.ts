@@ -15,21 +15,18 @@ export interface HydrologyConfig {
 
 /**
  * Hydrology state stored in GPU texture
- * Format: RGBA = [iceThickness, waterThermalMass, reserved1, reserved2]
+ * Format: RGBA = [waterDepth, iceThickness, unused, salinity]
  *
+ * waterDepth: in metres (range 0-10000)
  * iceThickness: in metres (range 0-10000)
- * waterThermalMass: normalised thermal mass indicator (0-1)
- *   - Used to track whether surface is liquid water or ice
- *   - 1.0 = pure liquid water (C = 4186 * 1000 * depth)
- *   - 0.0 = pure ice or rock (C = 2.16e6)
- *   - Intermediate values for phase transitions
- * reserved: For future use (salinity effects, snow, etc.)
+ * unused: reserved for future use
+ * salinity: in PSU (practical salinity units)
  */
 export interface HydrologyTextureFormat {
-  r: number // iceThickness (metres)
-  g: number // waterThermalMass (0-1 normalised)
-  b: number // reserved
-  a: number // reserved
+  r: number // waterDepth (metres)
+  g: number // iceThickness (metres)
+  b: number // unused
+  a: number // salinity (PSU)
 }
 
 /**
@@ -45,20 +42,12 @@ export function createDefaultHydrology(cellCount: number): HydrologyConfig {
  * Initialise hydrology texture data for GPU
  * Called by TextureGridSimulation to create initial hydrology render target
  */
-export function initialiseHydrologyData(
-  cellCount: number,
-  waterDepth: number[]
-): { iceThickness: Float32Array; waterThermalMass: Float32Array } {
+export function initialiseHydrologyData(cellCount: number): { iceThickness: Float32Array } {
   const iceThickness = new Float32Array(cellCount)
-  const waterThermalMass = new Float32Array(cellCount)
 
   for (let i = 0; i < cellCount; i++) {
     iceThickness[i] = 0 // Start with no ice
-
-    // If water is present, it starts in liquid phase
-    // If land/rock, thermal mass = 0 (will use rock heat capacity)
-    waterThermalMass[i] = waterDepth[i] > 0.01 ? 1.0 : 0.0
   }
 
-  return { iceThickness, waterThermalMass }
+  return { iceThickness }
 }

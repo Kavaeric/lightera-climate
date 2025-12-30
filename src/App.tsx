@@ -45,7 +45,7 @@ function Scene({ simulation, showLatLonGrid, hoveredCell, selectedCell, onHoverC
   } = useSimulation()
   const { displayConfig } = useDisplayConfig()
 
-  // Use ref for stepsPerFrame so changes don't re-initialize the engine
+  // Use ref for stepsPerFrame so changes don't re-initialise the engine
   const stepsPerFrameRef = useRef(stepsPerFrame)
   useEffect(() => {
     stepsPerFrameRef.current = stepsPerFrame
@@ -147,7 +147,7 @@ function ClimateDataFetcher({
 }: {
   simulation: TextureGridSimulation
   cellIndex: number | null
-  onDataFetched: (data: Array<{ day: number; surfaceTemperature: number; atmosphericTemperature: number; atmosphericPressure: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>) => void
+  onDataFetched: (data: Array<{ day: number; surfaceTemperature: number; atmosphericTemperature: number; precipitableWater: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>) => void
 }) {
   const { gl } = useThree()
   const { getRecorder } = useSimulation()
@@ -178,7 +178,7 @@ function ClimateDataFetcher({
             day: index,
             surfaceTemperature: surfaceTemp,
             atmosphericTemperature: atmosphereData.atmosphericTemperature,
-            atmosphericPressure: atmosphereData.atmosphericPressure,
+            precipitableWater: atmosphereData.precipitableWater,
             waterDepth: hydrologyData.waterDepth,
             iceThickness: hydrologyData.iceThickness,
             salinity: hydrologyData.salinity,
@@ -225,7 +225,7 @@ function AppContent() {
   const [hoveredCell, setHoveredCell] = useState<number | null>(null)
   const [selectedCell, setSelectedCell] = useState<number | null>(null)
   const [selectedCellLatLon, setSelectedCellLatLon] = useState<{ lat: number; lon: number } | null>(null)
-  const [climateData, setClimateData] = useState<Array<{ day: number; surfaceTemperature: number; atmosphericTemperature: number; atmosphericPressure: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>>([])
+  const [climateData, setClimateData] = useState<Array<{ day: number; surfaceTemperature: number; atmosphericTemperature: number; precipitableWater: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>>([])
 
   // Get active config and simulation state from context
   const { activeSimulationConfig, simulationKey, isRunning, newSimulation, play, pause, getOrchestrator } = useSimulation()
@@ -315,7 +315,7 @@ function AppContent() {
         day: number
         surfaceTemperature: number
         atmosphericTemperature: number
-        atmosphericPressure: number
+        precipitableWater: number
         waterDepth: number
         iceThickness: number
         salinity: number
@@ -512,14 +512,17 @@ function AppContent() {
               }}
             >
               <option value="terrain">Terrain</option>
-              <option value="solarFlux">Solar flux</option>
-              <option value="elevation">Elevation (greyscale)</option>
-              <option value="waterDepth">Water depth</option>
-              <option value="salinity">Salinity (greyscale)</option>
-              <option value="iceThickness">Ice thickness</option>
-              <option value="albedo">Albedo (greyscale)</option>
-              <option value="surfaceTemperature">Surface temperature</option>
-              <option value="atmosphericTemperature">Atmospheric temperature</option>
+              <option value="elevation">Elevation</option>
+              <option value="surfaceTemperature">Surface: Surface temperature</option>
+              <option value="albedo">Surface: Albedo</option>
+              <option value="atmosphericTemperature">Atmospheric: Temperature</option>
+              <option value="surfacePressure">Atmospheric: Surface pressure</option>
+              <option value="precipitableWater">Atmospheric: Precipitable water</option>
+              <option value="waterDepth">Hydrology: Water depth</option>
+              <option value="iceThickness">Hydrology: Ice thickness</option>
+              <option value="salinity">Hydrology: Salinity</option>
+              <option value="solarFlux">Auxiliary: Solar flux</option>
+              <option value="waterState">Auxiliary: Water state</option>
             </select>
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

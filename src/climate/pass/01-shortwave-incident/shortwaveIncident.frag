@@ -14,6 +14,7 @@ precision highp float;
 
 #include "../../../shaders/textureAccessors.glsl"
 #include "../../constants.glsl"
+#include "../../../shaders/surfaceThermal.glsl"
 
 in vec2 vUv;
 
@@ -98,6 +99,10 @@ void main() {
 	float surfaceAlbedo = getSurfaceAlbedo(vUv);
 	float surfaceTemperature = getSurfaceTemperature(vUv);
 
+	// Read hydrology state to determine surface type
+	float waterDepth = getWaterDepth(vUv);
+	float iceThickness = getIceThickness(vUv);
+
 	// The amount of energy that reaches the surface is the solar flux
 	// less the amount of energy reflected by the atmosphere (albedo)
 	// less the amount of energy reflected by the surface (visible light albedo)
@@ -107,8 +112,10 @@ void main() {
 	float energyAbsorbed = surfaceIncident * dt;
 
 	// Calculate temperature change from solar heating
+	// Heat capacity depends on surface type (rock vs water/ice)
 	// ΔT = Energy / HeatCapacity = (J/m²) / (J/(m²·K)) = K
-	float temperatureChange = energyAbsorbed / MATERIAL_ROCK_HEAT_CAPACITY_PER_AREA;
+	float heatCapacity = getSurfaceHeatCapacity(waterDepth, iceThickness);
+	float temperatureChange = energyAbsorbed / heatCapacity;
 
 	// Calculate new surface temperature
 	float newSurfaceTemperature = surfaceTemperature + temperatureChange;

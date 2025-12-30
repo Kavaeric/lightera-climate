@@ -7,11 +7,10 @@
 - **A**: Reserved
 
 ## Terrain texture (static)
-To be reworked: Water depth, salinity, and surface albedo should likely just be written directly to the relevant working textures rather than stored in some initialisation texture that will need to be read from.
 - **R**: Elevation (m)
-- **G**: Water depth (m)
-- **B**: Salinity (PSU)
-- **A**: Base albedo (0-1)
+- **G**: Reserved
+- **B**: Reserved
+- **A**: Reserved
 
 ## Thermal surface texture
 - **R**: Surface temperature (K)
@@ -19,22 +18,21 @@ To be reworked: Water depth, salinity, and surface albedo should likely just be 
 - **B**: Unused
 - **A**: Surface albedo (0-1)
 
-## Thermal atmosphere texture
+## Atmosphere texture
 - **R**: Atmospheric temperature (K)
-- **G**: Unused
-- **B**: Unused
+- **G**: Surface pressure (Pa)
+- **B**: Precipitable water (mm)
 - **A**: Atmospheric albedo/cloud cover (0-1)
 
 ## Hydrology texture
-To be deprecated.
-- **R**: Ice thickness (m)
-- **G**: Water thermal mass (J/K)
-- **B**: Water depth (m)
+- **R**: Water depth (m)
+- **G**: Ice thickness (m)
+- **B**: Unused
 - **A**: Salinity (PSU)
 
-## Solar flux texture [Auxiliary]
-Not used in physics pipeline - available for visualisation/diagnostics.
+## Auxiliary texture
+Not used in physics pipeline, but available for visualisation/diagnostics.
 - **R**: Incoming solar flux at top of atmosphere (W/m²)
-- **G**: Unused
+- **G**: Water state (0 = solid/frozen, 1 = liquid/above melting point)
 - **B**: Unused
 - **A**: Unused

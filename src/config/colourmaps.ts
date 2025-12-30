@@ -113,6 +113,24 @@ export const COLOURMAP_TEAL_C16: Colourmap = {
 }
 
 /**
+ * Specific colourmap for water state
+ * 0.0 = solid, dark greyish blue
+ * 0.5 = liquid, bright blue
+ * 1.0 = vapour, light greyish blue
+ * Underflow is black, overflow is magenta
+ */
+export const COLOURMAP_WATER_STATE: Colourmap = {
+  name: 'water_state',
+  colours: [
+    new THREE.Vector3(0.2, 0.2, 0.4), // Solid, navy blue
+    new THREE.Vector3(0.0, 0.4, 1.0), // Liquid, aqua
+    new THREE.Vector3(0.7, 0.7, 0.9), // Vapour, cyan
+  ],
+  underflowColour: new THREE.Vector3(0.0, 0.0, 0.0),
+  overflowColour: new THREE.Vector3(1.0, 0.0, 1.0),
+}
+
+/**
  * "sd" via https://sciviscolor.org/
  */
 export const COLOURMAP_BLUE_SD: Colourmap = {

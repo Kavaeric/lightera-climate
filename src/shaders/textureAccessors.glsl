@@ -14,7 +14,7 @@
 uniform sampler2D cellInformation;
 uniform sampler2D terrainData;
 uniform sampler2D hydrologyData;
-uniform sampler2D solarFluxData;
+uniform sampler2D auxiliaryData;
 uniform sampler2D atmosphereData;
 uniform sampler2D surfaceData;
 
@@ -57,57 +57,71 @@ float getBaseAlbedo(vec2 uv) {
 
 // ============================================================================
 // HYDROLOGY TEXTURE
-// Layout: RGBA = [iceThickness, waterThermalMass, waterDepth, salinity]
+// Layout: RGBA = [waterDepth, iceThickness, unused, salinity]
 // ============================================================================
 
-float getIceThickness(vec2 uv) {
+float getWaterDepth(vec2 uv) {
   return texture(hydrologyData, uv).r;
 }
 
-float getWaterThermalMass(vec2 uv) {
+float getIceThickness(vec2 uv) {
   return texture(hydrologyData, uv).g;
-}
-
-float getWaterDepth(vec2 uv) {
-  return texture(hydrologyData, uv).b;
 }
 
 float getSalinity(vec2 uv) {
   return texture(hydrologyData, uv).a;
 }
 
-vec4 packHydrologyData(float iceThickness, float waterThermalMass, float waterDepth, float salinity) {
-  return vec4(iceThickness, waterThermalMass, waterDepth, salinity);
+vec4 packHydrologyData(float waterDepth, float iceThickness, float salinity) {
+  return vec4(waterDepth, iceThickness, 0.0, salinity);
 }
 
 // ============================================================================
-// SOLAR FLUX TEXTURE
-// Layout: RGBA = [solarFlux, reserved, reserved, reserved]
+// AUXILIARY TEXTURE
+// Layout: RGBA = [solarFlux, waterState, reserved, reserved]
+// Not used in physics pipeline - available for visualisation/diagnostics
 // ============================================================================
 
 float getSolarFlux(vec2 uv) {
-  return texture(solarFluxData, uv).r;
+  return texture(auxiliaryData, uv).r;
 }
 
-vec4 packSolarFluxData(float solarFlux) {
-  return vec4(solarFlux, 0.0, 0.0, 0.0);
+// Water state: 0.0 = solid (frozen), 1.0 = liquid (above melting point)
+float getWaterState(vec2 uv) {
+  return texture(auxiliaryData, uv).g;
+}
+
+vec4 packAuxiliaryData(float solarFlux, float waterState) {
+  return vec4(solarFlux, waterState, 0.0, 0.0);
 }
 
 // ============================================================================
-// ATMOSPHERE THERMAL TEXTURE
-// Layout: RGBA = [temperature, unused, unused, albedo]
+// ATMOSPHERE TEXTURE
+// Layout: RGBA = [temperature, pressure, precipitableWater, albedo]
+//
+// pressure: Surface pressure in Pa (Earth ~101325 Pa)
+// precipitableWater: Total column water vapour in mm (equivalent depth if condensed)
+//                    Earth average ~25mm, range 0-70mm. 1mm = 1 kg/m²
 // ============================================================================
 
 float getAtmosphereTemperature(vec2 uv) {
   return texture(atmosphereData, uv).r;
 }
 
+float getAtmospherePressure(vec2 uv) {
+  return texture(atmosphereData, uv).g;
+}
+
+float getPrecipitableWater(vec2 uv) {
+  return texture(atmosphereData, uv).b;
+}
+
 float getAtmosphereAlbedo(vec2 uv) {
   return texture(atmosphereData, uv).a;
 }
 
-vec4 packAtmosphereData(float temperature, float albedo) {
-  return vec4(temperature, 0.0, 0.0, albedo);
+vec4 packAtmosphereData(float temperature, float pressure, float precipitableWater, float albedo) {
+  return vec4(temperature, pressure, precipitableWater, albedo);
 }
 
 // ============================================================================

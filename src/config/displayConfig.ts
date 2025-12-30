@@ -4,7 +4,7 @@
 
 export interface DisplayConfig {
   // Visualisation mode - what to display on the planet
-  visualisationMode: 'terrain' | 'surfaceTemperature' | 'atmosphericTemperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo' | 'solarFlux'
+  visualisationMode: 'terrain' | 'surfaceTemperature' | 'atmosphericTemperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo' | 'solarFlux' | 'waterState' | 'precipitableWater' | 'surfacePressure'
 
   // Surface temperature display range for colour mapping
   surfaceTemperatureRange: { min: number; max: number } // Kelvin
@@ -29,6 +29,12 @@ export interface DisplayConfig {
 
   // Solar flux display range for greyscale mapping
   solarFluxRange: { min: number; max: number } // W/m² (incoming solar radiation at TOA)
+
+  // Precipitable water display range for greyscale mapping
+  precipitableWaterRange: { min: number; max: number } // mm (total column water vapour)
+
+  // Surface pressure display range for greyscale mapping
+  surfacePressureRange: { min: number; max: number } // Pa (surface atmospheric pressure)
 
   // Colour mapping - architecture allows future expansion to other colourmaps
   colourmap: 'fast' // Currently only 'fast' supported; will expand to 'viridis' | 'blackbody' later
@@ -61,6 +67,8 @@ export const DISPLAY_CONFIG_DEFAULT: DisplayConfig = {
   iceThicknessRange: { min: 0, max: 5000 }, // metres (typical ice sheet thickness)
   albedoRange: { min: 0, max: 1 }, // 0-1 (fraction of light reflected)
   solarFluxRange: { min: 0, max: 1500 }, // W/m² (0 = night, ~1367 = Earth solar constant)
+  precipitableWaterRange: { min: 0, max: 70 }, // mm (Earth average ~25mm, range 0-70mm)
+  surfacePressureRange: { min: 50000, max: 150000 }, // Pa (Earth ~101325 Pa, range for various altitudes)
   colourmap: 'fast',
   underflowColour: [0.0, 0.0, 0.2], // Navy blue for cold
   overflowColour: [1.0, 0.0, 1.0], // Magenta for hot

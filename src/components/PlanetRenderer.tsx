@@ -125,8 +125,8 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
     if (uniforms.hydrologyData) {
       uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture
     }
-    if (uniforms.solarFluxData) {
-      uniforms.solarFluxData.value = simulation.getSolarFluxTarget().texture
+    if (uniforms.auxiliaryData) {
+      uniforms.auxiliaryData.value = simulation.getAuxiliaryTarget().texture
     }
     // terrainData is static and doesn't need updating
   })
