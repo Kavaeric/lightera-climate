@@ -17,7 +17,7 @@ export interface PlanetaryConfig {
   surfacePressure?: number // Pa (Pascals)
 
   // Gas concentrations (molar fractions, dimensionless)
-  // Note: Water vapor (H2O) is variable per-cell and read from humidity texture
+  // Note: Water vapour (H2O) is variable per-cell and read from humidity texture
   co2Concentration?: number // e.g., 412e-6 for 412 ppm
   ch4Concentration?: number // e.g., 1.9e-6 for 1.9 ppm
   n2oConcentration?: number // e.g., 0.33e-6 for 330 ppb

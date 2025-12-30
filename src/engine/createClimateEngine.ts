@@ -229,37 +229,12 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       },
     })
 
-    // Create initialisation material
-    // Initialise thermal surface texture: RGBA = [temperature, -, -, albedo]
-    const initMaterial = new THREE.ShaderMaterial({
-      vertexShader: fullscreenVertexShader,
-      fragmentShader: `
-        precision highp float;
-        uniform float initTemp;
-        uniform float initAlbedo;
-        void main() {
-          gl_FragColor = vec4(initTemp, 0.0, 0.0, initAlbedo);
-        }
-      `,
-      uniforms: {
-        initTemp: { value: PHYSICS_CONSTANTS.COSMIC_BACKGROUND_TEMP },
-        initAlbedo: { value: 0.15 }, // Default albedo
-      },
-    })
-
-    // Create mesh
-    const mesh = new THREE.Mesh(geometry, initMaterial)
+    // Create mesh (material will be set below during initialisation)
+    const mesh = new THREE.Mesh(geometry)
     mesh.frustumCulled = false
     scene.add(mesh)
 
-    // Initialise first climate target
-    const firstTarget = simulation.getClimateDataCurrent()
-    gl.setRenderTarget(firstTarget)
-    gl.clear()
-    gl.render(scene, camera)
-    gl.setRenderTarget(null)
-
-    // Initialise hydrology render targets
+    // Initialise hydrology render targets first (needed for surface albedo calculation)
     const hydrologyInitMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: `
@@ -282,8 +257,51 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
     gl.setRenderTarget(null)
     hydrologyInitMaterial.dispose()
 
-    // Surface data (temperature + albedo) is already initialised above with initMaterial
-    // No separate surface initialisation needed - it's computed in the combined shader
+    // Initialise surface texture: RGBA = [temperature, -, -, albedo]
+    // Albedo is calculated based on initial hydrology state (water/ice coverage)
+    const surfaceInitMaterial = new THREE.ShaderMaterial({
+      vertexShader: fullscreenVertexShader,
+      fragmentShader: `
+        precision highp float;
+        uniform float initTemp;
+        uniform sampler2D hydrologyData;
+
+        // Material albedo constants (must match constants.glsl)
+        const float MATERIAL_ROCK_ALBEDO_VISIBLE = 0.15;
+        const float MATERIAL_WATER_ALBEDO_VISIBLE = 0.06;
+        const float MATERIAL_ICE_ALBEDO_VISIBLE = 0.70;
+
+        varying vec2 vUv;
+
+        void main() {
+          // Read hydrology state to determine surface albedo
+          vec4 hydrology = texture2D(hydrologyData, vUv);
+          float waterDepth = hydrology.r;
+          float iceThickness = hydrology.g;
+
+          // Calculate effective albedo (same logic as getEffectiveAlbedo in surfaceThermal.glsl)
+          float hasWater = step(0.001, waterDepth);
+          float hasIce = step(0.001, iceThickness);
+
+          float albedo = MATERIAL_ROCK_ALBEDO_VISIBLE;
+          albedo = mix(albedo, MATERIAL_WATER_ALBEDO_VISIBLE, hasWater);
+          albedo = mix(albedo, MATERIAL_ICE_ALBEDO_VISIBLE, hasIce);
+
+          gl_FragColor = vec4(initTemp, 0.0, 0.0, albedo);
+        }
+      `,
+      uniforms: {
+        initTemp: { value: PHYSICS_CONSTANTS.COSMIC_BACKGROUND_TEMP },
+        hydrologyData: { value: simulation.getHydrologyDataCurrent().texture },
+      },
+    })
+
+    mesh.material = surfaceInitMaterial
+    gl.setRenderTarget(simulation.getClimateDataCurrent())
+    gl.clear()
+    gl.render(scene, camera)
+    gl.setRenderTarget(null)
+    surfaceInitMaterial.dispose()
 
     // Initialise atmosphere render targets with same temperature as surface to avoid initial shock
     // The atmosphere will equilibrate to its own temperature based on solar absorption and IR loss
@@ -323,9 +341,6 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
     gl.render(scene, camera)
     gl.setRenderTarget(null)
     atmosphereInitMaterial.dispose()
-
-    // Dispose init material
-    initMaterial.dispose()
 
     // Store GPU resources
     gpuResources = {

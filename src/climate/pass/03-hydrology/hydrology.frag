@@ -3,8 +3,8 @@
  *
  * Handles water cycle dynamics including:
  * - Ice/water phase transitions (freezing and melting)
+ * - Water vaporisation at temperatures above boiling point
  * - Latent heat effects on surface temperature
- * - Evaporation from water surfaces (future)
  * - Precipitation from atmosphere (future)
  *
  * Phase change assumptions:
@@ -12,6 +12,10 @@
  * - Uses 50m scale depth consistent with thermal calculations
  * - Latent heat absorbed during melting cools the surface
  * - Latent heat released during freezing warms the surface
+ * - Latent heat absorbed during vaporisation cools the surface
+ *
+ * Currently, vaporised water is removed from the surface but not added
+ * to the atmosphere.
  */
 
 precision highp float;
@@ -84,6 +88,34 @@ float calculatePhaseChangeRate(float deltaT) {
 	return heatFlux / (MATERIAL_ICE_DENSITY * MATERIAL_ICE_LATENT_HEAT_FUSION);
 }
 
+/**
+ * Calculate vaporisation rate based on surface heat flux.
+ *
+ * Vaporisation occurs when temperature exceeds the boiling point, driven by
+ * excess thermal energy. The vaporisation rate is:
+ *
+ *   rate = h × ΔT / (ρ × L_v)   [m/s]
+ *
+ * Where:
+ *   h = heat transfer coefficient (W/(m²·K))
+ *   ΔT = temperature difference from boiling point (K)
+ *   ρ = density of water (kg/m³)
+ *   L_v = latent heat of vaporisation (J/kg)
+ *
+ * For water/atmosphere interface with natural convection, similar heat transfer
+ * coefficients apply. Using the same coefficient as phase change:
+ *   At h = 100 W/(m²·K), ΔT = 1K:
+ *   rate = 100 / (1000 × 2260000) ≈ 4.4×10⁻⁸ m/s ≈ 0.0038 m/day ≈ 1.4 m/year
+ *
+ * This is independent of water depth - only the surface vaporises.
+ */
+float calculateVaporisationRate(float deltaT) {
+	// Heat flux at interface: Q = h × ΔT (W/m²)
+	// Vaporisation rate: Q / (ρ_water × L_v) (m/s)
+	float heatFlux = PHASE_CHANGE_HEAT_TRANSFER_COEFF * deltaT;
+	return heatFlux / (MATERIAL_WATER_DENSITY * MATERIAL_WATER_LATENT_HEAT_VAPORISATION);
+}
+
 void main() {
 	// Read current hydrology state
 	vec4 hydrologyState = texture(hydrologyData, vUv);
@@ -144,27 +176,69 @@ void main() {
 	newWaterDepth = max(0.0, newWaterDepth);
 	newIceThickness = max(0.0, newIceThickness);
 
+	// === VAPORISATION DYNAMICS ===
+	//
+	// When temperature exceeds the boiling point, water vaporises.
+	//
+	// TODO: Future implementation should convert evaporated water depth
+	// to water vapour in the atmosphere state. This requires:
+	// - Tracking water vapour content in atmosphere data
+	// - Converting water depth (m) to atmospheric water vapour (precipitable water)
+	// - Accounting for atmospheric volume and pressure
+	//
+	// Vaporisation only occurs when:
+	// 1. Temperature is above boiling point
+	// 2. There is liquid water present (not just ice)
+	// 3. Ice has melted (ice floats on water, so vaporisation occurs from water surface)
+
+	float deltaT_vaporisation = surfaceTemperature - boilingPoint;
+	float vaporisationAmount = 0.0;
+
+	if (deltaT_vaporisation > 0.0 && newWaterDepth > 0.0) {
+		// Above boiling point and water is present: water vaporises
+		// Rate is in m/s, independent of water depth (surface-limited process)
+		float vaporisationRate = calculateVaporisationRate(deltaT_vaporisation);
+		float potentialVaporisation = vaporisationRate * dt;
+		
+		// Limited by available water
+		vaporisationAmount = min(potentialVaporisation, newWaterDepth);
+		newWaterDepth = newWaterDepth - vaporisationAmount;
+	}
+
+	// Ensure non-negative values after vaporisation
+	newWaterDepth = max(0.0, newWaterDepth);
+
 	// === LATENT HEAT CORRECTION ===
 	//
 	// Phase change absorbs or releases energy, affecting surface temperature:
 	// - Melting (ice → water): Absorbs latent heat, keeping the surface cooler
 	// - Freezing (water → ice): Releases latent heat, keeping the surface warmer
+	// - Vaporisation (water → vapour): Absorbs latent heat, keeping the surface cooler
 	//
 	// Calculate temperature change due to latent heat absorption/release
 	//
-	// Energy involved: E = ρ × depth_change × L_f  (J/m²)
+	// Energy involved: E = ρ × depth_change × L  (J/m²)
 	// Temperature change: ΔT = -E / C  (K)
 	//   where C = heat capacity per unit area (J/(m²·K))
 	//
 	// Sign convention: actualPhaseChange > 0 for melting (absorbs heat, cools surface)
 	//                  actualPhaseChange < 0 for freezing (releases heat, warms surface)
+	//                  vaporisationAmount > 0 for vaporisation (absorbs heat, cools surface)
 
-	float latentHeatEnergy = actualPhaseChange * MATERIAL_ICE_DENSITY * MATERIAL_ICE_LATENT_HEAT_FUSION;
+	float fusionLatentHeatEnergy = actualPhaseChange * MATERIAL_ICE_DENSITY * MATERIAL_ICE_LATENT_HEAT_FUSION;
+	float vaporisationLatentHeatEnergy = vaporisationAmount * MATERIAL_WATER_DENSITY * MATERIAL_WATER_LATENT_HEAT_VAPORISATION;
+	float totalLatentHeatEnergy = fusionLatentHeatEnergy + vaporisationLatentHeatEnergy;
+	
 	float heatCapacity = getSurfaceHeatCapacity(newWaterDepth, newIceThickness);
-	float latentHeatTemperatureChange = -latentHeatEnergy / heatCapacity;
+	float latentHeatTemperatureChange = -totalLatentHeatEnergy / heatCapacity;
 
 	// Apply latent heat correction to surface temperature
 	float newSurfaceTemperature = surfaceTemperature + latentHeatTemperatureChange;
+
+	// === SURFACE ALBEDO UPDATE ===
+	// Calculate new albedo based on updated hydrology state
+	// Ice and water have different albedos than bare rock
+	float newSurfaceAlbedo = getEffectiveAlbedo(newWaterDepth, newIceThickness, MATERIAL_ROCK_ALBEDO_VISIBLE);
 
 	// === WATER STATE FOR VISUALISATION ===
 	// Determine water state based on temperature thresholds
@@ -180,5 +254,5 @@ void main() {
 	outAuxiliary = packAuxiliaryData(solarFlux, waterState);
 
 	// Output 2 (surface state): RGBA = [temperature, unused, unused, albedo]
-	outSurfaceState = packSurfaceData(newSurfaceTemperature, surfaceAlbedo);
+	outSurfaceState = packSurfaceData(newSurfaceTemperature, newSurfaceAlbedo);
 }

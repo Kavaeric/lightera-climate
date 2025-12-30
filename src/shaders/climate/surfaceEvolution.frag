@@ -30,7 +30,7 @@ uniform float planetRadius;           // metres - planet's radius for calculatin
 // Atmospheric radiative properties
 uniform float totalPressure;          // Pa - total atmospheric pressure
 uniform float co2Content;             // ppm - CO2 concentration
-uniform float h2oContent;             // kg/m² - water vapor column
+uniform float h2oContent;             // kg/m² - water vapour column
 uniform float co2AbsorptionCoeff;     // m²/kg - CO2 mass absorption coefficient
 uniform float h2oAbsorptionCoeff;     // m²/kg - H2O mass absorption coefficient
 

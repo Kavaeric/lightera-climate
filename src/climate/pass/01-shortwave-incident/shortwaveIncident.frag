@@ -96,10 +96,10 @@ void main() {
 
 	// Read atmosphere and surface properties
 	float atmosphereAlbedo = getAtmosphereAlbedo(vUv);
-	float surfaceAlbedo = getSurfaceAlbedo(vUv);
 	float surfaceTemperature = getSurfaceTemperature(vUv);
+	float surfaceAlbedo = getSurfaceAlbedo(vUv);
 
-	// Read hydrology state to determine surface type
+	// Read hydrology state to determine heat capacity
 	float waterDepth = getWaterDepth(vUv);
 	float iceThickness = getIceThickness(vUv);
 
@@ -121,7 +121,7 @@ void main() {
 	float newSurfaceTemperature = surfaceTemperature + temperatureChange;
 
 	// Output 0: RGBA = [surfaceTemperature, reserved, reserved, albedo]
-	outSurfaceState = vec4(newSurfaceTemperature, 0.0, 0.0, surfaceAlbedo);
+	outSurfaceState = packSurfaceData(newSurfaceTemperature, surfaceAlbedo);
 
 	// Output 1 [Auxiliary]: RGBA = [solar flux at TOA (W/m²), reserved, reserved, reserved]
 	outSolarFlux = vec4(toaFlux, 0.0, 0.0, 0.0);

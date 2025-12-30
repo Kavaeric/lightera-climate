@@ -36,7 +36,7 @@ export class TextureGridSimulation {
 
   // Surface data storage: TWO render targets (current and next frame)
   // Thermal surface texture: temperature and albedo
-  // Each render target RGBA = [surfaceTemperature, -, -, albedo]
+  // Each render target RGBA = [surfaceTemperature, reserved, reserved, albedo]
   public climateDataTargets: THREE.WebGLRenderTarget[]
 
   // Atmosphere data storage: TWO render targets (current and next frame)
@@ -52,7 +52,7 @@ export class TextureGridSimulation {
 
   // Working buffers for pass-based physics architecture
   // These are used for intermediate results within a single timestep
-  // Thermal surface working buffer: RGBA = [surfaceTemperature, -, -, albedo]
+  // Thermal surface working buffer: RGBA = [surfaceTemperature, reserved, reserved, albedo]
   public surfaceWorkingBuffers: THREE.WebGLRenderTarget[] = []
   // Atmosphere working buffer: RGBA = [atmosphereTemperature, -, precipitableWater, albedo]
   public atmosphereWorkingBuffers: THREE.WebGLRenderTarget[] = []
@@ -103,7 +103,7 @@ export class TextureGridSimulation {
     this.initialiseHydrologyTargets()
 
     // Create surface/climate data storage (two render targets: current and next frame)
-    // Stores both surface temperature and albedo: RGBA = [surfaceTemperature, albedo, reserved, reserved]
+    // Stores both surface temperature and albedo: RGBA = [surfaceTemperature, reserved, reserved, albedo]
     this.climateDataTargets = [this.createRenderTarget(), this.createRenderTarget()]
 
     // Create atmosphere data storage (two render targets: current and next frame)
@@ -557,7 +557,7 @@ export class TextureGridSimulation {
 
   /**
    * Get the current surface/climate render target (for reading in shaders)
-   * Format: RGBA = [surfaceTemperature, albedo, reserved, reserved]
+   * Format: RGBA = [surfaceTemperature, reserved, reserved, albedo]
    */
   public getClimateDataCurrent(): THREE.WebGLRenderTarget {
     return this.climateDataTargets[0]
@@ -565,7 +565,7 @@ export class TextureGridSimulation {
 
   /**
    * Get the next surface/climate render target (for writing in shaders)
-   * Format: RGBA = [surfaceTemperature, albedo, reserved, reserved]
+   * Format: RGBA = [surfaceTemperature, reserved, reserved, albedo]
    */
   public getClimateDataNext(): THREE.WebGLRenderTarget {
     return this.climateDataTargets[1]
@@ -769,12 +769,12 @@ export class TextureGridSimulation {
     const buffer = new Float32Array(4)
 
     // Surface data (surface temperature + albedo) is now stored in climate texture
-    // R = surfaceTemperature, G = albedo
+    // R = surfaceTemperature, A = albedo
     const target = this.getClimateDataCurrent()
     renderer.readRenderTargetPixels(target, coords.x, coords.y, 1, 1, buffer)
 
     return {
-      albedo: buffer[1], // G channel = effectiveAlbedo
+      albedo: buffer[3], // A channel = effectiveAlbedo
     }
   }
 

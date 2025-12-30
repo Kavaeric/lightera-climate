@@ -167,22 +167,23 @@ function ClimateDataFetcher({
       const atmosphereData = await simulation.getAtmosphereDataForCell(cellIndex, gl)
       const terrainData = simulation.getTerrainDataForCell(cellIndex)
       
-      // Try to get complete orbit surface temperature data from recorder
+      // Try to get complete orbit surface data (temperature and albedo) from recorder
       if (recorder && recorder.hasCompleteOrbit()) {
-        const surfaceTemperatures = await recorder.getCompleteOrbitSurfaceTemperatureForCell(cellIndex)
+        const surfaceDataArray = await recorder.getCompleteOrbitSurfaceDataForCell(cellIndex)
         
-        if (surfaceTemperatures && surfaceTemperatures.length > 0) {
+        if (surfaceDataArray && surfaceDataArray.length > 0) {
           // Format as time series data (sample index as "day")
-          // Use current hydrology, surface, atmosphere, and terrain data for all samples (since it's not time-series)
-          const formattedData = surfaceTemperatures.map((surfaceTemp, index) => ({
+          // Use current hydrology, atmosphere, and terrain data for all samples (since it's not time-series)
+          // Albedo is read from each recorded sample
+          const formattedData = surfaceDataArray.map((surface, index) => ({
             day: index,
-            surfaceTemperature: surfaceTemp,
+            surfaceTemperature: surface.temperature,
             atmosphericTemperature: atmosphereData.atmosphericTemperature,
             precipitableWater: atmosphereData.precipitableWater,
             waterDepth: hydrologyData.waterDepth,
             iceThickness: hydrologyData.iceThickness,
             salinity: hydrologyData.salinity,
-            albedo: surfaceData.albedo,
+            albedo: surface.albedo,
             elevation: terrainData.elevation,
           }))
           onDataFetched(formattedData)

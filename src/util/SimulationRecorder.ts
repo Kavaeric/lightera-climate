@@ -324,6 +324,41 @@ export class SimulationRecorder {
   }
 
   /**
+   * Read complete orbit surface temperature and albedo data for a specific cell
+   * Returns an array of objects with temperature and albedo, one per sample in the complete orbit
+   * Returns null if no complete orbit is available
+   */
+  public async getCompleteOrbitSurfaceDataForCell(
+    cellIndex: number
+  ): Promise<Array<{ temperature: number; albedo: number }> | null> {
+    if (!this.hasCompleteOrbit() || this.completeOrbitStartIndex === null) {
+      return null
+    }
+
+    // Calculate 2D texture coordinates from cell index
+    const textureWidth = this.simulation.getTextureWidth()
+    const pixelX = cellIndex % textureWidth
+    const pixelY = Math.floor(cellIndex / textureWidth)
+
+    const surfaceData: Array<{ temperature: number; albedo: number }> = []
+    const buffer = new Float32Array(4)
+
+    // Read from each sample in the complete orbit
+    for (let i = 0; i < this.config.samplesPerOrbit; i++) {
+      const sampleIndex = (this.completeOrbitStartIndex + i) % this.bufferDepth
+      const target = this.ringBuffer[sampleIndex]
+
+      this.gl.readRenderTargetPixels(target, pixelX, pixelY, 1, 1, buffer)
+      surfaceData.push({
+        temperature: buffer[0], // R channel = surfaceTemperature
+        albedo: buffer[3],      // A channel = albedo
+      })
+    }
+
+    return surfaceData
+  }
+
+  /**
    * Get current write index (for debugging)
    */
   public getWriteIndex(): number {
