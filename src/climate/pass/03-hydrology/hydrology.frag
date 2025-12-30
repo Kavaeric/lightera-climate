@@ -46,10 +46,39 @@ float meltingPoint(float salinity) {
 	return 273.15 - (0.054 * salinity);
 }
 
-// Phase change rate constant
-// Controls how fast ice/water transitions occur
-// Higher values = faster phase change
-const float PHASE_CHANGE_RATE = 0.1; // m/s per K temperature difference
+/**
+ * Calculate phase change rate based on surface heat flux.
+ *
+ * Phase change occurs at the surface interface, limited by how fast heat
+ * can transfer across the boundary. The melt/freeze rate is:
+ *
+ *   rate = h × ΔT / (ρ × L_f)   [m/s]
+ *
+ * Where:
+ *   h = heat transfer coefficient (W/(m²·K))
+ *   ΔT = temperature difference from melting point (K)
+ *   ρ = density (kg/m³)
+ *   L_f = latent heat of fusion (J/kg)
+ *
+ * For ice/water interface with natural convection, h ≈ 50-500 W/(m²·K).
+ * Using a moderate value that gives reasonable melt rates:
+ *   At h = 100 W/(m²·K), ΔT = 1K:
+ *   rate = 100 / (1000 × 334000) ≈ 3×10⁻⁷ m/s ≈ 0.026 m/day ≈ 9.5 m/year
+ *
+ * This is independent of ice thickness - only the surface melts.
+ *
+ * ASSUMPTION: Ice is always on top of water (floating). Phase change only
+ * occurs at the ice-atmosphere interface (top surface), driven by air/surface
+ * temperature. Basal melting from warm water underneath is not modelled.
+ */
+const float PHASE_CHANGE_HEAT_TRANSFER_COEFF = 100.0; // W/(m²·K)
+
+float calculatePhaseChangeRate(float deltaT) {
+	// Heat flux at interface: Q = h × ΔT (W/m²)
+	// Melt rate: Q / (ρ × L_f) (m/s)
+	float heatFlux = PHASE_CHANGE_HEAT_TRANSFER_COEFF * deltaT;
+	return heatFlux / (MATERIAL_WATER_DENSITY * MATERIAL_WATER_LATENT_HEAT_FUSION);
+}
 
 void main() {
 	// Read current hydrology state
@@ -73,15 +102,16 @@ void main() {
 
 	// === PHASE CHANGE DYNAMICS ===
 	//
-	// Phase change rate is proportional to temperature difference from melting point.
+	// Phase change is driven by excess thermal energy beyond the melting point.
+	// The rate is determined by the thermal energy budget and latent heat of fusion.
 	// Positive deltaT = above melting → ice melts to water
 	// Negative deltaT = below melting → water freezes to ice
 
 	float deltaT = surfaceTemperature - freezingPoint;
 
 	// Calculate phase change amount for this timestep
-	// Rate scales with temperature difference (faster change when further from equilibrium)
-	float phaseChangeAmount = PHASE_CHANGE_RATE * deltaT * dt;
+	// Rate is in m/s, independent of ice/water depth (surface-limited process)
+	float phaseChangeAmount = calculatePhaseChangeRate(deltaT) * dt;
 
 	// Apply phase change
 	float newWaterDepth = waterDepth;
@@ -89,13 +119,14 @@ void main() {
 
 	if (deltaT > 0.0) {
 		// Above melting point: ice melts to water
-		// Limit melting to available ice
+		// Limited by available ice
 		float meltAmount = min(phaseChangeAmount, iceThickness);
 		newIceThickness = iceThickness - meltAmount;
 		newWaterDepth = waterDepth + meltAmount;
 	} else {
 		// Below melting point: water freezes to ice
-		// Limit freezing to available water (phaseChangeAmount is negative, so negate it)
+		// phaseChangeAmount is negative, so negate it
+		// Limited by available water
 		float freezeAmount = min(-phaseChangeAmount, waterDepth);
 		newWaterDepth = waterDepth - freezeAmount;
 		newIceThickness = iceThickness + freezeAmount;

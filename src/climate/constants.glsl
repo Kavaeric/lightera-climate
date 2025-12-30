@@ -31,6 +31,7 @@ const float MATERIAL_WATER_HEAT_CAPACITY_PER_AREA = MATERIAL_WATER_DENSITY * MAT
 const float MATERIAL_WATER_ALBEDO_VISIBLE = 0.06;
 const float MATERIAL_WATER_ALBEDO_INFRARED = 0.06;
 const float MATERIAL_WATER_EMISSIVITY = 0.96;
+const float MATERIAL_WATER_LATENT_HEAT_FUSION = 334000.0; // J/kg (energy to melt 1kg ice at 0°C)
 
 // Physical constants for atmospheric radiative transfer
 // Planck constant (for blackbody radiation calculations)
