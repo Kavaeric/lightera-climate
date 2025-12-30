@@ -45,12 +45,6 @@ export interface DisplayConfig {
   underflowColour: [number, number, number] // Colour for surface temperatures below min (e.g., deep blue)
   overflowColour: [number, number, number] // Colour for surface temperatures above max (e.g., magenta)
 
-  // Latitude/longitude grid overlay settings
-  gridColour: string // Hex colour code
-  latitudeLines: number // Number of horizontal grid lines
-  longitudeLines: number // Number of vertical grid lines
-  gridSegments: number // Resolution of grid line rendering
-
   // Cell highlighting threshold
   highlightThreshold: number // Distance threshold for detecting which cell is highlighted
 }
@@ -74,9 +68,5 @@ export const DISPLAY_CONFIG_DEFAULT: DisplayConfig = {
   colourmap: 'fast',
   underflowColour: [0.0, 0.0, 0.2], // Navy blue for cold
   overflowColour: [1.0, 0.0, 1.0], // Magenta for hot
-  gridColour: '#ffffff', // White for latitude/longitude grid
-  latitudeLines: 8, // ~10 degree spacing
-  longitudeLines: 24, // ~15 degree spacing
-  gridSegments: 48,
   highlightThreshold: 0.0005, // Tighter threshold reduces z-fighting at cell boundaries
 }

@@ -5,7 +5,7 @@ import * as THREE from 'three'
 import { TextureGridSimulation } from './util/TextureGridSimulation'
 import { PlanetRenderer } from './components/PlanetRenderer'
 import { CellHighlightOverlay } from './components/CellHighlightOverlay'
-import { ReferenceGridOverlay } from './components/ReferenceGridOverlay'
+//import { ReferenceGridOverlay } from './components/ReferenceGridOverlay'
 import { createClimateEngine } from './engine/createClimateEngine'
 import { ClimateDataChart } from './components/ClimateDataChart'
 import { ORBITAL_CONFIG_EARTH, type OrbitalConfig } from './config/orbital'
@@ -19,10 +19,10 @@ import { TerrainDataLoader } from './util/TerrainDataLoader'
 import { HydrologyInitialiser } from './util/HydrologyInitialiser'
 import type { VisualisationModeId } from './types/visualisationModes'
 import { VISUALISATION_MODES } from './config/visualisationModes'
+import { LatLonGrid } from './components/LatLonGrid'
 
 interface SceneProps {
   simulation: TextureGridSimulation
-  showLatLonGrid: boolean
   hoveredCell: number | null
   selectedCell: number | null
   onHoverCell: (cellIndex: number | null) => void
@@ -31,7 +31,7 @@ interface SceneProps {
   samplesPerOrbit: number
 }
 
-function Scene({ simulation, showLatLonGrid, hoveredCell, selectedCell, onHoverCell, onCellClick, stepsPerFrame, samplesPerOrbit }: SceneProps) {
+function Scene({ simulation, hoveredCell, selectedCell, onHoverCell, onCellClick, stepsPerFrame, samplesPerOrbit }: SceneProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const highlightRef = useRef<THREE.Mesh>(null)
   const { gl } = useThree()
@@ -106,7 +106,6 @@ function Scene({ simulation, showLatLonGrid, hoveredCell, selectedCell, onHoverC
 
   return (
     <>
-
       {/* Visible geometry - pure data visualisation with built-in interaction */}
       <PlanetRenderer
         ref={meshRef}
@@ -126,15 +125,6 @@ function Scene({ simulation, showLatLonGrid, hoveredCell, selectedCell, onHoverC
         simulation={simulation}
         hoveredCellIndex={hoveredCell}
         selectedCellIndex={selectedCell}
-      />
-
-      {/* Lat/Lon grid overlay */}
-      <ReferenceGridOverlay
-        segments={displayConfig.gridSegments}
-        colour={displayConfig.gridColour}
-        visible={showLatLonGrid}
-        latitudeLines={displayConfig.latitudeLines}
-        longitudeLines={displayConfig.longitudeLines}
       />
     </>
   )
@@ -221,9 +211,9 @@ function AppContent() {
   // const [seaLevel, setSeaLevel] = useState(0)
   const [stepsPerFrame, setStepsPerFrame] = useState(500)
   const [samplesPerOrbit, setSamplesPerOrbit] = useState(50)
+  const [showLatLonGrid, setShowLatLonGrid] = useState(true)
 
   // UI state
-  const [showLatLonGrid, setShowLatLonGrid] = useState(true)
   const [hoveredCell, setHoveredCell] = useState<number | null>(null)
   const [selectedCell, setSelectedCell] = useState<number | null>(null)
   const [selectedCellLatLon, setSelectedCellLatLon] = useState<{ lat: number; lon: number } | null>(null)
@@ -348,7 +338,6 @@ function AppContent() {
         <Scene
           key={simulationKey}
           simulation={simulation}
-          showLatLonGrid={showLatLonGrid}
           hoveredCell={hoveredCell}
           selectedCell={selectedCell}
           onHoverCell={setHoveredCell}
@@ -359,6 +348,12 @@ function AppContent() {
 
         {/* Climate data fetcher - needs to be inside Canvas to access gl context */}
         <ClimateDataFetcher simulation={simulation} cellIndex={selectedCell} onDataFetched={handleDataFetched} />
+        
+        {/* Lat/Lon grid overlay */}
+        <LatLonGrid
+          visible={showLatLonGrid}
+          axialTilt={orbitalConfig.axialTilt}
+        />
       </Canvas>
 
       {/* Info panel */}
@@ -454,6 +449,9 @@ function AppContent() {
               }}
             />
           </label>
+
+          {/* TODO: Currently you can't change simulation settings without creating a new simulation
+                    Being able to change sim/planet settings on the fly would be fun. */}
           <button
             onClick={() => {
               newSimulation(pendingSimulationConfig, orbitalConfig, planetaryConfig)
@@ -601,7 +599,7 @@ function AppContent() {
             <input
               type="checkbox"
               checked={showLatLonGrid}
-              onChange={(e) => setShowLatLonGrid(e.target.checked)}
+              onChange={() => setShowLatLonGrid(!showLatLonGrid)}
               style={{ cursor: 'pointer' }}
             />
             <span>Show latitude and longitude grid</span>
