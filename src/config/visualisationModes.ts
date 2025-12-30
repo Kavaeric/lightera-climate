@@ -17,6 +17,7 @@ import {
   COLOURMAP_PLASMA,
   COLOURMAP_YELLOW_YEL15,
   COLOURMAP_WATER_STATE,
+  COLOURMAP_EXTENDED_KINDLMANN,
 } from './colourmaps'
 import terrainFragmentShader from '../shaders/display/terrain.frag'
 import type { VisualisationModeId } from '../types/visualisationModes'
@@ -47,7 +48,6 @@ export interface VisualisationMode {
 export const VISUALISATION_TERRAIN: VisualisationMode = {
   id: 'terrain',
   name: 'Terrain',
-  colourmap: COLOURMAP_GREYSCALE,
   getRange: (displayConfig) => displayConfig.elevationRange,
   customFragmentShader: terrainFragmentShader,
   buildCustomUniforms: (simulation, displayConfig) => {
@@ -76,9 +76,8 @@ export const VISUALISATION_TERRAIN: VisualisationMode = {
 export const VISUALISATION_ELEVATION: VisualisationMode = {
   id: 'elevation',
   name: 'Elevation',
-  colourmap: COLOURMAP_GREYSCALE,
   getRange: (displayConfig) => displayConfig.elevationRange,
-  customFragmentShader: createAccessorShader('getElevation', COLOURMAP_GREYSCALE, true, false),
+  customFragmentShader: createAccessorShader('getElevation', COLOURMAP_EXTENDED_KINDLMANN, true, false),
   buildCustomUniforms: (simulation, displayConfig) => {
     const range = displayConfig.elevationRange
     return {
@@ -99,7 +98,6 @@ export const VISUALISATION_ELEVATION: VisualisationMode = {
 export const VISUALISATION_SURFACE_TEMPERATURE: VisualisationMode = {
   id: 'surfaceTemperature',
   name: 'Surface temperature',
-  colourmap: COLOURMAP_PLASMA,
   getRange: (displayConfig) => displayConfig.surfaceTemperatureRange,
   customFragmentShader: createAccessorShader('getSurfaceTemperature', COLOURMAP_PLASMA, false, false),
   buildCustomUniforms: (simulation, displayConfig) => {
@@ -122,7 +120,6 @@ export const VISUALISATION_SURFACE_TEMPERATURE: VisualisationMode = {
 export const VISUALISATION_ALBEDO: VisualisationMode = {
   id: 'albedo',
   name: 'Albedo',
-  colourmap: COLOURMAP_GREYSCALE,
   getRange: (displayConfig) => displayConfig.albedoRange,
   customFragmentShader: createAccessorShader('getSurfaceAlbedo', COLOURMAP_GREYSCALE, true, true),
   buildCustomUniforms: (simulation, displayConfig) => {
@@ -145,7 +142,6 @@ export const VISUALISATION_ALBEDO: VisualisationMode = {
 export const VISUALISATION_ATMOSPHERIC_TEMPERATURE: VisualisationMode = {
   id: 'atmosphericTemperature',
   name: 'Atmospheric temperature',
-  colourmap: COLOURMAP_PLASMA,
   getRange: (displayConfig) => displayConfig.atmosphericTemperatureRange,
   customFragmentShader: createAccessorShader('getAtmosphereTemperature', COLOURMAP_PLASMA, true, true),
   buildCustomUniforms: (simulation, displayConfig) => {
@@ -168,7 +164,6 @@ export const VISUALISATION_ATMOSPHERIC_TEMPERATURE: VisualisationMode = {
 export const VISUALISATION_SURFACE_PRESSURE: VisualisationMode = {
   id: 'surfacePressure',
   name: 'Surface pressure',
-  colourmap: COLOURMAP_GREYSCALE,
   getRange: (displayConfig) => displayConfig.surfacePressureRange,
   customFragmentShader: createAccessorShader('getAtmospherePressure', COLOURMAP_GREYSCALE, false, false),
   buildCustomUniforms: (simulation, displayConfig) => {
@@ -191,7 +186,6 @@ export const VISUALISATION_SURFACE_PRESSURE: VisualisationMode = {
 export const VISUALISATION_PRECIPITABLE_WATER: VisualisationMode = {
   id: 'precipitableWater',
   name: 'Precipitable water',
-  colourmap: COLOURMAP_GREYSCALE,
   getRange: (displayConfig) => displayConfig.precipitableWaterRange,
   customFragmentShader: createAccessorShader('getPrecipitableWater', COLOURMAP_GREYSCALE, false, false),
   buildCustomUniforms: (simulation, displayConfig) => {
@@ -214,7 +208,6 @@ export const VISUALISATION_PRECIPITABLE_WATER: VisualisationMode = {
 export const VISUALISATION_WATER_DEPTH: VisualisationMode = {
   id: 'waterDepth',
   name: 'Water depth',
-  colourmap: COLOURMAP_BLUE_B1,
   getRange: (displayConfig) => displayConfig.waterDepthRange,
   customFragmentShader: createAccessorShader('getWaterDepth', COLOURMAP_BLUE_B1, false, true),
   buildCustomUniforms: (simulation, displayConfig) => {
@@ -237,7 +230,6 @@ export const VISUALISATION_WATER_DEPTH: VisualisationMode = {
 export const VISUALISATION_ICE_THICKNESS: VisualisationMode = {
   id: 'iceThickness',
   name: 'Ice thickness',
-  colourmap: COLOURMAP_BLUE_SD,
   getRange: (displayConfig) => displayConfig.iceThicknessRange,
   customFragmentShader: createAccessorShader('getIceThickness', COLOURMAP_BLUE_SD, false, false),
   buildCustomUniforms: (simulation, displayConfig) => {
@@ -260,7 +252,6 @@ export const VISUALISATION_ICE_THICKNESS: VisualisationMode = {
 export const VISUALISATION_SALINITY: VisualisationMode = {
   id: 'salinity',
   name: 'Salinity',
-  colourmap: COLOURMAP_TEAL_C16,
   getRange: (displayConfig) => displayConfig.salinityRange,
   customFragmentShader: createAccessorShader('getSalinity', COLOURMAP_TEAL_C16, false, false),
   buildCustomUniforms: (simulation, displayConfig) => {
@@ -283,7 +274,6 @@ export const VISUALISATION_SALINITY: VisualisationMode = {
 export const VISUALISATION_SOLAR_FLUX: VisualisationMode = {
   id: 'solarFlux',
   name: 'Solar flux',
-  colourmap: COLOURMAP_YELLOW_YEL15,
   getRange: (displayConfig) => displayConfig.solarFluxRange,
   customFragmentShader: createAccessorShader('getSolarFlux', COLOURMAP_YELLOW_YEL15, true, true),
   buildCustomUniforms: (simulation, displayConfig) => {
@@ -306,7 +296,6 @@ export const VISUALISATION_SOLAR_FLUX: VisualisationMode = {
 export const VISUALISATION_WATER_STATE: VisualisationMode = {
   id: 'waterState',
   name: 'Water state',
-  colourmap: COLOURMAP_BLUE_B1,
   getRange: () => ({ min: 0, max: 1 }),
   customFragmentShader: createAccessorShader('getWaterState', COLOURMAP_WATER_STATE, true, true),
   buildCustomUniforms: (simulation) => {

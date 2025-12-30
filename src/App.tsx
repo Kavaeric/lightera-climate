@@ -226,10 +226,11 @@ function AppContent() {
   const [hoveredCell, setHoveredCell] = useState<number | null>(null)
   const [selectedCell, setSelectedCell] = useState<number | null>(null)
   const [selectedCellLatLon, setSelectedCellLatLon] = useState<{ lat: number; lon: number } | null>(null)
+  const [selectedCellArea, setSelectedCellArea] = useState<number | null>(null)
   const [climateData, setClimateData] = useState<Array<{ day: number; surfaceTemperature: number; atmosphericTemperature: number; precipitableWater: number; waterDepth: number; iceThickness: number; salinity: number; albedo: number; elevation: number }>>([])
 
   // Get active config and simulation state from context
-  const { activeSimulationConfig, simulationKey, isRunning, newSimulation, play, pause, getOrchestrator } = useSimulation()
+  const { activeSimulationConfig, activePlanetaryConfig, simulationKey, isRunning, newSimulation, play, pause, getOrchestrator } = useSimulation()
 
   // Track simulation progress from orchestrator
   const [simulationProgress, setSimulationProgress] = useState<{ orbitIdx: number; physicsStep: number } | null>(null)
@@ -301,11 +302,16 @@ function AppContent() {
   const handleCellClick = useCallback((cellIndex: number) => {
     setSelectedCell(cellIndex)
     setSelectedCellLatLon(simulation.getCellLatLon(cellIndex))
-  }, [simulation])
+    // Area is calculated on unit sphere, scale by planet radius² to get actual area in m²
+    const unitSphereArea = simulation.getCellArea(cellIndex)
+    const actualArea = unitSphereArea * activePlanetaryConfig.radius * activePlanetaryConfig.radius
+    setSelectedCellArea(actualArea)
+  }, [simulation, activePlanetaryConfig])
 
   const handleCloseGraph = useCallback(() => {
     setSelectedCell(null)
     setSelectedCellLatLon(null)
+    setSelectedCellArea(null)
     setClimateData([])
   }, [])
 
@@ -452,6 +458,7 @@ function AppContent() {
               newSimulation(pendingSimulationConfig, orbitalConfig, planetaryConfig)
               setSelectedCell(null)
               setSelectedCellLatLon(null)
+              setSelectedCellArea(null)
               setClimateData([])
             }}
           >
@@ -611,11 +618,12 @@ function AppContent() {
       </div>
 
       {/* Climate graph - rendered outside Canvas */}
-      {selectedCell !== null && climateData.length > 0 && selectedCellLatLon && (
+      {selectedCell !== null && climateData.length > 0 && selectedCellLatLon && selectedCellArea !== null && (
         <ClimateDataChart
           data={climateData}
           cellIndex={selectedCell}
           cellLatLon={selectedCellLatLon}
+          cellArea={selectedCellArea}
           onClose={handleCloseGraph}
         />
       )}

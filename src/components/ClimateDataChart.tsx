@@ -19,10 +19,11 @@ interface ClimateDataChartProps {
   data: ClimateDataPoint[]
   cellIndex: number | null
   cellLatLon: { lat: number; lon: number }
+  cellArea: number
   onClose: () => void
 }
 
-export function ClimateDataChart({ data, cellIndex, cellLatLon, onClose }: ClimateDataChartProps) {
+export function ClimateDataChart({ data, cellIndex, cellLatLon, cellArea, onClose }: ClimateDataChartProps) {
   const { displayConfig } = useDisplayConfig()
 
   const accessors = useMemo(
@@ -132,6 +133,9 @@ export function ClimateDataChart({ data, cellIndex, cellLatLon, onClose }: Clima
         </div>
         <div>
           Lon: <strong>{cellLatLon.lon.toFixed(2)}°</strong>
+        </div>
+        <div>
+          Area: <strong>{(cellArea / 1e6).toFixed(2)} km²</strong>
         </div>
       </div>
 

@@ -108,7 +108,7 @@ export const COLOURMAP_TEAL_C16: Colourmap = {
     new THREE.Vector3(0.235294, 0.247059, 0.329412),
     new THREE.Vector3(0.180392, 0.176471, 0.231373),
   ],
-  underflowColour: new THREE.Vector3(0.0, 0.0, 0.0), // NaN/fallback colour (matches XML <NaN>)
+  underflowColour: new THREE.Vector3(0.0, 0.0, 0.0),
   overflowColour: new THREE.Vector3(1.0, 0.0, 1.0),
 }
 
@@ -185,6 +185,51 @@ export const COLOURMAP_BLUE_SD: Colourmap = {
   overflowColour: new THREE.Vector3(1.0, 1.0, 1.0),
 }
 
+/** "TR4" via https://sciviscolor.org/ */
+export const COLOURMAP_TR4: Colourmap = {
+  name: 'tr4',
+  colours: [
+    new THREE.Vector3(0.200000, 0.168627, 0.160784),
+    new THREE.Vector3(0.400000, 0.364706, 0.341176),
+    new THREE.Vector3(0.650980, 0.623529, 0.584314),
+    new THREE.Vector3(0.800000, 0.780392, 0.745098),
+    new THREE.Vector3(0.901961, 0.886275, 0.854902),
+    new THREE.Vector3(1.000000, 0.996078, 0.968627),
+    new THREE.Vector3(1.000000, 0.996078, 0.968627),
+    new THREE.Vector3(0.941176, 0.878431, 0.639216),
+    new THREE.Vector3(0.878431, 0.733333, 0.474510),
+    new THREE.Vector3(0.800000, 0.552941, 0.337255),
+    new THREE.Vector3(0.721569, 0.376471, 0.231373),
+    new THREE.Vector3(0.560784, 0.133333, 0.113725),
+  ],
+  underflowColour: new THREE.Vector3(0.0, 0.0, 0.0),
+  overflowColour: new THREE.Vector3(1.0, 0.0, 1.0),
+}
+
+/** "Extended Kindlmann" via www.kennethmoreland.com */
+export const COLOURMAP_EXTENDED_KINDLMANN: Colourmap = {
+  name: 'extended_kindlmann',
+  colours: [
+    new THREE.Vector3(0.0, 0.0, 0.0),
+    new THREE.Vector3(0.114621896, 0.012116631, 0.25430111),
+    new THREE.Vector3(0.032722432, 0.022251622, 0.466353986),
+    new THREE.Vector3(0.016370126, 0.193452028, 0.340869045),
+    new THREE.Vector3(0.013577264, 0.281313081, 0.239591784),
+    new THREE.Vector3(0.017505711, 0.359608356, 0.103056381),
+    new THREE.Vector3(0.088086475, 0.430359056, 0.02076563),
+    new THREE.Vector3(0.345901241, 0.475652008, 0.022699138),
+    new THREE.Vector3(0.647380038, 0.471950819, 0.031044032),
+    new THREE.Vector3(0.963164467, 0.382930018, 0.227508854),
+    new THREE.Vector3(0.975618044, 0.489413302, 0.530264615),
+    new THREE.Vector3(0.979246791, 0.564484358, 0.884150643),
+    new THREE.Vector3(0.882320795, 0.714076956, 0.986232999),
+    new THREE.Vector3(0.890857185, 0.820709711, 0.991331242),
+    new THREE.Vector3(0.915472162, 0.919226167, 0.995940662),
+    new THREE.Vector3(1.0, 1.0, 1.0),
+  ],
+  underflowColour: new THREE.Vector3(0.0, 0.0, 0.2),
+  overflowColour: new THREE.Vector3(1.0, 0.0, 1.0),
+}
 /**
  * "Plasma" colourmap from matplotlib
  */

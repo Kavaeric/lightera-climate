@@ -704,6 +704,17 @@ export class TextureGridSimulation {
   }
 
   /**
+   * Get surface area for a specific cell (in m²)
+   */
+  getCellArea(cellIndex: number): number {
+    if (cellIndex < 0 || cellIndex >= this.cellCount) {
+      return 0
+    }
+    const cell = this.cells[cellIndex]
+    return cell.area
+  }
+
+  /**
    * Read back current surface temperature value from GPU for a specific cell
    */
   async getSurfaceTemperature(
