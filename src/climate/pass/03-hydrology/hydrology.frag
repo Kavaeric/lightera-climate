@@ -67,7 +67,7 @@ float meltingPoint(float salinity) {
  * For ice/water interface with natural convection, h ≈ 50-500 W/(m²·K).
  * Using a moderate value that gives reasonable melt rates:
  *   At h = 100 W/(m²·K), ΔT = 1K:
- *   rate = 100 / (1000 × 334000) ≈ 3×10⁻⁷ m/s ≈ 0.026 m/day ≈ 9.5 m/year
+ *   rate = 100 / (917 × 334000) ≈ 3.3×10⁻⁷ m/s ≈ 0.028 m/day ≈ 10.3 m/year
  *
  * This is independent of ice thickness - only the surface melts.
  *
@@ -79,9 +79,9 @@ const float PHASE_CHANGE_HEAT_TRANSFER_COEFF = 100.0; // W/(m²·K)
 
 float calculatePhaseChangeRate(float deltaT) {
 	// Heat flux at interface: Q = h × ΔT (W/m²)
-	// Melt rate: Q / (ρ × L_f) (m/s)
+	// Melt rate: Q / (ρ_ice × L_f) (m/s)
 	float heatFlux = PHASE_CHANGE_HEAT_TRANSFER_COEFF * deltaT;
-	return heatFlux / (MATERIAL_WATER_DENSITY * MATERIAL_WATER_LATENT_HEAT_FUSION);
+	return heatFlux / (MATERIAL_ICE_DENSITY * MATERIAL_ICE_LATENT_HEAT_FUSION);
 }
 
 void main() {
@@ -159,7 +159,7 @@ void main() {
 	// Sign convention: actualPhaseChange > 0 for melting (absorbs heat, cools surface)
 	//                  actualPhaseChange < 0 for freezing (releases heat, warms surface)
 
-	float latentHeatEnergy = actualPhaseChange * MATERIAL_WATER_DENSITY * MATERIAL_WATER_LATENT_HEAT_FUSION;
+	float latentHeatEnergy = actualPhaseChange * MATERIAL_ICE_DENSITY * MATERIAL_ICE_LATENT_HEAT_FUSION;
 	float heatCapacity = getSurfaceHeatCapacity(newWaterDepth, newIceThickness);
 	float latentHeatTemperatureChange = -latentHeatEnergy / heatCapacity;
 
