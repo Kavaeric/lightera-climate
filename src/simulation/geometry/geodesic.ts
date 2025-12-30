@@ -45,7 +45,7 @@ function triangleFrame({ a, b, c }: { a: THREE.Vector3; b: THREE.Vector3; c: THR
 }
 
 /**
- * Computes the circumcenter of a triangle on the unit sphere
+ * Computes the circumcenter of a triangle on the unit sphere.
  */
 function circumcenter(a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3): THREE.Vector3 {
   const tmp1 = new THREE.Vector3()

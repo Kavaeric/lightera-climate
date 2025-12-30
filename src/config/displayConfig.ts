@@ -2,9 +2,11 @@
  * Display configuration - visualisation and UI settings
  */
 
+import type { VisualisationModeId } from '../types/visualisationModes'
+
 export interface DisplayConfig {
   // Visualisation mode - what to display on the planet
-  visualisationMode: 'terrain' | 'surfaceTemperature' | 'atmosphericTemperature' | 'elevation' | 'waterDepth' | 'salinity' | 'iceThickness' | 'albedo' | 'solarFlux' | 'waterState' | 'precipitableWater' | 'surfacePressure'
+  visualisationMode: VisualisationModeId
 
   // Surface temperature display range for colour mapping
   surfaceTemperatureRange: { min: number; max: number } // Kelvin

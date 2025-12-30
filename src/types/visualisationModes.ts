@@ -1,6 +1,7 @@
 export type VisualisationModeId =
   | 'terrain'
   | 'elevation'
+  | 'surfaceAltitude'
   | 'waterDepth'
   | 'iceThickness'
   | 'salinity'

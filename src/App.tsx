@@ -18,6 +18,7 @@ import { useDisplayConfig } from './context/useDisplayConfig'
 import { TerrainDataLoader } from './util/TerrainDataLoader'
 import { HydrologyInitialiser } from './util/HydrologyInitialiser'
 import type { VisualisationModeId } from './types/visualisationModes'
+import { VISUALISATION_MODES } from './config/visualisationModes'
 
 interface SceneProps {
   simulation: TextureGridSimulation
@@ -519,18 +520,9 @@ function AppContent() {
                 })
               }}
             >
-              <option value="terrain">Terrain</option>
-              <option value="elevation">Elevation</option>
-              <option value="surfaceTemperature">Surface: Surface temperature</option>
-              <option value="albedo">Surface: Albedo</option>
-              <option value="atmosphericTemperature">Atmospheric: Temperature</option>
-              <option value="surfacePressure">Atmospheric: Surface pressure</option>
-              <option value="precipitableWater">Atmospheric: Precipitable water</option>
-              <option value="waterDepth">Hydrology: Water depth</option>
-              <option value="iceThickness">Hydrology: Ice thickness</option>
-              <option value="salinity">Hydrology: Salinity</option>
-              <option value="solarFlux">Auxiliary: Solar flux</option>
-              <option value="waterState">Auxiliary: Water state</option>
+              {Object.values(VISUALISATION_MODES).map((mode) => (
+                <option key={mode.id} value={mode.id}>{mode.name}</option>
+              ))}
             </select>
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

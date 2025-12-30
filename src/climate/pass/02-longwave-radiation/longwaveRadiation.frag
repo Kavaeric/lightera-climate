@@ -134,8 +134,7 @@ void main() {
 	// 
 	// THIN ATMOSPHERE MODEL: The atmosphere is treated as a single layer with
 	// two sides (facing space and facing surface). The atmosphere emits
-	// εσT_a^4 per unit area in EACH direction (upward and downward), following
-	// the standard idealised greenhouse model formulation.
+	// εσT_a^4 per unit area in each direction (upward and downward).
 	// 
 	// Total atmospheric emission = 2εσT_a^4 (εσT_a^4 upward + εσT_a^4 downward)
 
@@ -160,7 +159,7 @@ void main() {
 	// === NET ENERGY BUDGETS ===
 	// 
 	// All fluxes are in power per unit area (W/m²). To calculate energy changes,
-	// we must multiply by cell area to get total power (W), then by dt to get
+	// we multiply by cell area to get total power (W), then multiply by dt to get
 	// total energy (J). This accounts for the fact that cells have different areas.
 	// 
 	// Net power determines whether each component heats or cools.
@@ -170,8 +169,6 @@ void main() {
 	// because it receives back-radiation from the atmosphere.
 
 	// Surface net power per unit area: loses emission, gains back-radiation from atmosphere
-	// Without greenhouse effect: net = -surfaceEmission (always cooling)
-	// With greenhouse effect: net = -surfaceEmission + back-radiation (less cooling)
 	float surfaceNetPowerPerArea = -surfaceEmission + atmosphereToSurface;
 
 	// Atmosphere net power per unit area: gains from surface absorption, loses from emission

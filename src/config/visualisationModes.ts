@@ -20,6 +20,7 @@ import {
   COLOURMAP_EXTENDED_KINDLMANN,
 } from './colourmaps'
 import terrainFragmentShader from '../shaders/display/terrain.frag'
+import surfaceAltitudeFragmentShader from '../shaders/display/surfaceAltitude.frag'
 import type { VisualisationModeId } from '../types/visualisationModes'
 
 export interface VisualisationMode {
@@ -40,10 +41,9 @@ export interface VisualisationMode {
 
 /**
  * Terrain visualisation mode
- * Simple elevation heightmap with inlined colourmap
- * Uses custom shader for flexibility - colourmaps are hardcoded in terrain.frag
+ * Simple true-ish colour view of the planet.
  * 
- * Terrain texture: R = Elevation
+ * Uses a custom visualisation shader.
  */
 export const VISUALISATION_TERRAIN: VisualisationMode = {
   id: 'terrain',
@@ -68,7 +68,7 @@ export const VISUALISATION_TERRAIN: VisualisationMode = {
 
 /**
  * Elevation visualisation mode
- * Shows terrain elevation using greyscale colourmap
+ * Shows terrain elevation using greyscale colourmap.
  *
  * Uses auto-generated accessor shader - getElevation() is called automatically
  * Terrain texture: R = Elevation
@@ -89,15 +89,46 @@ export const VISUALISATION_ELEVATION: VisualisationMode = {
 }
 
 /**
+ * Surface altitude visualisation mode
+ * Shows surface altitude using greyscale colourmap, accounting for water depth and ice thickness.
+ *
+ * Uses a custom visualisation shader.
+ */
+export const VISUALISATION_SURFACE_ALTITUDE: VisualisationMode = {
+  id: 'surfaceAltitude',
+  name: 'Surface altitude',
+  getRange: (displayConfig) => displayConfig.elevationRange,
+  customFragmentShader: surfaceAltitudeFragmentShader,
+  buildCustomUniforms: (simulation, displayConfig) => {
+    // Only pass the uniforms needed by surfaceAltitude.frag
+    // Colourmaps are inlined in the shader, so no colourmap uniforms needed
+    const elevationRange = displayConfig.elevationRange
+    const waterDepthRange = displayConfig.waterDepthRange
+    const iceThicknessRange = displayConfig.iceThicknessRange
+    return {
+      terrainData: { value: simulation.terrainData },
+      hydrologyData: { value: simulation.getHydrologyDataCurrent().texture },
+      elevationMin: { value: elevationRange.min },
+      elevationMax: { value: elevationRange.max },
+      waterDepthMin: { value: waterDepthRange.min },
+      waterDepthMax: { value: waterDepthRange.max },
+      iceThicknessMin: { value: iceThicknessRange.min },
+      iceThicknessMax: { value: iceThicknessRange.max },
+    }
+  },
+}
+
+
+/**
  * Surface temperature visualisation mode
- * Shows global surface temperature from climate simulation
+ * Shows global surface temperature from climate simulation.
  *
  * Uses auto-generated accessor shader - getSurfaceTemperature() is called automatically
  * Thermal surface texture: R = Surface temperature
  */
 export const VISUALISATION_SURFACE_TEMPERATURE: VisualisationMode = {
   id: 'surfaceTemperature',
-  name: 'Surface temperature',
+  name: 'Surface: Temperature',
   getRange: (displayConfig) => displayConfig.surfaceTemperatureRange,
   customFragmentShader: createAccessorShader('getSurfaceTemperature', COLOURMAP_PLASMA, false, false),
   buildCustomUniforms: (simulation, displayConfig) => {
@@ -119,7 +150,7 @@ export const VISUALISATION_SURFACE_TEMPERATURE: VisualisationMode = {
  */
 export const VISUALISATION_ALBEDO: VisualisationMode = {
   id: 'albedo',
-  name: 'Albedo',
+  name: 'Surface: Albedo',
   getRange: (displayConfig) => displayConfig.albedoRange,
   customFragmentShader: createAccessorShader('getSurfaceAlbedo', COLOURMAP_GREYSCALE, true, true),
   buildCustomUniforms: (simulation, displayConfig) => {
@@ -134,14 +165,14 @@ export const VISUALISATION_ALBEDO: VisualisationMode = {
 
 /**
  * Atmospheric temperature visualisation mode
- * Shows atmospheric temperature from climate simulation using Plasma colourmap
+ * Shows atmospheric temperature.
  *
  * Uses auto-generated accessor shader - getAtmosphereTemperature() is called automatically
  * Atmosphere texture: R = Atmospheric temperature
  */
 export const VISUALISATION_ATMOSPHERIC_TEMPERATURE: VisualisationMode = {
   id: 'atmosphericTemperature',
-  name: 'Atmospheric temperature',
+  name: 'Atmosphere: Temperature',
   getRange: (displayConfig) => displayConfig.atmosphericTemperatureRange,
   customFragmentShader: createAccessorShader('getAtmosphereTemperature', COLOURMAP_PLASMA, true, true),
   buildCustomUniforms: (simulation, displayConfig) => {
@@ -156,14 +187,14 @@ export const VISUALISATION_ATMOSPHERIC_TEMPERATURE: VisualisationMode = {
 
 /**
  * Surface pressure visualisation mode
- * Shows surface atmospheric pressure from atmosphere simulation (Pa)
+ * Shows surface atmospheric pressure (Pa).
  *
  * Uses auto-generated accessor shader - getAtmospherePressure() is called automatically
  * Atmosphere texture: G = Surface pressure
  */
 export const VISUALISATION_SURFACE_PRESSURE: VisualisationMode = {
   id: 'surfacePressure',
-  name: 'Surface pressure',
+  name: 'Atmosphere: Surface pressure',
   getRange: (displayConfig) => displayConfig.surfacePressureRange,
   customFragmentShader: createAccessorShader('getAtmospherePressure', COLOURMAP_GREYSCALE, false, false),
   buildCustomUniforms: (simulation, displayConfig) => {
@@ -178,14 +209,14 @@ export const VISUALISATION_SURFACE_PRESSURE: VisualisationMode = {
 
 /**
  * Precipitable water visualisation mode
- * Shows total column water vapour from atmosphere simulation (mm)
+ * Shows total column water vapour (mm).
  *
  * Uses auto-generated accessor shader - getPrecipitableWater() is called automatically
  * Atmosphere texture: B = Precipitable water
  */
 export const VISUALISATION_PRECIPITABLE_WATER: VisualisationMode = {
   id: 'precipitableWater',
-  name: 'Precipitable water',
+  name: 'Atmosphere: Precipitable water',
   getRange: (displayConfig) => displayConfig.precipitableWaterRange,
   customFragmentShader: createAccessorShader('getPrecipitableWater', COLOURMAP_GREYSCALE, false, false),
   buildCustomUniforms: (simulation, displayConfig) => {
@@ -200,14 +231,14 @@ export const VISUALISATION_PRECIPITABLE_WATER: VisualisationMode = {
 
 /**
  * Water depth visualisation mode
- * Shows dynamic water depth from hydrology simulation
+ * Shows water depth from hydrology simulation.
  *
  * Uses auto-generated accessor shader - getWaterDepth() is called automatically
  * Hydrology texture: R = Water depth
  */
 export const VISUALISATION_WATER_DEPTH: VisualisationMode = {
   id: 'waterDepth',
-  name: 'Water depth',
+  name: 'Hydrology: Water depth',
   getRange: (displayConfig) => displayConfig.waterDepthRange,
   customFragmentShader: createAccessorShader('getWaterDepth', COLOURMAP_BLUE_B1, false, true),
   buildCustomUniforms: (simulation, displayConfig) => {
@@ -222,14 +253,14 @@ export const VISUALISATION_WATER_DEPTH: VisualisationMode = {
 
 /**
  * Ice thickness visualisation mode
- * Shows ice sheet and sea ice thickness from hydrology simulation
+ * Shows ice sheet thickness from hydrology simulation.
  *
  * Uses auto-generated accessor shader - getIceThickness() is called automatically
  * Hydrology texture: G = Ice thickness
  */
 export const VISUALISATION_ICE_THICKNESS: VisualisationMode = {
   id: 'iceThickness',
-  name: 'Ice thickness',
+  name: 'Hydrology: Ice thickness',
   getRange: (displayConfig) => displayConfig.iceThicknessRange,
   customFragmentShader: createAccessorShader('getIceThickness', COLOURMAP_BLUE_SD, false, false),
   buildCustomUniforms: (simulation, displayConfig) => {
@@ -244,14 +275,14 @@ export const VISUALISATION_ICE_THICKNESS: VisualisationMode = {
 
 /**
  * Salinity visualisation mode
- * Shows ocean salinity from hydrology simulation
+ * Shows ocean salinity from hydrology simulation.
  *
  * Uses auto-generated accessor shader - getSalinity() is called automatically
  * Hydrology texture: A = Salinity
  */
 export const VISUALISATION_SALINITY: VisualisationMode = {
   id: 'salinity',
-  name: 'Salinity',
+  name: 'Hydrology: Salinity',
   getRange: (displayConfig) => displayConfig.salinityRange,
   customFragmentShader: createAccessorShader('getSalinity', COLOURMAP_TEAL_C16, false, false),
   buildCustomUniforms: (simulation, displayConfig) => {
@@ -266,14 +297,14 @@ export const VISUALISATION_SALINITY: VisualisationMode = {
 
 /**
  * Solar flux visualisation mode
- * Shows incoming solar radiation at top of atmosphere (W/m²)
+ * Shows incoming solar radiation at top of atmosphere (W/m²).
  *
  * Uses auto-generated accessor shader - getSolarFlux() is called automatically
  * Solar flux texture: R = Solar flux
  */
 export const VISUALISATION_SOLAR_FLUX: VisualisationMode = {
   id: 'solarFlux',
-  name: 'Solar flux',
+  name: 'Auxiliary: Solar flux',
   getRange: (displayConfig) => displayConfig.solarFluxRange,
   customFragmentShader: createAccessorShader('getSolarFlux', COLOURMAP_YELLOW_YEL15, true, true),
   buildCustomUniforms: (simulation, displayConfig) => {
@@ -288,14 +319,14 @@ export const VISUALISATION_SOLAR_FLUX: VisualisationMode = {
 
 /**
  * Water state visualisation mode
- * Shows whether water is above its melting point (liquid vs solid)
+ * Shows computed regions of water (solid, liquid, or gas).
  *
  * Uses auto-generated accessor shader - getWaterState() is called automatically
- * Auxiliary texture: G = Water state (0 = solid, 1 = liquid)
+ * Auxiliary texture: G = Water state (0 = solid, 0.5 = liquid, 1 = gas)
  */
 export const VISUALISATION_WATER_STATE: VisualisationMode = {
   id: 'waterState',
-  name: 'Water state',
+  name: 'Auxiliary: Water state',
   getRange: () => ({ min: 0, max: 1 }),
   customFragmentShader: createAccessorShader('getWaterState', COLOURMAP_WATER_STATE, true, true),
   buildCustomUniforms: (simulation) => {
@@ -309,11 +340,12 @@ export const VISUALISATION_WATER_STATE: VisualisationMode = {
 
 /**
  * Registry of all available visualisation modes
- * Maps mode ID to VisualisationMode configuration
+ * Maps mode ID to VisualisationMode configuration.
  */
 export const VISUALISATION_MODES: Record<VisualisationModeId, VisualisationMode> = {
   terrain: VISUALISATION_TERRAIN,
   elevation: VISUALISATION_ELEVATION,
+  surfaceAltitude: VISUALISATION_SURFACE_ALTITUDE,
   surfaceTemperature: VISUALISATION_SURFACE_TEMPERATURE,
   albedo: VISUALISATION_ALBEDO,
   atmosphericTemperature: VISUALISATION_ATMOSPHERIC_TEMPERATURE,
@@ -327,7 +359,8 @@ export const VISUALISATION_MODES: Record<VisualisationModeId, VisualisationMode>
 }
 
 /**
- * Get a visualisation mode by ID
+ * Gets a visualisation mode by ID.
+ * Throws an error if the mode is not found.
  */
 export function getVisualisationMode(
   id: VisualisationModeId

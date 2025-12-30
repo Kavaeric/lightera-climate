@@ -107,7 +107,7 @@ float calculatePhaseChangeRate(float deltaT) {
  *   At h = 100 W/(m²·K), ΔT = 1K:
  *   rate = 100 / (1000 × 2260000) ≈ 4.4×10⁻⁸ m/s ≈ 0.0038 m/day ≈ 1.4 m/year
  *
- * This is independent of water depth - only the surface vaporises.
+ * This is independent of water depth; only the surface vaporises.
  */
 float calculateVaporisationRate(float deltaT) {
 	// Heat flux at interface: Q = h × ΔT (W/m²)
@@ -208,12 +208,15 @@ void main() {
 	// Ensure non-negative values after vaporisation
 	newWaterDepth = max(0.0, newWaterDepth);
 
-	// === LATENT HEAT CORRECTION ===
+	// === LATENT HEAT CORRECTIONS ===
 	//
 	// Phase change absorbs or releases energy, affecting surface temperature:
-	// - Melting (ice → water): Absorbs latent heat, keeping the surface cooler
-	// - Freezing (water → ice): Releases latent heat, keeping the surface warmer
-	// - Vaporisation (water → vapour): Absorbs latent heat, keeping the surface cooler
+	// - Melting (ice → water): Absorbs latent heat and keeps the surface cooler.
+	// - Freezing (water → ice): Releases latent heat and keeps the surface warmer.
+	// - Vaporisation (water → vapour): Absorbs latent heat and keeps the surface cooler.
+	//
+	// The net effect is that when water is undergoing a phase change, the surface temperature
+	// seems to hover in temperature for a bit.
 	//
 	// Calculate temperature change due to latent heat absorption/release
 	//
