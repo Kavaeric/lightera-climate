@@ -66,27 +66,6 @@ float calculateSubsolarLatitude(float tilt, float progress) {
 	return tilt * sin(orbitAngle);
 }
 
-/**
- * Calculate solar flux on a surface element given its lat/lon and subsolar point.
- * Returns flux in W/m²
- */
-float calculateSolarFluxAtCell(float lat, float lon, vec2 subsolar) {
-	// Convert to radians
-	float lat_rad = deg2rad(lat);
-	float lon_rad = deg2rad(lon);
-	float subsolar_lat_rad = deg2rad(subsolar.x);
-	float subsolar_lon_rad = deg2rad(subsolar.y);
-
-	// Calculate angle between surface normal and sun direction
-	// Using spherical dot product: cos(angle) = sin(lat1)*sin(lat2) + cos(lat1)*cos(lat2)*cos(lon2-lon1)
-	float cosAngle = sin(lat_rad) * sin(subsolar_lat_rad) +
-	                 cos(lat_rad) * cos(subsolar_lat_rad) * cos(lon_rad - subsolar_lon_rad);
-
-	// Flux = solarFlux * max(0, cosAngle)
-	// If cosAngle < 0, the sun is below the horizon
-	return solarFlux * max(0.0, cosAngle);
-}
-
 void main() {
 	// Read cell position
 	vec2 cellLatLon = getCellLatLon(vUv);
@@ -103,17 +82,32 @@ void main() {
 	float atmosphereAlbedo = atmosphereState.a;
 
 	// Read hydrology state to determine surface type
-	float waterDepth = getWaterDepth(vUv);
-	float iceThickness = getIceThickness(vUv);
+	vec4 hydrologyState = texture(hydrologyData, vUv);
+	float waterDepth = hydrologyState.r;
+	float iceThickness = hydrologyState.g;
 
 	// === SHORTWAVE CALCULATION ===
 
 	// Calculate subsolar point based on orbital position, axial tilt, and planet rotation
 	float subsolarLat = calculateSubsolarLatitude(axialTilt, yearProgress);
-	vec2 subsolarPoint = vec2(subsolarLat, subsolarLon);
+
+	// Precompute subsolar radian conversions (optimization: compute once, reuse in calculation)
+	float subsolar_lat_rad = deg2rad(subsolarLat);
+	float subsolar_lon_rad = deg2rad(subsolarLon);
 
 	// Calculate incoming solar flux at top of atmosphere for this cell
-	float toaFlux = calculateSolarFluxAtCell(cellLatLon.x, cellLatLon.y, subsolarPoint);
+	// Convert cell lat/lon to radians
+	float lat_rad = deg2rad(cellLatLon.x);
+	float lon_rad = deg2rad(cellLatLon.y);
+
+	// Calculate angle between surface normal and sun direction
+	// Using spherical dot product: cos(angle) = sin(lat1)*sin(lat2) + cos(lat1)*cos(lat2)*cos(lon2-lon1)
+	float cosAngle = sin(lat_rad) * sin(subsolar_lat_rad) +
+	                 cos(lat_rad) * cos(subsolar_lat_rad) * cos(lon_rad - subsolar_lon_rad);
+
+	// Flux = solarFlux * max(0, cosAngle)
+	// If cosAngle < 0, the sun is below the horizon
+	float toaFlux = solarFlux * max(0.0, cosAngle);
 
 	// The amount of energy that reaches the surface is the solar flux
 	// less the amount of energy reflected by the atmosphere (albedo)
@@ -176,12 +170,16 @@ void main() {
 
 	// Surface emission (Stefan-Boltzmann law)
 	// Power per unit area: P = ε * σ * T^4 (W/m²)
+	// Doing manual power calculation to avoid using pow() function for performance
 	float surfaceEmissivity = getSurfaceEmissivity(waterDepth, iceThickness);
-	float surfaceEmission = surfaceEmissivity * STEFAN_BOLTZMANN_CONST * pow(surfaceTemperatureAfterShortwave, 4.0);
+	float tempSurfaceSq = surfaceTemperatureAfterShortwave * surfaceTemperatureAfterShortwave;
+	float surfaceEmission = surfaceEmissivity * STEFAN_BOLTZMANN_CONST * (tempSurfaceSq * tempSurfaceSq);
 
 	// Atmosphere emission (Kirchhoff's law: emits according to absorptivity)
 	// In thin layer model: atmosphere emits εσT_a^4 per unit area in EACH direction
-	float atmosphereEmissionPerDirection = atmosphereEmissivity * STEFAN_BOLTZMANN_CONST * pow(atmosphereTemperature, 4.0);
+	// Doing manual power calculation to avoid using pow() function for performance
+	float tempAtmosphereSq = atmosphereTemperature * atmosphereTemperature;
+	float atmosphereEmissionPerDirection = atmosphereEmissivity * STEFAN_BOLTZMANN_CONST * (tempAtmosphereSq * tempAtmosphereSq);
 
 	// === ENERGY FLOWS ===
 	// 

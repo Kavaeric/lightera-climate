@@ -44,13 +44,15 @@ layout(location = 2) out vec4 outSurfaceState;
 // Works pretty well for pressures up to 1 MPa, but I guess it can work up
 // to the critical point or so. At that point the freezing point starts to drop and
 // the stuff starts to behave weirdly. Ever heard of "ice III"?
-float vaporisationPoint(float pressure) {
-	return (-4965.11 + 23.519 * log(pressure))/(-24.0385 + log(pressure));
+float getVaporisationPoint(float pressure) {
+	// Small wins
+	float logP = log(pressure);
+	return (-4965.11 + 23.519 * logP) / (-24.0385 + logP);
 }
 
 // Calculates the melting point of water as a function of salinity.
 // For every PSU of salinity, the melting point is reduced by 0.054 K.
-float meltingPoint(float salinity) {
+float getMeltingPoint(float salinity) {
 	return 273.15 - (0.054 * salinity);
 }
 
@@ -134,8 +136,8 @@ void main() {
 	float solarFlux = currentAuxiliary.r;
 
 	// Calculate phase transition temperatures
-	float freezingPoint = meltingPoint(salinity);
-	float boilingPoint = vaporisationPoint(atmospherePressure);
+	float meltingPoint = getMeltingPoint(salinity);
+	float boilingPoint = getVaporisationPoint(atmospherePressure);
 
 	// === PHASE CHANGE DYNAMICS ===
 	//
@@ -144,7 +146,7 @@ void main() {
 	// Positive deltaT = above melting → ice melts to water
 	// Negative deltaT = below melting → water freezes to ice
 
-	float deltaT = surfaceTemperature - freezingPoint;
+	float deltaT = surfaceTemperature - meltingPoint;
 
 	// Calculate phase change amount for this timestep
 	// Rate is in m/s, independent of ice/water depth (surface-limited process)
@@ -247,7 +249,7 @@ void main() {
 	// Determine water state based on temperature thresholds
 	// 0.0 = solid (frozen), 0.5 = liquid, 1.0 = vapour (above boiling)
 	float isAboveBoilingPoint = step(boilingPoint, newSurfaceTemperature);
-	float isAboveMeltingPoint = step(freezingPoint, newSurfaceTemperature) * (1.0 - isAboveBoilingPoint);
+	float isAboveMeltingPoint = step(meltingPoint, newSurfaceTemperature) * (1.0 - isAboveBoilingPoint);
 	float waterState = isAboveMeltingPoint * 0.5 + isAboveBoilingPoint;
 
 	// Output 0: RGBA = [waterDepth, iceThickness, unused, salinity]
