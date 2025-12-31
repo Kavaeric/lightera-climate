@@ -12,8 +12,7 @@ export interface GPUResources {
   scene: THREE.Scene
   camera: THREE.OrthographicCamera
   geometry: THREE.BufferGeometry
-  shortwaveIncidentMaterial: THREE.ShaderMaterial
-  longwaveRadiationMaterial: THREE.ShaderMaterial
+  radiationMaterial: THREE.ShaderMaterial
   hydrologyMaterial: THREE.ShaderMaterial
   blankRenderTarget: THREE.WebGLRenderTarget
   mesh: THREE.Mesh

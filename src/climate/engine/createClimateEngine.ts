@@ -12,9 +12,8 @@ import type { GPUResources } from '../../types/gpu'
 // Import shaders (includes are processed automatically by vite-plugin-glsl)
 // Importing without ?raw allows Vite to process #include directives.
 import fullscreenVertexShader from '../../rendering/shaders/utility/fullscreen.vert'
-import shortwaveIncidentFragmentShader from '../passes/01-shortwave-incident/shortwaveIncident.frag'
-import longwaveRadiationFragmentShader from '../passes/02-longwave-radiation/longwaveRadiation.frag'
-import hydrologyFragmentShader from '../passes/03-hydrology/hydrology.frag'
+import radiationFragmentShader from '../passes/01-radiation/radiation.frag'
+import hydrologyFragmentShader from '../passes/02-hydrology/hydrology.frag'
 
 export interface ClimateEngineConfig {
   gl: THREE.WebGLRenderer
@@ -38,8 +37,7 @@ function validateGPUResources(
   resources: GPUResources
 ): void {
   // Check that materials were created
-  if (!resources.shortwaveIncidentMaterial
-   || !resources.longwaveRadiationMaterial
+  if (!resources.radiationMaterial
    || !resources.hydrologyMaterial) {
     throw new Error('GPU materials were not created')
   }
@@ -122,27 +120,6 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       }
     )
 
-    // Create shortwave heating material (Pass 1 - combined solar flux + surface incident)
-    const shortwaveIncidentMaterial = new THREE.ShaderMaterial({
-      vertexShader: fullscreenVertexShader,
-      fragmentShader: shortwaveIncidentFragmentShader,
-      glslVersion: THREE.GLSL3,
-      uniforms: {
-        cellInformation: { value: simulation.cellInformation },
-        surfaceData: { value: null }, // Will be set each frame
-        atmosphereData: { value: null }, // Will be set each frame
-        hydrologyData: { value: null }, // Will be set each frame (for surface thermal properties)
-        terrainData: { value: simulation.terrainData },
-        // Orbital parameters
-        axialTilt: { value: axialTilt },
-        yearProgress: { value: 0 },
-        subsolarLon: { value: 0 }, // Starts at prime meridian
-        solarFlux: { value: solarFlux },
-        // Physics parameters
-        dt: { value: dt },
-      },
-    })
-
     // Calculate atmospheric properties from gas composition
     const meanMolecularMass = calculateMeanMolecularMass(planetaryConfig)
     const atmosphereHeatCapacity = calculateAtmosphereHeatCapacity(planetaryConfig)
@@ -172,28 +149,32 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
     })
     const dryTransmissionConfig = getDryTransmissionConfig()
 
-    // Create longwave radiation material (Pass 3)
-    // Combined pass handling surface emission, atmospheric absorption, and back-radiation
+    // Create merged radiation material (Pass 1 - combined shortwave + longwave)
+    // Handles both solar heating and greenhouse effect in a single pass
     // Uses hybrid transmission approach: pre-computed dry gases + per-cell H2O
-    const longwaveRadiationMaterial = new THREE.ShaderMaterial({
+    const radiationMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
-      fragmentShader: longwaveRadiationFragmentShader,
+      fragmentShader: radiationFragmentShader,
       glslVersion: THREE.GLSL3,
       uniforms: {
         cellInformation: { value: simulation.cellInformation },
-        surfaceData: { value: null }, // Will be set to working buffer texture each frame
-        atmosphereData: { value: null }, // Will be set to working buffer texture each frame
+        surfaceData: { value: null }, // Will be set each frame
+        atmosphereData: { value: null }, // Will be set each frame
         hydrologyData: { value: null }, // Will be set each frame (for surface thermal properties)
         terrainData: { value: simulation.terrainData },
+        // Orbital parameters (for shortwave)
+        axialTilt: { value: axialTilt },
+        yearProgress: { value: 0 },
+        subsolarLon: { value: 0 }, // Starts at prime meridian
+        solarFlux: { value: solarFlux },
+        // Physics parameters
         dt: { value: dt },
-
-        // === ATMOSPHERIC TRANSMISSION UNIFORMS ===
+        // === ATMOSPHERIC TRANSMISSION UNIFORMS (for longwave) ===
         // Dry gas transmission lookup (pre-computed for CO2, CH4, N2O, O3)
         dryTransmissionTexture: { value: dryTransmissionTexture },
         dryTransmissionTempMin: { value: dryTransmissionConfig.tempMin },
         dryTransmissionTempMax: { value: dryTransmissionConfig.tempMax },
-
-        // === ATMOSPHERIC PROPERTIES ===
+        // === ATMOSPHERIC PROPERTIES (for longwave) ===
         surfacePressure: { value: planetaryConfig.surfacePressure || 101325 },
         surfaceGravity: { value: planetaryConfig.surfaceGravity },
         meanMolecularMass: { value: meanMolecularMass },
@@ -337,8 +318,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       scene,
       camera,
       geometry,
-      shortwaveIncidentMaterial,
-      longwaveRadiationMaterial,
+      radiationMaterial,
       hydrologyMaterial,
       blankRenderTarget,
       mesh,
@@ -413,8 +393,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
 
     if (gpuResources) {
       gpuResources.geometry.dispose()
-      gpuResources.shortwaveIncidentMaterial.dispose()
-      gpuResources.longwaveRadiationMaterial.dispose()
+      gpuResources.radiationMaterial.dispose()
       gpuResources.hydrologyMaterial.dispose()
       gpuResources.blankRenderTarget.dispose()
       gpuResources.scene.clear()

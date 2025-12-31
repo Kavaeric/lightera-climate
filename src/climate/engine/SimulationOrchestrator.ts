@@ -157,8 +157,7 @@ export class SimulationOrchestrator {
       gl,
       simulation,
       {
-        shortwaveIncidentMaterial: gpuResources.shortwaveIncidentMaterial,
-        longwaveRadiationMaterial: gpuResources.longwaveRadiationMaterial,
+        radiationMaterial: gpuResources.radiationMaterial,
         hydrologyMaterial: gpuResources.hydrologyMaterial,
       },
       gpuResources.mesh,

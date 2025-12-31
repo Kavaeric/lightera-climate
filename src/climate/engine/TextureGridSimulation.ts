@@ -42,11 +42,9 @@ export class TextureGridSimulation {
   // RGBA = [solarFlux (W/m²), waterState (0=solid, 1=liquid), reserved, reserved]
   public auxiliaryTarget: THREE.WebGLRenderTarget | null = null
 
-  // MRT for longwave radiation pass (updates both surface and atmosphere)
-  public longwaveRadiationMRT: THREE.WebGLRenderTarget<THREE.Texture[]> | null = null
-
-  // MRT for shortwave incident pass (outputs surface state + auxiliary solar flux)
-  public shortwaveMRT: THREE.WebGLRenderTarget<THREE.Texture[]> | null = null
+  // MRT for combined radiation pass (shortwave + longwave)
+  // Outputs: [0] surface state, [1] atmosphere state, [2] solar flux (auxiliary)
+  public radiationMRT: THREE.WebGLRenderTarget<THREE.Texture[]> | null = null
 
   // MRT for hydrology pass (outputs hydrology state + auxiliary water state)
   public hydrologyMRT: THREE.WebGLRenderTarget<THREE.Texture[]> | null = null
@@ -82,8 +80,7 @@ export class TextureGridSimulation {
     this.auxiliaryTarget = this.renderTargetFactory.createRenderTarget()
 
     // Create MRTs
-    this.longwaveRadiationMRT = this.renderTargetFactory.createSurfaceAtmosphereMRT()
-    this.shortwaveMRT = this.renderTargetFactory.createSurfaceAtmosphereMRT()
+    this.radiationMRT = this.renderTargetFactory.createRadiationMRT()
     this.hydrologyMRT = this.renderTargetFactory.createHydrologyMRT()
   }
 
@@ -190,18 +187,11 @@ export class TextureGridSimulation {
     return this.auxiliaryTarget
   }
 
-  public getLongwaveRadiationMRT(): THREE.WebGLRenderTarget<THREE.Texture[]> {
-    if (!this.longwaveRadiationMRT) {
-      throw new Error('Longwave radiation MRT not initialised')
+  public getRadiationMRT(): THREE.WebGLRenderTarget<THREE.Texture[]> {
+    if (!this.radiationMRT) {
+      throw new Error('Radiation MRT not initialised')
     }
-    return this.longwaveRadiationMRT
-  }
-
-  public getShortwaveMRT(): THREE.WebGLRenderTarget<THREE.Texture[]> {
-    if (!this.shortwaveMRT) {
-      throw new Error('Shortwave MRT not initialised')
-    }
-    return this.shortwaveMRT
+    return this.radiationMRT
   }
 
   public getHydrologyMRT(): THREE.WebGLRenderTarget<THREE.Texture[]> {
@@ -316,11 +306,8 @@ export class TextureGridSimulation {
     if (this.auxiliaryTarget) {
       this.auxiliaryTarget.dispose()
     }
-    if (this.longwaveRadiationMRT) {
-      this.longwaveRadiationMRT.dispose()
-    }
-    if (this.shortwaveMRT) {
-      this.shortwaveMRT.dispose()
+    if (this.radiationMRT) {
+      this.radiationMRT.dispose()
     }
     if (this.hydrologyMRT) {
       this.hydrologyMRT.dispose()

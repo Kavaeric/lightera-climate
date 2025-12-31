@@ -115,8 +115,7 @@ export class SimulationExecutor {
     gl: THREE.WebGLRenderer,
     simulation: TextureGridSimulation,
     materials: {
-      shortwaveIncidentMaterial: THREE.ShaderMaterial
-      longwaveRadiationMaterial: THREE.ShaderMaterial
+      radiationMaterial: THREE.ShaderMaterial
       hydrologyMaterial: THREE.ShaderMaterial
     },
     mesh: THREE.Mesh,
@@ -124,67 +123,34 @@ export class SimulationExecutor {
     camera: THREE.OrthographicCamera
   ): boolean {
     try {
-      const { shortwaveIncidentMaterial, longwaveRadiationMaterial, hydrologyMaterial } = materials
+      const { radiationMaterial, hydrologyMaterial } = materials
 
-      // ===== 3-PASS PHYSICS ARCHITECTURE =====
-      // Pass 1: Shortwave heating (solar flux + surface absorption)
-      // Pass 2: Longwave radiation (surface emission, atmospheric absorption & re-emission)
-      // Pass 3: Hydrology (water cycle dynamics)
+      // ===== 2-PASS PHYSICS ARCHITECTURE =====
+      // Pass 1: Combined radiation (shortwave heating + longwave greenhouse effect)
+      // Pass 2: Hydrology (water cycle dynamics)
 
-      // Pass 1: Calculate shortwave heating (combined solar flux + surface incident)
-      // Uses MRT to output both surface state (for physics) and solar flux (for visualisation)
+      // Pass 1: Combined radiation (shortwave + longwave)
+      // - Shortwave: Solar flux at TOA and surface heating
+      // - Longwave: Surface emission, atmospheric absorption & re-emission (greenhouse effect)
       // Update orbital state uniforms
-      shortwaveIncidentMaterial.uniforms.yearProgress.value = this.state.yearProgress
-      shortwaveIncidentMaterial.uniforms.subsolarLon.value = this.state.currentSubsolarLon
+      radiationMaterial.uniforms.yearProgress.value = this.state.yearProgress
+      radiationMaterial.uniforms.subsolarLon.value = this.state.currentSubsolarLon
       // Set input textures
-      shortwaveIncidentMaterial.uniforms.surfaceData.value = simulation.getClimateDataCurrent().texture
-      shortwaveIncidentMaterial.uniforms.atmosphereData.value = simulation.getAtmosphereDataCurrent().texture
-      shortwaveIncidentMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture
+      radiationMaterial.uniforms.surfaceData.value = simulation.getClimateDataCurrent().texture
+      radiationMaterial.uniforms.atmosphereData.value = simulation.getAtmosphereDataCurrent().texture
+      radiationMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture
 
-      // Render to MRT (attachment 0 = surface state, attachment 1 = solar flux)
-      const shortwaveMRT = simulation.getShortwaveMRT()
-      mesh.material = shortwaveIncidentMaterial
-      gl.setRenderTarget(shortwaveMRT)
-      gl.clear()
-      gl.render(scene, camera)
-      gl.setRenderTarget(null)
-
-      // Copy MRT attachment 0 → surface working buffer (for longwave pass)
-      this.copyMaterial.uniforms.sourceTexture.value = shortwaveMRT.textures[0]
-      mesh.material = this.copyMaterial
-      gl.setRenderTarget(simulation.getSurfaceWorkingBuffer(0))
-      gl.clear()
-      gl.render(scene, camera)
-      gl.setRenderTarget(null)
-
-      // Copy MRT attachment 1 → auxiliary target R channel (solar flux, not used in physics pipeline)
-      this.copyMaterial.uniforms.sourceTexture.value = shortwaveMRT.textures[1]
-      gl.setRenderTarget(simulation.getAuxiliaryTarget())
-      gl.clear()
-      gl.render(scene, camera)
-      gl.setRenderTarget(null)
-
-      // Pass 2: Longwave radiation (greenhouse effect)
-      // - Surface emits IR radiation (Stefan-Boltzmann)
-      // - Atmosphere absorbs part of surface emission
-      // - Atmosphere re-emits based on Kirchhoff's law (emissivity = absorptivity)
-      // - Half of atmospheric emission goes to space, half back to surface
-      longwaveRadiationMaterial.uniforms.surfaceData.value = simulation.getSurfaceWorkingBuffer(0).texture
-      longwaveRadiationMaterial.uniforms.atmosphereData.value = simulation.getAtmosphereDataCurrent().texture
-      longwaveRadiationMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture
-
-      // Get MRT configured to write directly to next targets
-      const longwaveRadiationMRT = simulation.getLongwaveRadiationMRT()
-
-      mesh.material = longwaveRadiationMaterial
-      gl.setRenderTarget(longwaveRadiationMRT)
+      // Render to MRT (attachment 0 = surface state, attachment 1 = atmosphere state, attachment 2 = solar flux)
+      const radiationMRT = simulation.getRadiationMRT()
+      mesh.material = radiationMaterial
+      gl.setRenderTarget(radiationMRT)
       gl.clear()
       gl.render(scene, camera)
       gl.setRenderTarget(null)
 
       // Copy MRT outputs to next frame targets
       // MRT attachment 0 → next surface state
-      this.copyMaterial.uniforms.sourceTexture.value = longwaveRadiationMRT.textures[0]
+      this.copyMaterial.uniforms.sourceTexture.value = radiationMRT.textures[0]
       mesh.material = this.copyMaterial
       gl.setRenderTarget(simulation.getClimateDataNext())
       gl.clear()
@@ -192,20 +158,27 @@ export class SimulationExecutor {
       gl.setRenderTarget(null)
 
       // MRT attachment 1 → next atmosphere state
-      this.copyMaterial.uniforms.sourceTexture.value = longwaveRadiationMRT.textures[1]
+      this.copyMaterial.uniforms.sourceTexture.value = radiationMRT.textures[1]
       gl.setRenderTarget(simulation.getAtmosphereDataNext())
       gl.clear()
       gl.render(scene, camera)
       gl.setRenderTarget(null)
 
-      // Pass 3: Hydrology (water cycle dynamics)
+      // MRT attachment 2 → auxiliary target R channel (solar flux, for visualisation)
+      this.copyMaterial.uniforms.sourceTexture.value = radiationMRT.textures[2]
+      gl.setRenderTarget(simulation.getAuxiliaryTarget())
+      gl.clear()
+      gl.render(scene, camera)
+      gl.setRenderTarget(null)
+
+      // Pass 2: Hydrology (water cycle dynamics)
       // - Ice/water phase transitions (freezing and melting)
       // - Latent heat effects on surface temperature
       // - Evaporation from water surfaces (future)
       // - Precipitation from atmosphere (future)
       // Uses MRT to output hydrology state, auxiliary water state, and latent-heat-corrected surface state
-      hydrologyMaterial.uniforms.surfaceData.value = longwaveRadiationMRT.textures[0]
-      hydrologyMaterial.uniforms.atmosphereData.value = longwaveRadiationMRT.textures[1]
+      hydrologyMaterial.uniforms.surfaceData.value = radiationMRT.textures[0]
+      hydrologyMaterial.uniforms.atmosphereData.value = radiationMRT.textures[1]
       hydrologyMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture
       hydrologyMaterial.uniforms.auxiliaryData.value = simulation.getAuxiliaryTarget().texture
 
