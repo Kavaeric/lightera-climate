@@ -8,6 +8,7 @@ interface DisplayConfigProviderProps {
 
 export function DisplayConfigProvider({ children }: DisplayConfigProviderProps) {
   const [displayConfig, setDisplayConfig] = useState<DisplayConfig>(DISPLAY_CONFIG_DEFAULT)
+  const [showLatLonGrid, setShowLatLonGrid] = useState(true)
 
   const handleSetDisplayConfig = useCallback((config: DisplayConfig | ((prev: DisplayConfig) => DisplayConfig)) => {
     setDisplayConfig(config)
@@ -18,6 +19,8 @@ export function DisplayConfigProvider({ children }: DisplayConfigProviderProps) 
       value={{
         displayConfig,
         setDisplayConfig: handleSetDisplayConfig,
+        showLatLonGrid,
+        setShowLatLonGrid,
       }}
     >
       {children}

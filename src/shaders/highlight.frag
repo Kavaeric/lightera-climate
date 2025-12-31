@@ -52,7 +52,7 @@ void main() {
 
   if (isHovered > 0.5) {
     color = vec3(1.0, 1.0, 1.0); // White highlight for hover
-    alpha = 0.3 * isFrontFacing + 0.1 * (1.0 - isFrontFacing); // More subtle than selection
+    alpha = 0.3; // More subtle than selection
     fragColour = vec4(color, alpha);
     return;
   }

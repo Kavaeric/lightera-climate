@@ -4,6 +4,8 @@ import type { DisplayConfig } from '../config/displayConfig'
 export interface DisplayConfigContextType {
   displayConfig: DisplayConfig
   setDisplayConfig: (config: DisplayConfig | ((prev: DisplayConfig) => DisplayConfig)) => void
+  showLatLonGrid: boolean
+  setShowLatLonGrid: (show: boolean) => void
 }
 
 export const DisplayConfigContext = createContext<DisplayConfigContextType | undefined>(undefined)

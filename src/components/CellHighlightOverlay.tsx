@@ -82,6 +82,7 @@ export const CellHighlightOverlay = forwardRef<THREE.Mesh, CellHighlightOverlayP
         },
         vertexShader: highlightVertexShader,
         fragmentShader: highlightFragmentShader,
+        side: THREE.DoubleSide,
         transparent: true,
         depthWrite: false,
         depthTest: false,

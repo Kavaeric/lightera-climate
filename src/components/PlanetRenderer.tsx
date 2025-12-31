@@ -1,6 +1,6 @@
 import { useMemo, forwardRef, useRef, useEffect } from 'react'
 import * as THREE from 'three'
-import { useFrame, type ThreeEvent } from '@react-three/fiber'
+import { useFrame } from '@react-three/fiber'
 import { Grid } from '../simulation/geometry/geodesic'
 import { TextureGridSimulation } from '../util/TextureGridSimulation'
 import type { DisplayConfig } from '../config/displayConfig'
@@ -14,14 +14,13 @@ interface PlanetRendererProps {
   radius: number
   simulation: TextureGridSimulation
   displayConfig: DisplayConfig
-  onHoverCell?: (cellIndex: number | null) => void
-  onCellClick?: (cellIndex: number) => void
 }
 
 /**
  * Renders the 3D planet visualisation with surface temperature data from GPU texture
  * Pure data visualisation component - no interaction or selection logic
  * Highlighting is handled separately by CellHighlightOverlay
+ * Interaction is handled separately by PlanetInteraction
  * Each vertex has a UV coordinate pointing to its cell's pixel in the state texture
  */
 export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
@@ -30,8 +29,6 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
     radius,
     simulation,
     displayConfig,
-    onHoverCell,
-    onCellClick,
   }, ref) {
     // Generate geometry with UV coordinates mapped to texture
     const geometry = useMemo(() => {
@@ -115,7 +112,7 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
 
     const uniforms = currentMaterial.uniforms
 
-    // Update standardized data texture uniforms that may change between frames
+    // Update standardised data texture uniforms that may change between frames
     if (uniforms.surfaceData) {
       uniforms.surfaceData.value = simulation.getClimateDataCurrent().texture
     }
@@ -131,78 +128,12 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(
     // terrainData is static and doesn't need updating
   })
 
-  // Helper function to find cell index from UV coordinates
-  const findCellIndexFromUV = (u: number, v: number): number => {
-    let cellIndex = -1
-    let minDist = Infinity
-
-    for (let i = 0; i < simulation.getCellCount(); i++) {
-      const [cellU, cellV] = simulation.getCellUV(i)
-      const dist = Math.abs(cellU - u) + Math.abs(cellV - v)
-      if (dist < minDist) {
-        minDist = dist
-        cellIndex = i
-      }
-    }
-
-    return cellIndex
-  }
-
-  // Handle pointer move for hover detection
-  const handlePointerMove = (event: ThreeEvent<PointerEvent>) => {
-    if (!onHoverCell) return
-
-    const intersection = event.intersections?.[0]
-    if (!intersection || intersection.faceIndex === undefined || intersection.faceIndex === null) {
-      onHoverCell(null)
-      return
-    }
-
-    const mesh = event.object as THREE.Mesh
-    const geometry = mesh.geometry as THREE.BufferGeometry
-    const uvAttribute = geometry.getAttribute('uv')
-    const vertexIndex = intersection.faceIndex * 3
-    const u = uvAttribute.getX(vertexIndex)
-    const v = uvAttribute.getY(vertexIndex)
-
-    const cellIndex = findCellIndexFromUV(u, v)
-    if (cellIndex >= 0) {
-      onHoverCell(cellIndex)
-    } else {
-      onHoverCell(null)
-    }
-  }
-
-  // Handle click for cell selection
-  const handleClick = (event: ThreeEvent<MouseEvent>) => {
-    if (!onCellClick) return
-
-    const intersection = event.intersections?.[0]
-    if (!intersection || intersection.faceIndex === undefined || intersection.faceIndex === null) {
-      return
-    }
-
-    const mesh = event.object as THREE.Mesh
-    const geometry = mesh.geometry as THREE.BufferGeometry
-    const uvAttribute = geometry.getAttribute('uv')
-    const vertexIndex = intersection.faceIndex * 3
-    const u = uvAttribute.getX(vertexIndex)
-    const v = uvAttribute.getY(vertexIndex)
-
-    const cellIndex = findCellIndexFromUV(u, v)
-    if (cellIndex >= 0) {
-      console.log(`Cell index: ${cellIndex}`)
-      onCellClick(cellIndex)
-    }
-  }
 
   return (
     <mesh
       ref={ref}
       geometry={geometry}
       material={material}
-      onPointerMove={handlePointerMove}
-      onClick={handleClick}
     >
       {/* Material is already set via shader */}
     </mesh>

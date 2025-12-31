@@ -2,10 +2,9 @@
 // Provides semantic accessors for reading and writing simulation data
 // This abstracts away the underlying texture channel layout AND texture uniform names
 //
-// Uniforms are declared here with standardized names.
-// Just pass the correctly-named uniforms from TypeScript and call the accessor functions.
+// Uniforms are declared here with standardised names.
 //
-// NOTE: This file is included in GLSL ES 3.00 shaders - uses texture() instead of texture2D()
+// This file is included in GLSL ES 3.00 shaders which uses texture() instead of texture2D()
 
 // ============================================================================
 // UNIFORM DECLARATIONS
@@ -36,7 +35,7 @@ float getCellArea(vec2 uv) {
 // ============================================================================
 // TERRAIN TEXTURE
 // Layout: RGBA = [elevation, waterDepth, salinity, baseAlbedo]
-// Note: This is a static texture that doesn't change during simulation
+// Note: This is a static texture that doesn't change during simulation.
 // ============================================================================
 
 float getElevation(vec2 uv) {
@@ -79,14 +78,13 @@ vec4 packHydrologyData(float waterDepth, float iceThickness, float salinity) {
 // ============================================================================
 // AUXILIARY TEXTURE
 // Layout: RGBA = [solarFlux, waterState, reserved, reserved]
-// Not used in physics pipeline - available for visualisation/diagnostics
+// Not used in physics pipeline but available for visualisation/diagnostics.
 // ============================================================================
 
 float getSolarFlux(vec2 uv) {
   return texture(auxiliaryData, uv).r;
 }
 
-// Water state: 0.0 = solid (frozen), 1.0 = liquid (above melting point)
 float getWaterState(vec2 uv) {
   return texture(auxiliaryData, uv).g;
 }
