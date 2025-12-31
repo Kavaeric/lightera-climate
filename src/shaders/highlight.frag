@@ -57,6 +57,6 @@ void main() {
     return;
   }
 
-  // No highlight - fully transparent
+  // No highlight otherwise
   discard;
 }
