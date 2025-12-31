@@ -16,7 +16,6 @@ dist-ssr
 # Editor directories and files
 .claude
 .cursor
-WORKFLOW.md
 .vscode/*
 !.vscode/extensions.json
 .idea
