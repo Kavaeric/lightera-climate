@@ -1,10 +1,10 @@
 import { useMemo, forwardRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { Grid } from '../simulation/geometry/geodesic'
-import { TextureGridSimulation } from '../util/TextureGridSimulation'
-import highlightVertexShader from '../shaders/highlight.vert?raw'
-import highlightFragmentShader from '../shaders/highlight.frag?raw'
+import { Grid } from '../climate/geometry/geodesic'
+import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation'
+import highlightVertexShader from '../rendering/shaders/utility/highlight.vert?raw'
+import highlightFragmentShader from '../rendering/shaders/utility/highlight.frag?raw'
 
 interface CellHighlightOverlayProps {
   subdivisions: number

@@ -1,7 +1,7 @@
 import { useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
-import { TextureGridSimulation } from '../util/TextureGridSimulation'
+import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation'
 
 interface PlanetInteractionProps {
   simulation: TextureGridSimulation

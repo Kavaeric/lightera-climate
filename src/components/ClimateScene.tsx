@@ -1,7 +1,7 @@
 import { forwardRef } from 'react'
 import * as THREE from 'three'
 import { PlanetRenderer } from './PlanetRenderer'
-import { TextureGridSimulation } from '../util/TextureGridSimulation'
+import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation'
 import type { DisplayConfig } from '../config/displayConfig'
 
 interface ClimateSceneProps {

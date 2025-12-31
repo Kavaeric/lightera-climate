@@ -2,7 +2,7 @@ import { forwardRef } from 'react'
 import * as THREE from 'three'
 import { CellHighlightOverlay } from './CellHighlightOverlay'
 import { LatLonGrid } from './LatLonGrid'
-import { TextureGridSimulation } from '../util/TextureGridSimulation'
+import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation'
 
 interface ClimateOverlaysProps {
   // Cell highlighting

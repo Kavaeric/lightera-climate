@@ -1,9 +1,9 @@
 import { useContext, createContext } from 'react'
-import type { OrbitalConfig } from '../config/orbital'
-import type { PlanetaryConfig } from '../config/planetary'
+import type { OrbitalConfig } from '../config/orbitalConfig'
+import type { PlanetaryConfig } from '../config/planetaryConfig'
 import type { SimulationConfig } from '../config/simulationConfig'
-import type { SimulationOrchestrator } from '../util/SimulationOrchestrator'
-import type { SimulationRecorder } from '../util/SimulationRecorder'
+import type { SimulationOrchestrator } from '../climate/engine/SimulationOrchestrator'
+import type { SimulationRecorder } from '../climate/engine/SimulationRecorder'
 
 export interface SimulationContextType {
   // Active configuration (only updated when simulation runs)

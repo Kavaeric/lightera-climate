@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
-import { ORBITAL_CONFIG_EARTH, type OrbitalConfig } from '../config/orbital'
+import { ORBITAL_CONFIG_EARTH, type OrbitalConfig } from '../config/orbitalConfig'
 
 interface OrbitalConfigContextType {
   orbitalConfig: OrbitalConfig

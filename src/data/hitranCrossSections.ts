@@ -14,15 +14,7 @@
 // This correctly handles spectral variation within bins, avoiding
 // the Jensen inequality problem: exp(-avg(σ)N) ≠ avg(exp(-σN))
 
-export type KDistribution = {
-	kValues: number[];   // Sorted absorption cross-sections (cm²/molecule)
-	weights: number[];   // Spectral weights (sum to 1.0)
-};
-
-export type HitranCrossSectionSpectrum = {
-	wavelengths: number[];        // μm (bin centers)
-	kDistributions: KDistribution[];  // One per wavelength bin
-};
+import type { HitranCrossSectionSpectrum } from '../types/spectroscopy'
 
 export const ch4CrossSection: HitranCrossSectionSpectrum = {
 	wavelengths: [

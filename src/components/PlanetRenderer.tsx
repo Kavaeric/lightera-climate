@@ -1,13 +1,13 @@
 import { useMemo, forwardRef, useRef, useEffect } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
-import { Grid } from '../simulation/geometry/geodesic'
-import { TextureGridSimulation } from '../util/TextureGridSimulation'
+import { Grid } from '../climate/geometry/geodesic'
+import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation'
 import type { DisplayConfig } from '../config/displayConfig'
-import { getVisualisationMode } from '../config/visualisationModes'
+import { getVisualisationMode } from '../rendering/visualisationModes'
 
 // Import vertex shader for all visualisations
-import visualiseVertexShader from '../shaders/display/visualise.vert?raw'
+import visualiseVertexShader from '../rendering/shaders/display/visualise.vert?raw'
 
 interface PlanetRendererProps {
   subdivisions: number

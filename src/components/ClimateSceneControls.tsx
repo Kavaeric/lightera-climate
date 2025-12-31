@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { OrbitControls, GizmoHelper, GizmoViewport } from '@react-three/drei'
 import { PlanetInteraction } from './PlanetInteraction'
-import { TextureGridSimulation } from '../util/TextureGridSimulation'
+import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation'
 
 interface ClimateSceneControlsProps {
   // Planet interaction

@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useThree } from '@react-three/fiber'
-import { TextureGridSimulation } from '../util/TextureGridSimulation'
+import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation'
 import { useSimulation } from '../context/useSimulation'
 
 interface ClimateDataFetcherProps {

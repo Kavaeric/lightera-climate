@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import * as THREE from 'three'
 import { extend, useThree } from '@react-three/fiber'
 import { MeshLineGeometry, raycast } from 'meshline'
-import { XRayMeshLineMaterial } from '../materials/XRayMeshLineMaterial'
+import { XRayMeshLineMaterial } from '../rendering/materials/XRayMeshLineMaterial'
 
 extend({ MeshLineGeometry, XRayMeshLineMaterial })
 

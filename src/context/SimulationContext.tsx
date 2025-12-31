@@ -1,14 +1,14 @@
 import { useState, useRef, useCallback } from 'react'
 import type { ReactNode } from 'react'
-import type { OrbitalConfig } from '../config/orbital'
-import type { PlanetaryConfig } from '../config/planetary'
+import type { OrbitalConfig } from '../config/orbitalConfig'
+import type { PlanetaryConfig } from '../config/planetaryConfig'
 import type { SimulationConfig } from '../config/simulationConfig'
-import { ORBITAL_CONFIG_EARTH } from '../config/orbital'
-import { PLANETARY_CONFIG_EARTH } from '../config/planetary'
+import { ORBITAL_CONFIG_EARTH } from '../config/orbitalConfig'
+import { PLANETARY_CONFIG_EARTH } from '../config/planetaryConfig'
 import { SIMULATION_CONFIG_DEFAULT } from '../config/simulationConfig'
 import { SimulationContext } from './useSimulation'
-import type { SimulationOrchestrator } from '../util/SimulationOrchestrator'
-import type { SimulationRecorder } from '../util/SimulationRecorder'
+import type { SimulationOrchestrator } from '../climate/engine/SimulationOrchestrator'
+import type { SimulationRecorder } from '../climate/engine/SimulationRecorder'
 
 interface SimulationProviderProps {
   children: ReactNode

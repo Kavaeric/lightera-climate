@@ -1,11 +1,10 @@
 import type { VisualisationModeId } from '../types/visualisationModes'
-import { VISUALISATION_MODES } from '../config/visualisationModes'
+import { VISUALISATION_MODES } from '../rendering/visualisationModes'
 import { useSimulationConfig } from '../context/SimulationConfigProvider'
 import { useOrbitalConfig } from '../context/OrbitalConfigProvider'
 import { useDisplayConfig } from '../context/useDisplayConfig'
 import { useRuntimeControls } from '../context/RuntimeControlsProvider'
 import { useSimulation } from '../context/useSimulation'
-import { PLANETARY_CONFIG_EARTH } from '../config/planetary'
 
 interface SidePanelProps {
   onNewSimulation: () => void
@@ -22,8 +21,6 @@ export function SidePanel({
   const { displayConfig, setDisplayConfig, showLatLonGrid, setShowLatLonGrid } = useDisplayConfig()
   const { stepsPerFrame, setStepsPerFrame, samplesPerOrbit, setSamplesPerOrbit } = useRuntimeControls()
   const { activeSimulationConfig, isRunning, play, pause } = useSimulation()
-  
-  const planetaryConfig = PLANETARY_CONFIG_EARTH
 
   return (
     <div style={{ 

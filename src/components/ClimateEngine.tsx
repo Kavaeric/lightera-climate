@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react'
 import { useThree } from '@react-three/fiber'
-import { TextureGridSimulation } from '../util/TextureGridSimulation'
-import { createClimateEngine } from '../engine/createClimateEngine'
+import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation'
+import { createClimateEngine } from '../climate/engine/createClimateEngine'
 import { useSimulation } from '../context/useSimulation'
 
 interface ClimateEngineProps {
