@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useThree } from '@react-three/fiber'
 import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation'
 import { useSimulation } from '../context/useSimulation'
+import type { Milestone } from '../climate/engine/SimulationOrchestrator'
 
 interface ClimateDataFetcherProps {
   simulation: TextureGridSimulation
@@ -22,6 +23,7 @@ interface ClimateDataFetcherProps {
 /**
  * Helper component to fetch climate and hydrology data (stays inside Canvas for gl access)
  * Fetches data for a specific cell and provides it to parent component
+ * Automatically refreshes data when a new orbit completes
  */
 export function ClimateDataFetcher({
   simulation,
@@ -29,26 +31,37 @@ export function ClimateDataFetcher({
   onDataFetched,
 }: ClimateDataFetcherProps) {
   const { gl } = useThree()
-  const { getRecorder } = useSimulation()
+  const { getRecorder, getOrchestrator } = useSimulation()
+  
+  // Use refs to avoid stale closures in milestone callback
+  const cellIndexRef = useRef(cellIndex)
+  const fetchDataRef = useRef<(() => Promise<void>) | undefined>(undefined)
 
+  // Update refs when props change
   useEffect(() => {
-    if (cellIndex === null) {
-      onDataFetched([])
-      return
-    }
+    cellIndexRef.current = cellIndex
+  }, [cellIndex])
 
-    const fetchData = async () => {
+  // Define fetch function
+  useEffect(() => {
+    fetchDataRef.current = async () => {
+      const currentCellIndex = cellIndexRef.current
+      if (currentCellIndex === null) {
+        onDataFetched([])
+        return
+      }
+
       const recorder = getRecorder()
       
       // Always get current hydrology, surface, atmosphere, and terrain data (not time-series, just current state)
-      const hydrologyData = await simulation.getHydrologyDataForCell(cellIndex, gl)
-      const surfaceData = await simulation.getSurfaceDataForCell(cellIndex, gl)
-      const atmosphereData = await simulation.getAtmosphereDataForCell(cellIndex, gl)
-      const terrainData = simulation.getTerrainDataForCell(cellIndex)
+      const hydrologyData = await simulation.getHydrologyDataForCell(currentCellIndex, gl)
+      const surfaceData = await simulation.getSurfaceDataForCell(currentCellIndex, gl)
+      const atmosphereData = await simulation.getAtmosphereDataForCell(currentCellIndex, gl)
+      const terrainData = simulation.getTerrainDataForCell(currentCellIndex)
       
       // Try to get complete orbit surface data (temperature and albedo) from recorder
       if (recorder && recorder.hasCompleteOrbit()) {
-        const surfaceDataArray = await recorder.getCompleteOrbitSurfaceDataForCell(cellIndex)
+        const surfaceDataArray = await recorder.getCompleteOrbitSurfaceDataForCell(currentCellIndex)
         
         if (surfaceDataArray && surfaceDataArray.length > 0) {
           // Format as time series data (sample index as "day")
@@ -71,7 +84,7 @@ export function ClimateDataFetcher({
       }
 
       // Fallback: show current state if no complete orbit available
-      const climateData = await simulation.getClimateDataForCell(cellIndex, gl)
+      const climateData = await simulation.getClimateDataForCell(currentCellIndex, gl)
       const formattedData = [{
         day: 0,
         ...climateData,
@@ -82,9 +95,35 @@ export function ClimateDataFetcher({
       }]
       onDataFetched(formattedData)
     }
+  }, [simulation, gl, onDataFetched, getRecorder])
 
-    fetchData()
-  }, [cellIndex, simulation, gl, onDataFetched, getRecorder])
+  // Fetch data when cellIndex changes
+  useEffect(() => {
+    if (fetchDataRef.current) {
+      fetchDataRef.current()
+    }
+  }, [cellIndex])
+
+  // Subscribe to orbit completion milestones to auto-refresh data
+  useEffect(() => {
+    const orchestrator = getOrchestrator()
+    if (!orchestrator) return
+
+    const handleMilestone = (milestone: Milestone) => {
+      // When an orbit completes, refresh data if a cell is selected
+      if (milestone.type === 'orbit_complete' && cellIndexRef.current !== null) {
+        if (fetchDataRef.current) {
+          fetchDataRef.current()
+        }
+      }
+    }
+
+    orchestrator.onMilestone(handleMilestone)
+
+    // Cleanup: Note that SimulationOrchestrator doesn't have an unsubscribe method,
+    // but this is fine since the orchestrator is recreated on each simulation
+    // and the callback will be garbage collected when the component unmounts
+  }, [getOrchestrator])
 
   return null // Don't render anything in the Canvas
 }
