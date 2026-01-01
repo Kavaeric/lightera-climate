@@ -179,7 +179,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
         cellInformation: { value: simulation.cellInformation },
         surfaceData: { value: null }, // Will be set each frame
         atmosphereData: { value: null }, // Will be set each frame
-        hydrologyData: { value: null }, // Will be set each frame (for surface thermal properties)
+        hydrologyData: { value: null }, // Will be set each frame
         terrainData: { value: simulation.terrainData },
         // Orbital parameters (for shortwave)
         axialTilt: { value: axialTilt },

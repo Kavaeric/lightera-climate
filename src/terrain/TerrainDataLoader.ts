@@ -28,6 +28,72 @@ export class TerrainDataLoader {
   }
 
   /**
+   * Load Earth terrain by combining separate topology and bathymetry heightmaps.
+   *
+   * @param topologyUrl URL to topology/elevation heightmap (land elevations)
+   * @param bathymetryUrl URL to bathymetry heightmap (ocean depths)
+   * @param cellCount Number of cells in the geodesic grid
+   * @param cellLatLons Array of lat/lon positions for each cell
+   * @param options Configuration for how to interpret the heightmaps
+   */
+  async loadEarthTerrain(
+    topologyUrl: string,
+    bathymetryUrl: string,
+    cellCount: number,
+    cellLatLons: Array<{ lat: number; lon: number }>,
+    options: {
+      topologyScale?: number; // metres for max pixel value (default: 6400 for NASA BMNG)
+      bathymetryScale?: number; // metres for max depth (default: 8000 for NASA BMNG)
+    } = {}
+  ): Promise<TerrainConfig> {
+    const topologyScale = options.topologyScale ?? 6400;
+    const bathymetryScale = options.bathymetryScale ?? 8000;
+
+    // Load topology (land elevation: 0 to topologyScale metres)
+    const topologyData = await this.loadFromHeightmap(
+      topologyUrl,
+      cellCount,
+      cellLatLons,
+      {
+        elevationScale: topologyScale / 128, // Map 0-255 to 0-topologyScale
+        seaLevel: 0, // 0 in image = 0m elevation
+      }
+    );
+
+    // Load bathymetry (ocean depth: -bathymetryScale to 0 metres)
+    const bathymetryData = await this.loadFromHeightmap(
+      bathymetryUrl,
+      cellCount,
+      cellLatLons,
+      {
+        elevationScale: bathymetryScale / 255, // Map pixel 0-255 to -bathymetryScale-0 metres
+        seaLevel: 255, // Pixel 255 in image = 0m (sea level), pixel 0 = -bathymetryScale
+      }
+    );
+
+    // Combine: use bathymetry for negative elevations (ocean), topology for positive (land)
+    const combinedElevation = new Float32Array(cellCount);
+
+    // Debug: sample some values to understand the data
+    console.log('Sample terrain values:');
+    for (let i = 0; i < Math.min(10, cellCount); i++) {
+      console.log(`Cell ${i}: topo=${topologyData.elevation[i].toFixed(1)}m, bathy=${bathymetryData.elevation[i].toFixed(1)}m`);
+    }
+
+    for (let i = 0; i < cellCount; i++) {
+      const topo = topologyData.elevation[i];
+      const bathy = bathymetryData.elevation[i];
+
+      // Use bathymetry if it's below sea level, otherwise use topology
+      combinedElevation[i] = bathy < 0 ? bathy : topo;
+    }
+
+    return {
+      elevation: Array.from(combinedElevation),
+    };
+  }
+
+  /**
    * Load terrain from an equirectangular heightmap image.
    * Resamples the image to match geodesic grid using bilinear interpolation.
    *
@@ -78,9 +144,9 @@ export class TerrainDataLoader {
       const pixelValue = this.bilinearSample(data, width, height, u, v);
 
       // Convert pixel value to elevation
-      // Assume 0-255 range, where seaLevel = 0m
-      const normalizedValue = (pixelValue - seaLevel) / 128; // Normalize to roughly -1 to 1
-      elevation[i] = normalizedValue * elevationScale;
+      // Formula: (pixelValue - seaLevel) * elevationScale
+      // The elevationScale parameter should already account for the pixel range (e.g., scale / 255)
+      elevation[i] = (pixelValue - seaLevel) * elevationScale;
     }
 
     return {

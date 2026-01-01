@@ -99,27 +99,56 @@ function ClimateApp() {
   }, [activeSimulationConfig]);
 
   // Generate terrain when simulation is created
+  // useEffect(() => {
+  //   if (!simulation) return;
+
+  //   // Generate random terrain
+  //   const terrainLoader = new TerrainDataLoader();
+
+  //   // Use simulationKey as seed for reproducible randomness
+  //   const seed = simulationKey;
+  //   const cellCount = simulation.getCellCount();
+
+  //   // Get cell lat/lons
+  //   const cellLatLons: Array<{ lat: number; lon: number }> = [];
+  //   for (let i = 0; i < cellCount; i++) {
+  //     cellLatLons.push(simulation.getCellLatLon(i));
+  //   }
+
+  //   // Generate procedural terrain
+  //   const terrain = terrainLoader.generateProcedural(cellCount, cellLatLons, seed);
+  //   simulation.setTerrainData(terrain);
+
+  //   console.log(`Generated new terrain with seed ${seed}`);
+  // }, [simulation, simulationKey]);
+
+  // Load Earth terrain when simulation is created
   useEffect(() => {
     if (!simulation) return;
 
-    // Generate random terrain
-    const terrainLoader = new TerrainDataLoader();
+    const loadTerrain = async () => {
+      const terrainLoader = new TerrainDataLoader();
+      const cellCount = simulation.getCellCount();
 
-    // Use simulationKey as seed for reproducible randomness
-    const seed = simulationKey;
-    const cellCount = simulation.getCellCount();
+      // Get cell lat/lons
+      const cellLatLons: Array<{ lat: number; lon: number }> = [];
+      for (let i = 0; i < cellCount; i++) {
+        cellLatLons.push(simulation.getCellLatLon(i));
+      }
 
-    // Get cell lat/lons
-    const cellLatLons: Array<{ lat: number; lon: number }> = [];
-    for (let i = 0; i < cellCount; i++) {
-      cellLatLons.push(simulation.getCellLatLon(i));
-    }
+      // Load Earth terrain from Blue Marble Next Generation heightmaps
+      const terrain = await terrainLoader.loadEarthTerrain(
+        '/lightera-climate/blue-marble-ng/bmng_evel_8196.png',
+        '/lightera-climate/blue-marble-ng/bmng_bath_8196.png',
+        cellCount,
+        cellLatLons
+      );
+      simulation.setTerrainData(terrain);
 
-    // Generate procedural terrain
-    const terrain = terrainLoader.generateProcedural(cellCount, cellLatLons, seed);
-    simulation.setTerrainData(terrain);
+      console.log('Loaded Earth terrain from Blue Marble Next Generation heightmaps');
+    };
 
-    console.log(`Generated new terrain with seed ${seed}`);
+    loadTerrain();
   }, [simulation, simulationKey]);
 
   const { setSelectedCell } = useUIState();
