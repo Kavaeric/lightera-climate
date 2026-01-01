@@ -14,6 +14,7 @@ import type { GPUResources } from '../../types/gpu'
 import fullscreenVertexShader from '../../rendering/shaders/utility/fullscreen.vert'
 import radiationFragmentShader from '../passes/01-radiation/radiation.frag'
 import hydrologyFragmentShader from '../passes/02-hydrology/hydrology.frag'
+import diffusionFragmentShader from '../passes/03-diffusion/diffusion.frag'
 
 export interface ClimateEngineConfig {
   gl: THREE.WebGLRenderer
@@ -38,7 +39,8 @@ function validateGPUResources(
 ): void {
   // Check that materials were created
   if (!resources.radiationMaterial
-   || !resources.hydrologyMaterial) {
+   || !resources.hydrologyMaterial
+   || !resources.diffusionMaterial) {
     throw new Error('GPU materials were not created')
   }
 
@@ -182,7 +184,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       },
     })
 
-    // Create hydrology material (Pass 3)
+    // Create hydrology material (Pass 2)
     // Handles water cycle dynamics: evaporation, precipitation, ice formation
     // Uses MRT to output both hydrology state and auxiliary water state
     const hydrologyMaterial = new THREE.ShaderMaterial({
@@ -196,6 +198,25 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
         terrainData: { value: simulation.terrainData },
         atmosphereData: { value: null }, // Will be set each frame
         auxiliaryData: { value: null }, // Will be set each frame (to preserve solar flux)
+        dt: { value: dt },
+      },
+    })
+
+    // Create diffusion material (Pass 3)
+    // Handles thermal conduction between cells using Fourier's law
+    const diffusionMaterial = new THREE.ShaderMaterial({
+      vertexShader: fullscreenVertexShader,
+      fragmentShader: diffusionFragmentShader,
+      glslVersion: THREE.GLSL3,
+      uniforms: {
+        cellInformation: { value: simulation.cellInformation },
+        surfaceData: { value: null }, // Will be set each frame
+        hydrologyData: { value: null }, // Will be set each frame (for heat capacity and thermal conductivity)
+        neighbourIndices1: { value: simulation.neighbourIndices1 },
+        neighbourIndices2: { value: simulation.neighbourIndices2 },
+        textureWidth: { value: simulation.getTextureWidth() },
+        textureHeight: { value: simulation.getTextureHeight() },
+        planetRadius: { value: planetaryConfig.radius },
         dt: { value: dt },
       },
     })
@@ -320,6 +341,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       geometry,
       radiationMaterial,
       hydrologyMaterial,
+      diffusionMaterial,
       blankRenderTarget,
       mesh,
     }
@@ -395,6 +417,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       gpuResources.geometry.dispose()
       gpuResources.radiationMaterial.dispose()
       gpuResources.hydrologyMaterial.dispose()
+      gpuResources.diffusionMaterial.dispose()
       gpuResources.blankRenderTarget.dispose()
       gpuResources.scene.clear()
     }

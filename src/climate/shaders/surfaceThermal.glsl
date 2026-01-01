@@ -104,4 +104,31 @@ float getEffectiveAlbedo(float waterDepth, float iceThickness, float baseAlbedo)
 	return albedo;
 }
 
+/**
+ * Calculates effective surface thermal conductivity based on water/ice coverage.
+ *
+ * Thermal conductivity determines how well heat conducts through the material.
+ * Ice has higher thermal conductivity than water, and both are higher than rock.
+ * When ice is present, it dominates since it's on top.
+ *
+ * @param waterDepth   Water depth in metres
+ * @param iceThickness Ice thickness in metres
+ * @return Thermal conductivity in W/(m·K)
+ */
+float getSurfaceThermalConductivity(float waterDepth, float iceThickness) {
+	float hasWater = step(0.001, waterDepth);
+	float hasIce = step(0.001, iceThickness);
+
+	// Start with rock thermal conductivity
+	float thermalConductivity = MATERIAL_ROCK_THERMAL_CONDUCTIVITY;
+
+	// Water overwrites rock
+	thermalConductivity = mix(thermalConductivity, MATERIAL_WATER_THERMAL_CONDUCTIVITY, hasWater);
+
+	// Ice on top overwrites water (ice floats)
+	thermalConductivity = mix(thermalConductivity, MATERIAL_ICE_THERMAL_CONDUCTIVITY, hasIce);
+
+	return thermalConductivity;
+}
+
 #endif // SURFACE_THERMAL_GLSL

@@ -24,6 +24,9 @@ void main() {
 
   vec3 color = vec3(0.0);
   float alpha = 0.0;
+  float hoverAlpha = 0.3;
+  float selectAlpha = 0.5;
+  float backSelectAlpha = 0.4;
 
   // Check if this is the selected cell
   float selectedX = mod(selectedCellIndex, textureWidth);
@@ -36,7 +39,7 @@ void main() {
 
   if (isSelected > 0.5) {
     color = vec3(1.0, 1.0, 1.0); // White highlight for selection
-    alpha = 0.8 * isFrontFacing + 0.3 * (1.0 - isFrontFacing); // Stronger on front, dimmer on back
+    alpha = selectAlpha * isFrontFacing + backSelectAlpha * (1.0 - isFrontFacing); // Stronger on front, dimmer on back
     fragColour = vec4(color, alpha);
     return;
   }
@@ -52,7 +55,7 @@ void main() {
 
   if (isHovered > 0.5) {
     color = vec3(1.0, 1.0, 1.0); // White highlight for hover
-    alpha = 0.3; // More subtle than selection
+    alpha = hoverAlpha; // More subtle than selection
     fragColour = vec4(color, alpha);
     return;
   }

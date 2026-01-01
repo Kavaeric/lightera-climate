@@ -31,7 +31,7 @@ export function ClimateDataFetcher({
   onDataFetched,
 }: ClimateDataFetcherProps) {
   const { gl } = useThree()
-  const { getRecorder, getOrchestrator } = useSimulation()
+  const { getRecorder, getOrchestrator, simulationKey } = useSimulation()
   
   // Use refs to avoid stale closures in milestone callback
   const cellIndexRef = useRef(cellIndex)
@@ -106,24 +106,28 @@ export function ClimateDataFetcher({
 
   // Subscribe to orbit completion milestones to auto-refresh data
   useEffect(() => {
-    const orchestrator = getOrchestrator()
-    if (!orchestrator) return
+    // When simulationKey changes, the orchestrator is recreated, so we need to wait for it
+    // Use a small delay to ensure the orchestrator is registered
+    const timeoutId = setTimeout(() => {
+      const orchestrator = getOrchestrator()
+      if (!orchestrator) return
 
-    const handleMilestone = (milestone: Milestone) => {
-      // When an orbit completes, refresh data if a cell is selected
-      if (milestone.type === 'orbit_complete' && cellIndexRef.current !== null) {
-        if (fetchDataRef.current) {
-          fetchDataRef.current()
+      const handleMilestone = (milestone: Milestone) => {
+        // When an orbit completes, refresh data if a cell is selected
+        if (milestone.type === 'orbit_complete' && cellIndexRef.current !== null) {
+          if (fetchDataRef.current) {
+            fetchDataRef.current()
+          }
         }
       }
+
+      orchestrator.onMilestone(handleMilestone)
+    }, 100) // Small delay to ensure orchestrator is registered
+
+    return () => {
+      clearTimeout(timeoutId)
     }
-
-    orchestrator.onMilestone(handleMilestone)
-
-    // Cleanup: Note that SimulationOrchestrator doesn't have an unsubscribe method,
-    // but this is fine since the orchestrator is recreated on each simulation
-    // and the callback will be garbage collected when the component unmounts
-  }, [getOrchestrator])
+  }, [getOrchestrator, simulationKey])
 
   return null // Don't render anything in the Canvas
 }

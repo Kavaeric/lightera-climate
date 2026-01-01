@@ -1,6 +1,7 @@
 import { forwardRef } from 'react'
 import * as THREE from 'three'
 import { CellHighlightOverlay } from './CellHighlightOverlay'
+import { CellOutlineOverlay } from './CellOutlineOverlay'
 import { LatLonGrid } from './LatLonGrid'
 import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation'
 
@@ -32,12 +33,21 @@ export const ClimateOverlays = forwardRef<THREE.Mesh, ClimateOverlaysProps>(
   }, ref) {
     return (
       <>
-        {/* Cell highlighting overlay */}
+        {/* Cell highlighting overlay - raised solid highlight */}
         <CellHighlightOverlay
           ref={ref}
           subdivisions={subdivisions}
           radius={radius}
+          offset={0.05}
           simulation={simulation}
+          hoveredCellIndex={hoveredCellIndex}
+          selectedCellIndex={selectedCellIndex}
+        />
+
+        {/* Cell outline overlay - surface outline */}
+        <CellOutlineOverlay
+          subdivisions={subdivisions}
+          radius={radius}
           hoveredCellIndex={hoveredCellIndex}
           selectedCellIndex={selectedCellIndex}
         />

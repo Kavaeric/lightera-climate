@@ -9,6 +9,7 @@ import highlightFragmentShader from '../rendering/shaders/utility/highlight.frag
 interface CellHighlightOverlayProps {
   subdivisions: number
   radius: number
+  offset?: number
   simulation: TextureGridSimulation
   hoveredCellIndex?: number | null
   selectedCellIndex?: number | null
@@ -23,10 +24,14 @@ export const CellHighlightOverlay = forwardRef<THREE.Mesh, CellHighlightOverlayP
   function CellHighlightOverlay({
     subdivisions,
     radius,
+    offset = 0.0,
     simulation,
     hoveredCellIndex = null,
     selectedCellIndex = null,
   }, ref) {
+
+    const offsetRadius = radius + offset
+
     // Generate geometry - identical to planet geometry for perfect alignment
     const geometry = useMemo(() => {
       const grid = new Grid(subdivisions)
@@ -42,19 +47,19 @@ export const CellHighlightOverlay = forwardRef<THREE.Mesh, CellHighlightOverlayP
 
         for (const triangle of cell.faceTriangles) {
           // Vertex A
-          const scaledA = triangle.a.clone().multiplyScalar(radius)
+          const scaledA = triangle.a.clone().multiplyScalar(offsetRadius)
           vertices.push(scaledA.x, scaledA.y, scaledA.z)
           normals.push(triangle.a.x, triangle.a.y, triangle.a.z)
           uvs.push(cellU, cellV)
 
           // Vertex B
-          const scaledB = triangle.b.clone().multiplyScalar(radius)
+          const scaledB = triangle.b.clone().multiplyScalar(offsetRadius)
           vertices.push(scaledB.x, scaledB.y, scaledB.z)
           normals.push(triangle.b.x, triangle.b.y, triangle.b.z)
           uvs.push(cellU, cellV)
 
           // Vertex C
-          const scaledC = triangle.c.clone().multiplyScalar(radius)
+          const scaledC = triangle.c.clone().multiplyScalar(offsetRadius)
           vertices.push(scaledC.x, scaledC.y, scaledC.z)
           normals.push(triangle.c.x, triangle.c.y, triangle.c.z)
           uvs.push(cellU, cellV)
@@ -67,7 +72,7 @@ export const CellHighlightOverlay = forwardRef<THREE.Mesh, CellHighlightOverlayP
       bufferGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
 
       return bufferGeometry
-    }, [subdivisions, radius, simulation])
+    }, [subdivisions, offsetRadius, simulation])
 
     // Create shader material for highlighting
     const material = useMemo(() => {

@@ -117,17 +117,19 @@ export class SimulationExecutor {
     materials: {
       radiationMaterial: THREE.ShaderMaterial
       hydrologyMaterial: THREE.ShaderMaterial
+      diffusionMaterial: THREE.ShaderMaterial
     },
     mesh: THREE.Mesh,
     scene: THREE.Scene,
     camera: THREE.OrthographicCamera
   ): boolean {
     try {
-      const { radiationMaterial, hydrologyMaterial } = materials
+      const { radiationMaterial, hydrologyMaterial, diffusionMaterial } = materials
 
-      // ===== 2-PASS PHYSICS ARCHITECTURE =====
+      // ===== 3-PASS PHYSICS ARCHITECTURE =====
       // Pass 1: Combined radiation (shortwave heating + longwave greenhouse effect)
       // Pass 2: Hydrology (water cycle dynamics)
+      // Pass 3: Thermal diffusion (conduction between cells)
 
       // Pass 1: Combined radiation (shortwave + longwave)
       // - Shortwave: Solar flux at TOA and surface heating
@@ -207,6 +209,32 @@ export class SimulationExecutor {
 
       // Copy MRT attachment 2 → next surface state (overwrites longwave output with latent-heat-corrected temperature)
       this.copyMaterial.uniforms.sourceTexture.value = hydrologyMRT.textures[2]
+      gl.setRenderTarget(simulation.getClimateDataNext())
+      gl.clear()
+      gl.render(scene, camera)
+      gl.setRenderTarget(null)
+
+      // Pass 3: Thermal diffusion (conduction between cells)
+      // - Applies Fourier's law for thermal conduction
+      // - Smooths temperature gradients across the planet surface
+      // - Uses surface state after hydrology pass
+      // 
+      // To avoid feedback loop, copy current state to working buffer first
+      // then read from working buffer and write to next buffer
+      this.copyMaterial.uniforms.sourceTexture.value = simulation.getClimateDataNext().texture
+      mesh.material = this.copyMaterial
+      const workingBuffer = simulation.getSurfaceWorkingBuffer(0)
+      gl.setRenderTarget(workingBuffer)
+      gl.clear()
+      gl.render(scene, camera)
+      gl.setRenderTarget(null)
+
+      // Now read from working buffer and write diffused result to next buffer
+      diffusionMaterial.uniforms.surfaceData.value = workingBuffer.texture
+      diffusionMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataNext().texture
+
+      // Render to next surface state (overwrites with diffused temperature)
+      mesh.material = diffusionMaterial
       gl.setRenderTarget(simulation.getClimateDataNext())
       gl.clear()
       gl.render(scene, camera)

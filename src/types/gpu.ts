@@ -14,6 +14,7 @@ export interface GPUResources {
   geometry: THREE.BufferGeometry
   radiationMaterial: THREE.ShaderMaterial
   hydrologyMaterial: THREE.ShaderMaterial
+  diffusionMaterial: THREE.ShaderMaterial
   blankRenderTarget: THREE.WebGLRenderTarget
   mesh: THREE.Mesh
 }

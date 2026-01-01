@@ -159,6 +159,7 @@ export class SimulationOrchestrator {
       {
         radiationMaterial: gpuResources.radiationMaterial,
         hydrologyMaterial: gpuResources.hydrologyMaterial,
+        diffusionMaterial: gpuResources.diffusionMaterial,
       },
       gpuResources.mesh,
       gpuResources.scene,

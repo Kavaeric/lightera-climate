@@ -48,7 +48,7 @@ export class GridTextureManager {
    * Create neighbour indices texture 1 (stores neighbours 0, 1, 2)
    */
   private createNeighbourTexture1(): THREE.DataTexture {
-    const data = new Float32Array(this.textureWidth * this.textureHeight * 3) // RGB
+    const data = new Float32Array(this.textureWidth * this.textureHeight * 4) // RGBA
 
     // Build lookup map for O(1) cell index lookups
     const cellToIndex = new Map<GridCell, number>()
@@ -67,19 +67,20 @@ export class GridTextureManager {
 
       // Convert cell index to 2D coordinates
       const coords = indexTo2D(i, this.textureWidth)
-      const dataIndex = coordsToDataIndex(coords.x, coords.y, this.textureWidth, 3)
+      const dataIndex = coordsToDataIndex(coords.x, coords.y, this.textureWidth, 4)
 
-      // Store first 3 neighbours as RGB
+      // Store first 3 neighbours as RGB (A channel unused)
       data[dataIndex + 0] = neighbourIndices[0] ?? -1 // R = neighbour 0
       data[dataIndex + 1] = neighbourIndices[1] ?? -1 // G = neighbour 1
       data[dataIndex + 2] = neighbourIndices[2] ?? -1 // B = neighbour 2
+      data[dataIndex + 3] = 0.0 // A = unused
     }
 
     const texture = new THREE.DataTexture(
       data,
       this.textureWidth,
       this.textureHeight,
-      THREE.RGBFormat,
+      THREE.RGBAFormat,
       THREE.FloatType
     )
     texture.minFilter = THREE.NearestFilter
@@ -94,7 +95,7 @@ export class GridTextureManager {
    * Create neighbour indices texture 2 (stores neighbours 3, 4, 5)
    */
   private createNeighbourTexture2(): THREE.DataTexture {
-    const data = new Float32Array(this.textureWidth * this.textureHeight * 3) // RGB
+    const data = new Float32Array(this.textureWidth * this.textureHeight * 4) // RGBA
 
     // Build lookup map for O(1) cell index lookups
     const cellToIndex = new Map<GridCell, number>()
@@ -113,19 +114,20 @@ export class GridTextureManager {
 
       // Convert cell index to 2D coordinates
       const coords = indexTo2D(i, this.textureWidth)
-      const dataIndex = coordsToDataIndex(coords.x, coords.y, this.textureWidth, 3)
+      const dataIndex = coordsToDataIndex(coords.x, coords.y, this.textureWidth, 4)
 
-      // Store next 3 neighbours as RGB
+      // Store next 3 neighbours as RGB (A channel unused)
       data[dataIndex + 0] = neighbourIndices[3] ?? -1 // R = neighbour 3
       data[dataIndex + 1] = neighbourIndices[4] ?? -1 // G = neighbour 4
       data[dataIndex + 2] = neighbourIndices[5] ?? -1 // B = neighbour 5
+      data[dataIndex + 3] = 0.0 // A = unused
     }
 
     const texture = new THREE.DataTexture(
       data,
       this.textureWidth,
       this.textureHeight,
-      THREE.RGBFormat,
+      THREE.RGBAFormat,
       THREE.FloatType
     )
     texture.minFilter = THREE.NearestFilter

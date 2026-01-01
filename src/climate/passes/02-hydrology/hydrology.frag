@@ -240,6 +240,11 @@ void main() {
 	// Apply latent heat correction to surface temperature
 	float newSurfaceTemperature = surfaceTemperature + latentHeatTemperatureChange;
 
+	// Where there's no water nor ice, the salinity value should be cleared, otherwise preserve the value
+	// Use a small epsilon to check if both are effectively zero (branchless)
+	float hasWaterOrIce = step(1e-6, newWaterDepth) + step(1e-6, newIceThickness);
+	float newSalinity = salinity * min(hasWaterOrIce, 1.0);
+
 	// === SURFACE ALBEDO UPDATE ===
 	// Calculate new albedo based on updated hydrology state
 	// Ice and water have different albedos than bare rock
@@ -253,7 +258,7 @@ void main() {
 	float waterState = isAboveMeltingPoint * 0.5 + isAboveBoilingPoint;
 
 	// Output 0: RGBA = [waterDepth, iceThickness, unused, salinity]
-	outHydrologyState = packHydrologyData(newWaterDepth, newIceThickness, salinity);
+	outHydrologyState = packHydrologyData(newWaterDepth, newIceThickness, newSalinity);
 
 	// Output 1 (auxiliary): RGBA = [solarFlux (preserved), waterState, unused, unused]
 	outAuxiliary = packAuxiliaryData(solarFlux, waterState);
