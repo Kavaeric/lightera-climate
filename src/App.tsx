@@ -235,14 +235,14 @@ function ClimateApp() {
         climateData.length > 0 &&
         selectedCellLatLon &&
         selectedCellArea !== null && (
-          <ClimateDataChart
-            data={climateData}
-            cellIndex={selectedCell}
-            cellLatLon={selectedCellLatLon}
-            cellArea={selectedCellArea}
-            onClose={handleCloseGraph}
-          />
-        )}
+        <ClimateDataChart
+          data={climateData}
+          cellIndex={selectedCell}
+          cellLatLon={selectedCellLatLon}
+          cellArea={selectedCellArea}
+          onClose={handleCloseGraph}
+        />
+      )}
     </main>
   );
 }
