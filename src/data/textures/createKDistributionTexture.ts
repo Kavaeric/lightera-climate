@@ -1,5 +1,5 @@
-import * as THREE from 'three'
-import { kDistributionData, wavelengthBinWidthData } from '../gasTextures/co2'
+import * as THREE from 'three';
+import { kDistributionData, wavelengthBinWidthData } from '../gasTextures/co2';
 
 /**
  * Create texture containing k-distribution data for radiative transfer
@@ -16,21 +16,21 @@ import { kDistributionData, wavelengthBinWidthData } from '../gasTextures/co2'
  * @returns DataTexture containing k-values for CO2
  */
 export function createKDistributionTexture(): THREE.DataTexture {
-	const texture = new THREE.DataTexture(
-		kDistributionData,
-		128, // width
-		1,   // height
-		THREE.RGBAFormat,
-		THREE.FloatType
-	)
+  const texture = new THREE.DataTexture(
+    kDistributionData,
+    128, // width
+    1, // height
+    THREE.RGBAFormat,
+    THREE.FloatType
+  );
 
-	texture.minFilter = THREE.NearestFilter
-	texture.magFilter = THREE.NearestFilter
-	texture.wrapS = THREE.ClampToEdgeWrapping
-	texture.wrapT = THREE.ClampToEdgeWrapping
-	texture.needsUpdate = true
+  texture.minFilter = THREE.NearestFilter;
+  texture.magFilter = THREE.NearestFilter;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.needsUpdate = true;
 
-	return texture
+  return texture;
 }
 
 /**
@@ -44,21 +44,21 @@ export function createKDistributionTexture(): THREE.DataTexture {
  * @returns DataTexture containing wavelength + binWidth for CO2
  */
 export function createWavelengthBinWidthTexture(): THREE.DataTexture {
-	const texture = new THREE.DataTexture(
-		wavelengthBinWidthData,
-		128, // width
-		1,   // height
-		THREE.RGFormat,
-		THREE.FloatType
-	)
+  const texture = new THREE.DataTexture(
+    wavelengthBinWidthData,
+    128, // width
+    1, // height
+    THREE.RGFormat,
+    THREE.FloatType
+  );
 
-	texture.minFilter = THREE.NearestFilter
-	texture.magFilter = THREE.NearestFilter
-	texture.wrapS = THREE.ClampToEdgeWrapping
-	texture.wrapT = THREE.ClampToEdgeWrapping
-	texture.needsUpdate = true
+  texture.minFilter = THREE.NearestFilter;
+  texture.magFilter = THREE.NearestFilter;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.needsUpdate = true;
 
-	return texture
+  return texture;
 }
 
 /**
@@ -66,10 +66,10 @@ export function createWavelengthBinWidthTexture(): THREE.DataTexture {
  * Extracts wavelength values from the combined wavelength + binWidth data.
  */
 export function getWavelengthData(): Float32Array {
-	// Extract R channel (wavelength) from RG format
-	const wavelengths = new Float32Array(128);
-	for (let i = 0; i < 128; i++) {
-		wavelengths[i] = wavelengthBinWidthData[i * 2]; // R channel
-	}
-	return wavelengths;
+  // Extract R channel (wavelength) from RG format
+  const wavelengths = new Float32Array(128);
+  for (let i = 0; i < 128; i++) {
+    wavelengths[i] = wavelengthBinWidthData[i * 2]; // R channel
+  }
+  return wavelengths;
 }

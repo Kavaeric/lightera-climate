@@ -16,19 +16,19 @@
 
 /* IconButton Sizes */
 .icon-button-sm {
-	min-inline-size: var(--button-size-sm);
-	min-block-size: var(--button-size-sm);
-	padding: var(--button-padding-block-sm);
+  min-inline-size: var(--button-size-sm);
+  min-block-size: var(--button-size-sm);
+  padding: var(--button-padding-block-sm);
 }
 
 .icon-button-md {
-	min-inline-size: var(--button-size-md);
-	min-block-size: var(--button-size-md);
-	padding: var(--button-padding-block-md);
+  min-inline-size: var(--button-size-md);
+  min-block-size: var(--button-size-md);
+  padding: var(--button-padding-block-md);
 }
 
 .icon-button-lg {
-	min-inline-size: var(--button-size-lg);
-	min-block-size: var(--button-size-lg);
-	padding: var(--button-padding-block-lg);
+  min-inline-size: var(--button-size-lg);
+  min-block-size: var(--button-size-lg);
+  padding: var(--button-padding-block-lg);
 }

@@ -5,19 +5,19 @@
 
 export interface OrbitalConfig {
   // Orbital period - how long one year is
-  yearLength: number // seconds
+  yearLength: number; // seconds
 
   // Rotation rate - how many times the planet rotates per orbit
   // 0 = tidally locked (one side always faces the star)
   // 365 = Earth-like (one rotation per day)
-  rotationsPerYear: number // dimensionless
+  rotationsPerYear: number; // dimensionless
 
   // Solar constant - total solar irradiance at planet's orbital distance (W/m²)
-  solarFlux: number
+  solarFlux: number;
 
   // Axial tilt - angle between rotation axis and orbital plane (degrees)
   // 0 = no seasons, 23.44 = Earth-like seasons
-  axialTilt: number
+  axialTilt: number;
 }
 
 /**
@@ -29,7 +29,7 @@ export const ORBITAL_CONFIG_EARTH: OrbitalConfig = {
   rotationsPerYear: 365.25, // One rotation per day
   solarFlux: 1361, // W/m² - Earth's solar constant at 1 AU
   axialTilt: 23.44, // degrees - Earth's axial tilt (causes seasons)
-}
+};
 
 /**
  * Mars-like orbital configuration
@@ -40,7 +40,7 @@ export const ORBITAL_CONFIG_MARS: OrbitalConfig = {
   rotationsPerYear: 687, // One rotation per year
   solarFlux: 586, // W/m² - Mars's solar constant at 1.524 AU
   axialTilt: 25.19, // degrees - Mars's axial tilt (causes seasons)
-}
+};
 
 /**
  * Venus-like orbital configuration
@@ -51,4 +51,4 @@ export const ORBITAL_CONFIG_VENUS: OrbitalConfig = {
   rotationsPerYear: 1, // One rotation per year
   solarFlux: 2610, // W/m² - Venus's solar constant at 0.723 AU
   axialTilt: 2.64, // degrees - Venus's axial tilt
-}
+};

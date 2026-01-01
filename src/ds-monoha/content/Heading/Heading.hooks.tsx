@@ -11,4 +11,3 @@ export const HeadingContext = createContext<HeadingContextType>({ level: 1 });
 export const useHeadingContext = (): HeadingContextType => {
   return useContext(HeadingContext);
 };
-

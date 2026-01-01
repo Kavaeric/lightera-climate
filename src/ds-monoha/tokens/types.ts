@@ -51,7 +51,7 @@ export type SemanticColorTokens =
   | 'subtle'
   | 'brand'
   | 'brand-bold'
-  | 'brand-inverse'
+  | 'brand-inverse';
 
 /**
  * Valid text weight token values used throughout the design system.

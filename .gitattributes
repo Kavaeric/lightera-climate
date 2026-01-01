@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Explicitly enforce LF line endings for source files
+*.{ts,tsx,js,jsx,json,css,scss,md,html,yml,yaml} text eol=lf
+*.{sh,bash} text eol=lf

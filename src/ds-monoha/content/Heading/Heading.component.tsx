@@ -1,9 +1,4 @@
-import {
-  type ElementType,
-  forwardRef,
-  type HTMLAttributes,
-  type ReactNode,
-} from 'react';
+import { type ElementType, forwardRef, type HTMLAttributes, type ReactNode } from 'react';
 import { type NonInteractiveProps } from '../../core/types';
 import { type HeadingSizeTokens, type SemanticColorTokens } from '../../tokens/types';
 import { useHeadingContext } from './Heading.hooks';
@@ -113,7 +108,7 @@ export const Heading = forwardRef<HTMLElement, HeadingProps>(
         {children}
       </Component>
     );
-  },
+  }
 );
 
 Heading.displayName = 'Heading';

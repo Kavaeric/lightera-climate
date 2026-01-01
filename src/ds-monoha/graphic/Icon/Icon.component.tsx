@@ -1,5 +1,9 @@
 import React, { type FC, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { type IconSizeTokens, type SemanticColorTokens, type TextWeightTokens } from '../../tokens/types';
+import {
+  type IconSizeTokens,
+  type SemanticColorTokens,
+  type TextWeightTokens,
+} from '../../tokens/types';
 import styles from './Icon.module.scss';
 
 /* Our selected body typefaces (Atkinson Hyperlegible Next and Outfit) are a little weightier than normal */
@@ -57,7 +61,7 @@ export const Icon: FC<IconProps> = ({
   const fontVariationSettings = useMemo(
     () =>
       `'opsz' ${opticalSize}, 'wght' ${wght}, 'FILL' ${fill ? 1 : 0}, 'GRAD' ${em ? GRAD_EM : GRAD_BASE}`,
-    [opticalSize, wght, fill, em],
+    [opticalSize, wght, fill, em]
   );
 
   /*
@@ -122,7 +126,7 @@ export const Icon: FC<IconProps> = ({
       // Get self font weight
       const computedWeight = Number.parseInt(
         window.getComputedStyle(iconRef.current).fontWeight,
-        10,
+        10
       );
 
       // wght calculation considers all four parameters
@@ -148,17 +152,17 @@ export const Icon: FC<IconProps> = ({
     if (IS_DEV) {
       if (wght < 100) {
         const weightDifference = 100 - wght;
-        // eslint-disable-next-line no-console
+
         console.warn(
-          `[Icon ${name}] Font weight (${wght.toFixed(2)}) is less than 100. Weight of ${weightDifference} is not supported, so it may not appear to match the surrounding text.`,
+          `[Icon ${name}] Font weight (${wght.toFixed(2)}) is less than 100. Weight of ${weightDifference} is not supported, so it may not appear to match the surrounding text.`
         );
       }
 
       if (wght > 700) {
         const weightDifference = wght - 700;
-        // eslint-disable-next-line no-console
+
         console.warn(
-          `[Icon ${name}] Font weight (${wght.toFixed(2)}) is greater than 700. Weight of ${weightDifference} is not supported, so it may not appear to match the surrounding text.`,
+          `[Icon ${name}] Font weight (${wght.toFixed(2)}) is greater than 700. Weight of ${weightDifference} is not supported, so it may not appear to match the surrounding text.`
         );
       }
     }
@@ -178,7 +182,7 @@ export const Icon: FC<IconProps> = ({
         .filter(Boolean)
         .join(' ')
         .trim(),
-    [sizeProp, weightProp, color, className],
+    [sizeProp, weightProp, color, className]
   );
 
   return (

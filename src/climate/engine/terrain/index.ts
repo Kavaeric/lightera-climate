@@ -1,1 +1,1 @@
-export { TerrainTextureManager } from './TerrainTextureManager'
+export { TerrainTextureManager } from './TerrainTextureManager';

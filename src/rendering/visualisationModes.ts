@@ -4,7 +4,7 @@
  * This replaces hardcoded switch statements in PlanetRenderer
  */
 
-import { createAccessorShader } from './shaderLoader'
+import { createAccessorShader } from './shaderLoader';
 import {
   COLOURMAP_GREYSCALE,
   COLOURMAP_BLUE_B1,
@@ -18,15 +18,15 @@ import {
   COLOURMAP_TERRAIN_WATER,
   COLOURMAP_TERRAIN_ICE,
   createColourmapTexture,
-} from './colourmaps'
-import terrainFragmentShader from './shaders/display/terrain.frag'
-import surfaceAltitudeFragmentShader from './shaders/display/surfaceAltitude.frag'
-import type { VisualisationModeId, VisualisationMode } from '../types/visualisationModes'
+} from './colourmaps';
+import terrainFragmentShader from './shaders/display/terrain.frag';
+import surfaceAltitudeFragmentShader from './shaders/display/surfaceAltitude.frag';
+import type { VisualisationModeId, VisualisationMode } from '../types/visualisationModes';
 
 /**
  * Terrain visualisation mode
  * Simple true-ish colour view of the planet.
- * 
+ *
  * Uses a custom visualisation shader.
  */
 export const VISUALISATION_TERRAIN: VisualisationMode = {
@@ -35,8 +35,8 @@ export const VISUALISATION_TERRAIN: VisualisationMode = {
   getRange: (displayConfig) => displayConfig.elevationRange,
   customFragmentShader: terrainFragmentShader,
   buildCustomUniforms: (simulation, displayConfig) => {
-    const elevationRange = displayConfig.elevationRange
-    const waterDepthRange = displayConfig.waterDepthRange
+    const elevationRange = displayConfig.elevationRange;
+    const waterDepthRange = displayConfig.waterDepthRange;
     return {
       terrainData: { value: simulation.terrainData },
       hydrologyData: { value: simulation.getHydrologyDataCurrent().texture },
@@ -47,9 +47,9 @@ export const VISUALISATION_TERRAIN: VisualisationMode = {
       elevationColourmapTexture: { value: createColourmapTexture(COLOURMAP_TERRAIN_ELEVATION) },
       waterDepthColourmapTexture: { value: createColourmapTexture(COLOURMAP_TERRAIN_WATER) },
       iceThicknessColourmapTexture: { value: createColourmapTexture(COLOURMAP_TERRAIN_ICE) },
-    }
+    };
   },
-}
+};
 
 /**
  * Elevation visualisation mode
@@ -63,17 +63,22 @@ export const VISUALISATION_ELEVATION: VisualisationMode = {
   name: 'Elevation',
   colourmap: COLOURMAP_EXTENDED_KINDLMANN,
   getRange: (displayConfig) => displayConfig.elevationRange,
-  customFragmentShader: createAccessorShader('getElevation', COLOURMAP_EXTENDED_KINDLMANN, true, false),
+  customFragmentShader: createAccessorShader(
+    'getElevation',
+    COLOURMAP_EXTENDED_KINDLMANN,
+    true,
+    false
+  ),
   buildCustomUniforms: (simulation, displayConfig) => {
-    const range = displayConfig.elevationRange
+    const range = displayConfig.elevationRange;
     return {
       terrainData: { value: simulation.terrainData },
       colourmapTexture: { value: createColourmapTexture(COLOURMAP_EXTENDED_KINDLMANN) },
       valueMin: { value: range.min },
       valueMax: { value: range.max },
-    }
+    };
   },
-}
+};
 
 /**
  * Surface altitude visualisation mode
@@ -87,9 +92,9 @@ export const VISUALISATION_SURFACE_ALTITUDE: VisualisationMode = {
   getRange: (displayConfig) => displayConfig.elevationRange,
   customFragmentShader: surfaceAltitudeFragmentShader,
   buildCustomUniforms: (simulation, displayConfig) => {
-    const elevationRange = displayConfig.elevationRange
-    const waterDepthRange = displayConfig.waterDepthRange
-    const iceThicknessRange = displayConfig.iceThicknessRange
+    const elevationRange = displayConfig.elevationRange;
+    const waterDepthRange = displayConfig.waterDepthRange;
+    const iceThicknessRange = displayConfig.iceThicknessRange;
     return {
       terrainData: { value: simulation.terrainData },
       hydrologyData: { value: simulation.getHydrologyDataCurrent().texture },
@@ -100,10 +105,9 @@ export const VISUALISATION_SURFACE_ALTITUDE: VisualisationMode = {
       iceThicknessMin: { value: iceThicknessRange.min },
       iceThicknessMax: { value: iceThicknessRange.max },
       colourmapTexture: { value: createColourmapTexture(COLOURMAP_GREYSCALE) },
-    }
+    };
   },
-}
-
+};
 
 /**
  * Surface temperature visualisation mode
@@ -117,17 +121,22 @@ export const VISUALISATION_SURFACE_TEMPERATURE: VisualisationMode = {
   name: 'Surface: Temperature',
   colourmap: COLOURMAP_PLASMA,
   getRange: (displayConfig) => displayConfig.surfaceTemperatureRange,
-  customFragmentShader: createAccessorShader('getSurfaceTemperature', COLOURMAP_PLASMA, false, false),
+  customFragmentShader: createAccessorShader(
+    'getSurfaceTemperature',
+    COLOURMAP_PLASMA,
+    false,
+    false
+  ),
   buildCustomUniforms: (simulation, displayConfig) => {
-    const range = displayConfig.surfaceTemperatureRange
+    const range = displayConfig.surfaceTemperatureRange;
     return {
       surfaceData: { value: simulation.getClimateDataCurrent().texture },
       colourmapTexture: { value: createColourmapTexture(COLOURMAP_PLASMA) },
       valueMin: { value: range.min },
       valueMax: { value: range.max },
-    }
+    };
   },
-}
+};
 
 /**
  * Albedo visualisation mode
@@ -143,15 +152,15 @@ export const VISUALISATION_ALBEDO: VisualisationMode = {
   getRange: (displayConfig) => displayConfig.albedoRange,
   customFragmentShader: createAccessorShader('getSurfaceAlbedo', COLOURMAP_GREYSCALE, true, true),
   buildCustomUniforms: (simulation, displayConfig) => {
-    const range = displayConfig.albedoRange
+    const range = displayConfig.albedoRange;
     return {
       surfaceData: { value: simulation.getClimateDataCurrent().texture },
       colourmapTexture: { value: createColourmapTexture(COLOURMAP_GREYSCALE) },
       valueMin: { value: range.min },
       valueMax: { value: range.max },
-    }
+    };
   },
-}
+};
 
 /**
  * Atmospheric temperature visualisation mode
@@ -165,17 +174,22 @@ export const VISUALISATION_ATMOSPHERIC_TEMPERATURE: VisualisationMode = {
   name: 'Atmosphere: Temperature',
   colourmap: COLOURMAP_PLASMA,
   getRange: (displayConfig) => displayConfig.atmosphericTemperatureRange,
-  customFragmentShader: createAccessorShader('getAtmosphereTemperature', COLOURMAP_PLASMA, true, true),
+  customFragmentShader: createAccessorShader(
+    'getAtmosphereTemperature',
+    COLOURMAP_PLASMA,
+    true,
+    true
+  ),
   buildCustomUniforms: (simulation, displayConfig) => {
-    const range = displayConfig.atmosphericTemperatureRange
+    const range = displayConfig.atmosphericTemperatureRange;
     return {
       atmosphereData: { value: simulation.getAtmosphereDataCurrent().texture },
       colourmapTexture: { value: createColourmapTexture(COLOURMAP_PLASMA) },
       valueMin: { value: range.min },
       valueMax: { value: range.max },
-    }
+    };
   },
-}
+};
 
 /**
  * Surface pressure visualisation mode
@@ -189,17 +203,22 @@ export const VISUALISATION_SURFACE_PRESSURE: VisualisationMode = {
   name: 'Atmosphere: Surface pressure',
   colourmap: COLOURMAP_GREYSCALE,
   getRange: (displayConfig) => displayConfig.surfacePressureRange,
-  customFragmentShader: createAccessorShader('getAtmospherePressure', COLOURMAP_GREYSCALE, false, false),
+  customFragmentShader: createAccessorShader(
+    'getAtmospherePressure',
+    COLOURMAP_GREYSCALE,
+    false,
+    false
+  ),
   buildCustomUniforms: (simulation, displayConfig) => {
-    const range = displayConfig.surfacePressureRange
+    const range = displayConfig.surfacePressureRange;
     return {
       atmosphereData: { value: simulation.getAtmosphereDataCurrent().texture },
       colourmapTexture: { value: createColourmapTexture(COLOURMAP_GREYSCALE) },
       valueMin: { value: range.min },
       valueMax: { value: range.max },
-    }
+    };
   },
-}
+};
 
 /**
  * Precipitable water visualisation mode
@@ -213,17 +232,22 @@ export const VISUALISATION_PRECIPITABLE_WATER: VisualisationMode = {
   name: 'Atmosphere: Precipitable water',
   colourmap: COLOURMAP_GREYSCALE,
   getRange: (displayConfig) => displayConfig.precipitableWaterRange,
-  customFragmentShader: createAccessorShader('getPrecipitableWater', COLOURMAP_GREYSCALE, false, false),
+  customFragmentShader: createAccessorShader(
+    'getPrecipitableWater',
+    COLOURMAP_GREYSCALE,
+    false,
+    false
+  ),
   buildCustomUniforms: (simulation, displayConfig) => {
-    const range = displayConfig.precipitableWaterRange
+    const range = displayConfig.precipitableWaterRange;
     return {
       atmosphereData: { value: simulation.getAtmosphereDataCurrent().texture },
       colourmapTexture: { value: createColourmapTexture(COLOURMAP_GREYSCALE) },
       valueMin: { value: range.min },
       valueMax: { value: range.max },
-    }
+    };
   },
-}
+};
 
 /**
  * Water depth visualisation mode
@@ -239,15 +263,15 @@ export const VISUALISATION_WATER_DEPTH: VisualisationMode = {
   getRange: (displayConfig) => displayConfig.waterDepthRange,
   customFragmentShader: createAccessorShader('getWaterDepth', COLOURMAP_BLUE_B1, false, true),
   buildCustomUniforms: (simulation, displayConfig) => {
-    const range = displayConfig.waterDepthRange
+    const range = displayConfig.waterDepthRange;
     return {
       hydrologyData: { value: simulation.getHydrologyDataCurrent().texture },
       colourmapTexture: { value: createColourmapTexture(COLOURMAP_BLUE_B1) },
       valueMin: { value: range.min },
       valueMax: { value: range.max },
-    }
+    };
   },
-}
+};
 
 /**
  * Ice thickness visualisation mode
@@ -263,15 +287,15 @@ export const VISUALISATION_ICE_THICKNESS: VisualisationMode = {
   getRange: (displayConfig) => displayConfig.iceThicknessRange,
   customFragmentShader: createAccessorShader('getIceThickness', COLOURMAP_BLUE_SD, false, false),
   buildCustomUniforms: (simulation, displayConfig) => {
-    const range = displayConfig.iceThicknessRange
+    const range = displayConfig.iceThicknessRange;
     return {
       hydrologyData: { value: simulation.getHydrologyDataCurrent().texture },
       colourmapTexture: { value: createColourmapTexture(COLOURMAP_BLUE_SD) },
       valueMin: { value: range.min },
       valueMax: { value: range.max },
-    }
+    };
   },
-}
+};
 
 /**
  * Salinity visualisation mode
@@ -287,15 +311,15 @@ export const VISUALISATION_SALINITY: VisualisationMode = {
   getRange: (displayConfig) => displayConfig.salinityRange,
   customFragmentShader: createAccessorShader('getSalinity', COLOURMAP_TEAL_C16, false, false),
   buildCustomUniforms: (simulation, displayConfig) => {
-    const range = displayConfig.salinityRange
+    const range = displayConfig.salinityRange;
     return {
       hydrologyData: { value: simulation.getHydrologyDataCurrent().texture },
       colourmapTexture: { value: createColourmapTexture(COLOURMAP_TEAL_C16) },
       valueMin: { value: range.min },
       valueMax: { value: range.max },
-    }
+    };
   },
-}
+};
 
 /**
  * Solar flux visualisation mode
@@ -311,15 +335,15 @@ export const VISUALISATION_SOLAR_FLUX: VisualisationMode = {
   getRange: (displayConfig) => displayConfig.solarFluxRange,
   customFragmentShader: createAccessorShader('getSolarFlux', COLOURMAP_YELLOW_YEL15, true, true),
   buildCustomUniforms: (simulation, displayConfig) => {
-    const range = displayConfig.solarFluxRange
+    const range = displayConfig.solarFluxRange;
     return {
       auxiliaryData: { value: simulation.getAuxiliaryTarget().texture },
       colourmapTexture: { value: createColourmapTexture(COLOURMAP_YELLOW_YEL15) },
       valueMin: { value: range.min },
       valueMax: { value: range.max },
-    }
+    };
   },
-}
+};
 
 /**
  * Water state visualisation mode
@@ -340,9 +364,9 @@ export const VISUALISATION_WATER_STATE: VisualisationMode = {
       colourmapTexture: { value: createColourmapTexture(COLOURMAP_WATER_STATE) },
       valueMin: { value: 0 },
       valueMax: { value: 1 },
-    }
+    };
   },
-}
+};
 
 /**
  * Registry of all available visualisation modes
@@ -362,18 +386,18 @@ export const VISUALISATION_MODES: Record<VisualisationModeId, VisualisationMode>
   salinity: VISUALISATION_SALINITY,
   solarFlux: VISUALISATION_SOLAR_FLUX,
   waterState: VISUALISATION_WATER_STATE,
-}
+};
 
 /**
  * Gets a visualisation mode by ID.
  * Throws an error if the mode is not found.
  */
-export function getVisualisationMode(
-  id: VisualisationModeId
-): VisualisationMode {
-  const mode = VISUALISATION_MODES[id]
+export function getVisualisationMode(id: VisualisationModeId): VisualisationMode {
+  const mode = VISUALISATION_MODES[id];
   if (!mode) {
-    throw new Error(`Visualisation mode '${id}' not found in registry. Available modes: ${Object.keys(VISUALISATION_MODES).join(', ')}`)
+    throw new Error(
+      `Visualisation mode '${id}' not found in registry. Available modes: ${Object.keys(VISUALISATION_MODES).join(', ')}`
+    );
   }
-  return mode
+  return mode;
 }

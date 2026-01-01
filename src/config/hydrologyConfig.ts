@@ -16,8 +16,8 @@
  * salinity: in PSU (practical salinity units)
  */
 export interface HydrologyTextureFormat {
-  r: number // waterDepth (metres)
-  g: number // iceThickness (metres)
-  b: number // unused
-  a: number // salinity (PSU)
+  r: number; // waterDepth (metres)
+  g: number; // iceThickness (metres)
+  b: number; // unused
+  a: number; // salinity (PSU)
 }

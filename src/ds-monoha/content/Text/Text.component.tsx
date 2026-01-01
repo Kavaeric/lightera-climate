@@ -4,8 +4,9 @@ import { type BodyTextSizeTokens, type SemanticColorTokens } from '../../tokens/
 import styles from './Text.module.scss';
 
 // Props for the Text component
-export interface TextProps<T extends ElementType = 'span'>
-  extends NonInteractiveProps<HTMLAttributes<HTMLElement>> {
+export interface TextProps<T extends ElementType = 'span'> extends NonInteractiveProps<
+  HTMLAttributes<HTMLElement>
+> {
   /** The text content to display. */
   readonly children: ReactNode;
   /** Additional CSS classes to apply to the text element. */

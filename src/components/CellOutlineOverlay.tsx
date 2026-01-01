@@ -1,19 +1,19 @@
-import { useMemo } from 'react'
-import { useThree } from '@react-three/fiber'
-import * as THREE from 'three'
-import { extend } from '@react-three/fiber'
-import { MeshLineGeometry, raycast } from 'meshline'
-import { Grid } from '../climate/geometry/geodesic'
-import { MeshLineMaterial } from 'meshline'
+import { useMemo } from 'react';
+import { useThree } from '@react-three/fiber';
+import * as THREE from 'three';
+import { extend } from '@react-three/fiber';
+import { MeshLineGeometry, raycast } from 'meshline';
+import { Grid } from '../climate/geometry/geodesic';
+import { MeshLineMaterial } from 'meshline';
 
-extend({ MeshLineGeometry, MeshLineMaterial })
+extend({ MeshLineGeometry, MeshLineMaterial });
 
 interface CellOutlineOverlayProps {
-  subdivisions: number
-  radius: number
-  width?: number
-  hoveredCellIndex?: number | null
-  selectedCellIndex?: number | null
+  subdivisions: number;
+  radius: number;
+  width?: number;
+  hoveredCellIndex?: number | null;
+  selectedCellIndex?: number | null;
 }
 
 /**
@@ -27,46 +27,53 @@ export function CellOutlineOverlay({
   hoveredCellIndex = null,
   selectedCellIndex = null,
 }: CellOutlineOverlayProps) {
-  const { size } = useThree()
-  const resolution = useMemo(() => new THREE.Vector2(size.width, size.height), [size.width, size.height])
+  const { size } = useThree();
+  const resolution = useMemo(
+    () => new THREE.Vector2(size.width, size.height),
+    [size.width, size.height]
+  );
 
-  const grid = useMemo(() => new Grid(subdivisions), [subdivisions])
+  const grid = useMemo(() => new Grid(subdivisions), [subdivisions]);
 
   // Generate outline points for selected and hovered cells
   const { selectedPoints, hoveredPoints } = useMemo(() => {
-    const selected: number[] = []
-    const hovered: number[] = []
+    const selected: number[] = [];
+    const hovered: number[] = [];
 
     if (selectedCellIndex !== null && selectedCellIndex >= 0) {
-      const cell = Array.from(grid)[selectedCellIndex]
+      const cell = Array.from(grid)[selectedCellIndex];
       if (cell?.vertices) {
         // Create closed loop: vertices + first vertex again
         for (let i = 0; i < cell.vertices.length; i++) {
           // Normalize vertex to unit sphere, then scale to radius
-          const vertex = cell.vertices[i].clone().normalize().multiplyScalar(radius)
-          selected.push(vertex.x, vertex.y, vertex.z)
+          const vertex = cell.vertices[i].clone().normalize().multiplyScalar(radius);
+          selected.push(vertex.x, vertex.y, vertex.z);
         }
         // Close the loop
         if (cell.vertices.length > 0) {
-          const firstVertex = cell.vertices[0].clone().normalize().multiplyScalar(radius)
-          selected.push(firstVertex.x, firstVertex.y, firstVertex.z)
+          const firstVertex = cell.vertices[0].clone().normalize().multiplyScalar(radius);
+          selected.push(firstVertex.x, firstVertex.y, firstVertex.z);
         }
       }
     }
 
-    if (hoveredCellIndex !== null && hoveredCellIndex >= 0 && hoveredCellIndex !== selectedCellIndex) {
-      const cell = Array.from(grid)[hoveredCellIndex]
+    if (
+      hoveredCellIndex !== null &&
+      hoveredCellIndex >= 0 &&
+      hoveredCellIndex !== selectedCellIndex
+    ) {
+      const cell = Array.from(grid)[hoveredCellIndex];
       if (cell?.vertices) {
         // Create closed loop: vertices + first vertex again
         for (let i = 0; i < cell.vertices.length; i++) {
           // Normalize vertex to unit sphere, then scale to radius
-          const vertex = cell.vertices[i].clone().normalize().multiplyScalar(radius)
-          hovered.push(vertex.x, vertex.y, vertex.z)
+          const vertex = cell.vertices[i].clone().normalize().multiplyScalar(radius);
+          hovered.push(vertex.x, vertex.y, vertex.z);
         }
         // Close the loop
         if (cell.vertices.length > 0) {
-          const firstVertex = cell.vertices[0].clone().normalize().multiplyScalar(radius)
-          hovered.push(firstVertex.x, firstVertex.y, firstVertex.z)
+          const firstVertex = cell.vertices[0].clone().normalize().multiplyScalar(radius);
+          hovered.push(firstVertex.x, firstVertex.y, firstVertex.z);
         }
       }
     }
@@ -74,8 +81,8 @@ export function CellOutlineOverlay({
     return {
       selectedPoints: selected.length > 0 ? selected : null,
       hoveredPoints: hovered.length > 0 ? hovered : null,
-    }
-  }, [grid, radius, selectedCellIndex, hoveredCellIndex])
+    };
+  }, [grid, radius, selectedCellIndex, hoveredCellIndex]);
 
   return (
     <>
@@ -108,5 +115,5 @@ export function CellOutlineOverlay({
         </mesh>
       )}
     </>
-  )
+  );
 }

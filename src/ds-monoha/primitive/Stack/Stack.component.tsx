@@ -3,8 +3,9 @@ import { type FlexElement, type NonInteractiveProps } from '../../core/types';
 import { type SpacingTokens } from '../../tokens/types';
 import styles from './Stack.module.scss';
 
-export interface StackProps<T extends ElementType = 'div'>
-  extends NonInteractiveProps<HTMLAttributes<HTMLElement>> {
+export interface StackProps<T extends ElementType = 'div'> extends NonInteractiveProps<
+  HTMLAttributes<HTMLElement>
+> {
   /** Content to be laid out vertically. */
   readonly children?: ReactNode;
   /** Additional CSS classes to apply to the stack element. */
@@ -70,7 +71,7 @@ export const Stack = forwardRef(
       style,
       ...props
     }: StackProps<T>,
-    ref: React.ForwardedRef<HTMLElement>,
+    ref: React.ForwardedRef<HTMLElement>
   ): React.JSX.Element => {
     const Component = (as || 'div') as ElementType;
 
@@ -133,7 +134,7 @@ export const Stack = forwardRef(
         {children}
       </Component>
     );
-  },
+  }
 );
 
 Stack.displayName = 'Stack';

@@ -1,16 +1,16 @@
-import * as THREE from 'three'
+import * as THREE from 'three';
 
 /**
  * Factory for creating GPU render targets
  * Centralises render target configuration for consistency
  */
 export class RenderTargetFactory {
-  private textureWidth: number
-  private textureHeight: number
+  private textureWidth: number;
+  private textureHeight: number;
 
   constructor(textureWidth: number, textureHeight: number) {
-    this.textureWidth = textureWidth
-    this.textureHeight = textureHeight
+    this.textureWidth = textureWidth;
+    this.textureHeight = textureHeight;
   }
 
   /**
@@ -24,7 +24,7 @@ export class RenderTargetFactory {
       type: THREE.FloatType,
       wrapS: THREE.ClampToEdgeWrapping,
       wrapT: THREE.ClampToEdgeWrapping,
-    })
+    });
   }
 
   /**
@@ -40,9 +40,9 @@ export class RenderTargetFactory {
       wrapS: THREE.ClampToEdgeWrapping,
       wrapT: THREE.ClampToEdgeWrapping,
       count: 2, // Number of draw buffers (MRT count)
-    })
+    });
 
-    return mrt as unknown as THREE.WebGLRenderTarget<THREE.Texture[]>
+    return mrt as unknown as THREE.WebGLRenderTarget<THREE.Texture[]>;
   }
 
   /**
@@ -58,9 +58,9 @@ export class RenderTargetFactory {
       wrapS: THREE.ClampToEdgeWrapping,
       wrapT: THREE.ClampToEdgeWrapping,
       count: 3, // Number of draw buffers: surface + atmosphere + solar flux
-    })
+    });
 
-    return mrt as unknown as THREE.WebGLRenderTarget<THREE.Texture[]>
+    return mrt as unknown as THREE.WebGLRenderTarget<THREE.Texture[]>;
   }
 
   /**
@@ -76,16 +76,16 @@ export class RenderTargetFactory {
       wrapS: THREE.ClampToEdgeWrapping,
       wrapT: THREE.ClampToEdgeWrapping,
       count: 3, // Number of draw buffers: hydrology + auxiliary + surface
-    })
+    });
 
-    return mrt as unknown as THREE.WebGLRenderTarget<THREE.Texture[]>
+    return mrt as unknown as THREE.WebGLRenderTarget<THREE.Texture[]>;
   }
 
   getTextureWidth(): number {
-    return this.textureWidth
+    return this.textureWidth;
   }
 
   getTextureHeight(): number {
-    return this.textureHeight
+    return this.textureHeight;
   }
 }

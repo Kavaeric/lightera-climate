@@ -39,11 +39,11 @@ export const INTERACTIVE_PROPS = [
  * to ensure disabled elements don't receive interactive event handlers.
  */
 export const filterInteractiveProps = <T extends Record<string, unknown>>(
-  props: T,
+  props: T
 ): NonInteractiveProps<T> => {
   return Object.fromEntries(
     Object.entries(props).filter(
-      ([key]) => !INTERACTIVE_PROPS.includes(key as (typeof INTERACTIVE_PROPS)[number]),
-    ),
+      ([key]) => !INTERACTIVE_PROPS.includes(key as (typeof INTERACTIVE_PROPS)[number])
+    )
   ) as NonInteractiveProps<T>;
 };

@@ -4,22 +4,21 @@ import { Action, type ActionProps } from '../../primitive';
 import baseStyles from './ButtonBase.module.scss';
 import styles from './IconButton.module.scss';
 
-export interface IconButtonProps
-  extends Partial<
-    Pick<
-      ActionProps,
-      | 'id'
-      | 'disabled'
-      | 'onClick'
-      | 'className'
-      | 'type'
-      | 'aria-label'
-      | 'aria-describedby'
-      | 'aria-pressed'
-      | 'aria-expanded'
-      | 'aria-controls'
-    >
-  > {
+export interface IconButtonProps extends Partial<
+  Pick<
+    ActionProps,
+    | 'id'
+    | 'disabled'
+    | 'onClick'
+    | 'className'
+    | 'type'
+    | 'aria-label'
+    | 'aria-describedby'
+    | 'aria-pressed'
+    | 'aria-expanded'
+    | 'aria-controls'
+  >
+> {
   /** Material Symbol icon name to display on the button. */
   readonly icon: string;
   /** Visual style variant of the button. */
@@ -59,9 +58,8 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
       'aria-label': ariaLabelProp,
       'aria-describedby': ariaDescribedby,
     },
-    ref,
+    ref
   ) => {
-
     const buttonClassNames = [
       baseStyles.button,
       baseStyles[`button-${variant}`],
@@ -110,7 +108,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
         )}
       </Action>
     );
-  },
+  }
 );
 
 IconButton.displayName = 'IconButton';

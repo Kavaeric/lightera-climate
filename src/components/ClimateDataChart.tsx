@@ -1,30 +1,35 @@
-import { useMemo } from 'react'
-import { XYChart, Axis, Grid, LineSeries } from '@visx/xychart'
-import { useDisplayConfig } from '../context/useDisplayConfig'
-
+import { useMemo } from 'react';
+import { XYChart, Axis, Grid, LineSeries } from '@visx/xychart';
+import { useDisplayConfig } from '../context/useDisplayConfig';
 
 interface ClimateDataPoint {
-  day: number
-  surfaceTemperature: number
-  atmosphericTemperature: number
-  precipitableWater: number
-  waterDepth: number
-  iceThickness: number
-  salinity: number
-  albedo: number
-  elevation: number
+  day: number;
+  surfaceTemperature: number;
+  atmosphericTemperature: number;
+  precipitableWater: number;
+  waterDepth: number;
+  iceThickness: number;
+  salinity: number;
+  albedo: number;
+  elevation: number;
 }
 
 interface ClimateDataChartProps {
-  data: ClimateDataPoint[]
-  cellIndex: number | null
-  cellLatLon: { lat: number; lon: number }
-  cellArea: number
-  onClose: () => void
+  data: ClimateDataPoint[];
+  cellIndex: number | null;
+  cellLatLon: { lat: number; lon: number };
+  cellArea: number;
+  onClose: () => void;
 }
 
-export function ClimateDataChart({ data, cellIndex, cellLatLon, cellArea, onClose }: ClimateDataChartProps) {
-  const { displayConfig } = useDisplayConfig()
+export function ClimateDataChart({
+  data,
+  cellIndex,
+  cellLatLon,
+  cellArea,
+  onClose,
+}: ClimateDataChartProps) {
+  const { displayConfig } = useDisplayConfig();
 
   const accessors = useMemo(
     () => ({
@@ -33,64 +38,64 @@ export function ClimateDataChart({ data, cellIndex, cellLatLon, cellArea, onClos
       yAccessorAtmospheric: (d: ClimateDataPoint) => d.atmosphericTemperature,
     }),
     []
-  )
+  );
 
   // Calculate surface temperature stats
   const stats = useMemo(() => {
-    if (data.length === 0) return { min: 0, max: 0, avg: 0 }
-    const surfaceTemps = data.map((d) => d.surfaceTemperature)
-    const min = Math.min(...surfaceTemps)
-    const max = Math.max(...surfaceTemps)
-    const avg = surfaceTemps.reduce((a, b) => a + b, 0) / surfaceTemps.length
-    return { min, max, avg }
-  }, [data])
+    if (data.length === 0) return { min: 0, max: 0, avg: 0 };
+    const surfaceTemps = data.map((d) => d.surfaceTemperature);
+    const min = Math.min(...surfaceTemps);
+    const max = Math.max(...surfaceTemps);
+    const avg = surfaceTemps.reduce((a, b) => a + b, 0) / surfaceTemps.length;
+    return { min, max, avg };
+  }, [data]);
 
   // Calculate atmospheric temperature stats
   const atmosphericStats = useMemo(() => {
-    if (data.length === 0) return { min: 0, max: 0, avg: 0 }
-    const atmosphericTemps = data.map((d) => d.atmosphericTemperature)
-    const min = Math.min(...atmosphericTemps)
-    const max = Math.max(...atmosphericTemps)
-    const avg = atmosphericTemps.reduce((a, b) => a + b, 0) / atmosphericTemps.length
-    return { min, max, avg }
-  }, [data])
+    if (data.length === 0) return { min: 0, max: 0, avg: 0 };
+    const atmosphericTemps = data.map((d) => d.atmosphericTemperature);
+    const min = Math.min(...atmosphericTemps);
+    const max = Math.max(...atmosphericTemps);
+    const avg = atmosphericTemps.reduce((a, b) => a + b, 0) / atmosphericTemps.length;
+    return { min, max, avg };
+  }, [data]);
 
   // Calculate hydrology stats
   const hydrologyStats = useMemo(() => {
-    if (data.length === 0) return { waterDepthMax: 0, iceThicknessMax: 0, salinity: 0 }
-    const waterDepths = data.map((d) => d.waterDepth).filter((d) => d > 0)
-    const iceThicknesses = data.map((d) => d.iceThickness).filter((d) => d > 0)
+    if (data.length === 0) return { waterDepthMax: 0, iceThicknessMax: 0, salinity: 0 };
+    const waterDepths = data.map((d) => d.waterDepth).filter((d) => d > 0);
+    const iceThicknesses = data.map((d) => d.iceThickness).filter((d) => d > 0);
     // Salinity is the same for all samples (current state), so just get the first one
-    const salinity = data[0]?.salinity ?? 0
+    const salinity = data[0]?.salinity ?? 0;
     return {
       waterDepthMax: waterDepths.length > 0 ? Math.max(...waterDepths) : 0,
       iceThicknessMax: iceThicknesses.length > 0 ? Math.max(...iceThicknesses) : 0,
       salinity,
-    }
-  }, [data])
+    };
+  }, [data]);
 
   // Calculate albedo (current value, not time-series)
   const albedo = useMemo(() => {
-    if (data.length === 0) return 0
+    if (data.length === 0) return 0;
     // Albedo is the same for all samples (current state), so just get the first one
-    return data[0]?.albedo ?? 0
-  }, [data])
+    return data[0]?.albedo ?? 0;
+  }, [data]);
 
   // Get elevation (static terrain data, same for all samples)
   const elevation = useMemo(() => {
-    if (data.length === 0) return 0
+    if (data.length === 0) return 0;
     // Elevation is static terrain data, same for all samples
-    return data[0]?.elevation ?? 0
-  }, [data])
+    return data[0]?.elevation ?? 0;
+  }, [data]);
 
   // Get precipitable water (current value, not time-series)
   const precipitableWater = useMemo(() => {
-    if (data.length === 0) return 0
+    if (data.length === 0) return 0;
     // Precipitable water is the same for all samples (current state), so just get the first one
-    return data[0]?.precipitableWater ?? 0
-  }, [data])
+    return data[0]?.precipitableWater ?? 0;
+  }, [data]);
 
-  if (cellIndex === null) return null
+  if (cellIndex === null) return null;
 
   return (
     <div
@@ -145,22 +150,19 @@ export function ClimateDataChart({ data, cellIndex, cellLatLon, cellArea, onClos
           Surface min:
           <br />
           <strong>{stats.min.toFixed(1)}K</strong>
-          <br />
-          ({(stats.min - 273.15).toFixed(1)}°C)
+          <br />({(stats.min - 273.15).toFixed(1)}°C)
         </div>
         <div>
           Surface avg:
           <br />
           <strong>{stats.avg.toFixed(1)}K</strong>
-          <br />
-          ({(stats.avg - 273.15).toFixed(1)}°C)
+          <br />({(stats.avg - 273.15).toFixed(1)}°C)
         </div>
         <div>
           Surface max:
           <br />
           <strong>{stats.max.toFixed(1)}K</strong>
-          <br />
-          ({(stats.max - 273.15).toFixed(1)}°C)
+          <br />({(stats.max - 273.15).toFixed(1)}°C)
         </div>
       </div>
 
@@ -170,22 +172,19 @@ export function ClimateDataChart({ data, cellIndex, cellLatLon, cellArea, onClos
           Atm Min:
           <br />
           <strong>{atmosphericStats.min.toFixed(1)}K</strong>
-          <br />
-          ({(atmosphericStats.min - 273.15).toFixed(1)}°C)
+          <br />({(atmosphericStats.min - 273.15).toFixed(1)}°C)
         </div>
         <div>
           Atm Avg:
           <br />
           <strong>{atmosphericStats.avg.toFixed(1)}K</strong>
-          <br />
-          ({(atmosphericStats.avg - 273.15).toFixed(1)}°C)
+          <br />({(atmosphericStats.avg - 273.15).toFixed(1)}°C)
         </div>
         <div>
           Atm Max:
           <br />
           <strong>{atmosphericStats.max.toFixed(1)}K</strong>
-          <br />
-          ({(atmosphericStats.max - 273.15).toFixed(1)}°C)
+          <br />({(atmosphericStats.max - 273.15).toFixed(1)}°C)
         </div>
       </div>
 
@@ -224,11 +223,17 @@ export function ClimateDataChart({ data, cellIndex, cellLatLon, cellArea, onClos
       <XYChart
         height={240}
         xScale={{ type: 'linear' }}
-        yScale={{ type: 'linear', domain: [displayConfig.surfaceTemperatureRange.min, displayConfig.surfaceTemperatureRange.max] }}
+        yScale={{
+          type: 'linear',
+          domain: [
+            displayConfig.surfaceTemperatureRange.min,
+            displayConfig.surfaceTemperatureRange.max,
+          ],
+        }}
       >
-        <Grid columns={false}/>
-        <Axis orientation="bottom" label="Sample"/>
-        <Axis orientation="left" label="Temperature (K)"/>
+        <Grid columns={false} />
+        <Axis orientation="bottom" label="Sample" />
+        <Axis orientation="left" label="Temperature (K)" />
         <LineSeries
           dataKey="surfaceTemperature"
           data={data}
@@ -247,5 +252,5 @@ export function ClimateDataChart({ data, cellIndex, cellLatLon, cellArea, onClos
         />
       </XYChart>
     </div>
-  )
+  );
 }

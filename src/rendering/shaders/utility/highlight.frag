@@ -11,6 +11,8 @@ uniform float textureWidth;
 uniform float textureHeight;
 
 in vec2 vUv;
+in float vFacing;
+in float vFresnel;
 in vec3 vWorldPosition;
 in vec3 vViewDirection;
 
@@ -24,8 +26,8 @@ void main() {
 
   vec3 color = vec3(0.0);
   float alpha = 0.0;
-  float hoverAlpha = 0.3;
-  float selectAlpha = 0.5;
+  float hoverAlpha = 0.2;
+  float selectAlpha = 0.2;
   float backSelectAlpha = 0.4;
 
   // Check if this is the selected cell
@@ -39,7 +41,8 @@ void main() {
 
   if (isSelected > 0.5) {
     color = vec3(1.0, 1.0, 1.0); // White highlight for selection
-    alpha = selectAlpha * isFrontFacing + backSelectAlpha * (1.0 - isFrontFacing); // Stronger on front, dimmer on back
+    // alpha = selectAlpha * isFrontFacing + backSelectAlpha * (1.0 - isFrontFacing); // Stronger on front, dimmer on back
+    alpha = (vFresnel + selectAlpha) * (isFrontFacing) + backSelectAlpha * (1.0 - isFrontFacing);
     fragColour = vec4(color, alpha);
     return;
   }

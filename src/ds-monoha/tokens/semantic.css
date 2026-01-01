@@ -1,86 +1,140 @@
 :root {
-	/* ========= Brand colours ========= */
-	/* ====== Borders ====== */
-	/* === Bold === */
-	--colour-border-brand-bold: light-dark(var(--colour-primary-500), var(--colour-primary-500));
-	--colour-border-brand-bold-hover: light-dark(var(--colour-primary-600), var(--colour-primary-400));
-	--colour-border-brand-bold-active: light-dark(var(--colour-primary-700), var(--colour-primary-300));
+  /* ========= Brand colours ========= */
+  /* ====== Borders ====== */
+  /* === Bold === */
+  --colour-border-brand-bold: light-dark(var(--colour-primary-500), var(--colour-primary-500));
+  --colour-border-brand-bold-hover: light-dark(
+    var(--colour-primary-600),
+    var(--colour-primary-400)
+  );
+  --colour-border-brand-bold-active: light-dark(
+    var(--colour-primary-700),
+    var(--colour-primary-300)
+  );
 
-	/* === Default === */
-	--colour-border-brand: light-dark(rgb(from var(--colour-primary-600) r g b / 30%), rgb(from var(--colour-primary-400) r g b / 30%));
-	--colour-border-brand-hover: light-dark(rgb(from var(--colour-primary-700) r g b / 30%), rgb(from var(--colour-primary-300) r g b / 30%));
-	--colour-border-brand-active: light-dark(rgb(from var(--colour-primary-800) r g b / 30%), rgb(from var(--colour-primary-200) r g b / 30%));
+  /* === Default === */
+  --colour-border-brand: light-dark(
+    rgb(from var(--colour-primary-600) r g b / 30%),
+    rgb(from var(--colour-primary-400) r g b / 30%)
+  );
+  --colour-border-brand-hover: light-dark(
+    rgb(from var(--colour-primary-700) r g b / 30%),
+    rgb(from var(--colour-primary-300) r g b / 30%)
+  );
+  --colour-border-brand-active: light-dark(
+    rgb(from var(--colour-primary-800) r g b / 30%),
+    rgb(from var(--colour-primary-200) r g b / 30%)
+  );
 
-	/* ====== Backgrounds ====== */
-	/* === Bold === */
-	--colour-bg-brand-bold: light-dark(var(--colour-primary-500), var(--colour-primary-600));
-	--colour-bg-brand-bold-hover: light-dark(var(--colour-primary-600), var(--colour-primary-500));
-	--colour-bg-brand-bold-active: light-dark(var(--colour-primary-700), var(--colour-primary-400));
+  /* ====== Backgrounds ====== */
+  /* === Bold === */
+  --colour-bg-brand-bold: light-dark(var(--colour-primary-500), var(--colour-primary-600));
+  --colour-bg-brand-bold-hover: light-dark(var(--colour-primary-600), var(--colour-primary-500));
+  --colour-bg-brand-bold-active: light-dark(var(--colour-primary-700), var(--colour-primary-400));
 
-	/* === Default === */
-	--colour-bg-brand: light-dark(rgb(from var(--colour-primary-500) r g b / 20%), rgb(from var(--colour-primary-600) r g b / 20%));
-	--colour-bg-brand-hover: light-dark(rgb(from var(--colour-primary-600) r g b / 30%), rgb(from var(--colour-primary-500) r g b / 30%));
-	--colour-bg-brand-active: light-dark(rgb(from var(--colour-primary-700) r g b / 40%), rgb(from var(--colour-primary-400) r g b / 40%));
+  /* === Default === */
+  --colour-bg-brand: light-dark(
+    rgb(from var(--colour-primary-500) r g b / 20%),
+    rgb(from var(--colour-primary-600) r g b / 20%)
+  );
+  --colour-bg-brand-hover: light-dark(
+    rgb(from var(--colour-primary-600) r g b / 30%),
+    rgb(from var(--colour-primary-500) r g b / 30%)
+  );
+  --colour-bg-brand-active: light-dark(
+    rgb(from var(--colour-primary-700) r g b / 40%),
+    rgb(from var(--colour-primary-400) r g b / 40%)
+  );
 
-	/* ====== Content ====== */
-	/* === Bold === */
-	/* To be paired with the brand background */
-	--colour-text-brand-bold-inverse: light-dark(var(--colour-neutral-50), var(--colour-neutral-50));
-	--colour-icon-brand-bold-inverse: light-dark(var(--colour-neutral-50), var(--colour-neutral-50));
+  /* ====== Content ====== */
+  /* === Bold === */
+  /* To be paired with the brand background */
+  --colour-text-brand-bold-inverse: light-dark(var(--colour-neutral-50), var(--colour-neutral-50));
+  --colour-icon-brand-bold-inverse: light-dark(var(--colour-neutral-50), var(--colour-neutral-50));
 
-	/* To be used standalone */
-	--colour-text-brand-bold: light-dark(var(--colour-primary-700), var(--colour-primary-200));
-	--colour-icon-brand-bold: light-dark(var(--colour-primary-700), var(--colour-primary-200));
+  /* To be used standalone */
+  --colour-text-brand-bold: light-dark(var(--colour-primary-700), var(--colour-primary-200));
+  --colour-icon-brand-bold: light-dark(var(--colour-primary-700), var(--colour-primary-200));
 
-	/* === Default === */
-	--colour-text-brand: light-dark(var(--colour-primary-600), var(--colour-primary-400));
-	--colour-icon-brand: light-dark(var(--colour-primary-500), var(--colour-primary-400));
+  /* === Default === */
+  --colour-text-brand: light-dark(var(--colour-primary-600), var(--colour-primary-400));
+  --colour-icon-brand: light-dark(var(--colour-primary-500), var(--colour-primary-400));
 
-	/* ========= Neutral colours (for UI elements) ========= */
-	/* ====== Borders ====== */
-	--colour-border-neutral: light-dark(var(--colour-neutral-100), var(--colour-neutral-700));
-	--colour-border-neutral-hover: light-dark(var(--colour-neutral-200), var(--colour-neutral-600));
-	--colour-border-neutral-active: light-dark(var(--colour-neutral-300), var(--colour-neutral-500));
+  /* ========= Neutral colours (for UI elements) ========= */
+  /* ====== Borders ====== */
+  --colour-border-neutral: light-dark(var(--colour-neutral-100), var(--colour-neutral-700));
+  --colour-border-neutral-hover: light-dark(var(--colour-neutral-200), var(--colour-neutral-600));
+  --colour-border-neutral-active: light-dark(var(--colour-neutral-300), var(--colour-neutral-500));
 
-	/* === Backgrounds === */
-	/* === Bold === */
-	--colour-bg-neutral-bold: light-dark(var(--colour-neutral-800), var(--colour-neutral-100));
-	--colour-bg-neutral-bold-hover: light-dark(var(--colour-neutral-900), var(--colour-neutral-50));
-	--colour-bg-neutral-bold-active: light-dark(var(--colour-neutral-950), var(--colour-neutral-25));
+  /* === Backgrounds === */
+  /* === Bold === */
+  --colour-bg-neutral-bold: light-dark(var(--colour-neutral-800), var(--colour-neutral-100));
+  --colour-bg-neutral-bold-hover: light-dark(var(--colour-neutral-900), var(--colour-neutral-50));
+  --colour-bg-neutral-bold-active: light-dark(var(--colour-neutral-950), var(--colour-neutral-25));
 
-	/* === Default === */
-	--colour-bg-neutral: light-dark(rgb(from var(--colour-neutral-0) r g b / 70%), rgb(from var(--colour-neutral-950) r g b / 40%));
-	--colour-bg-neutral-hover: light-dark(rgb(from var(--colour-neutral-0) r g b / 100%), rgb(from var(--colour-neutral-950) r g b / 80%));
-	--colour-bg-neutral-active: light-dark(rgb(from var(--colour-neutral-0) r g b / 100%), rgb(from var(--colour-neutral-950) r g b / 80%));
+  /* === Default === */
+  --colour-bg-neutral: light-dark(
+    rgb(from var(--colour-neutral-0) r g b / 70%),
+    rgb(from var(--colour-neutral-950) r g b / 40%)
+  );
+  --colour-bg-neutral-hover: light-dark(
+    rgb(from var(--colour-neutral-0) r g b / 100%),
+    rgb(from var(--colour-neutral-950) r g b / 80%)
+  );
+  --colour-bg-neutral-active: light-dark(
+    rgb(from var(--colour-neutral-0) r g b / 100%),
+    rgb(from var(--colour-neutral-950) r g b / 80%)
+  );
 
-	/* === Subtle === */
-	--colour-bg-neutral-subtle: light-dark(transparent, transparent);
-	--colour-bg-neutral-subtle-hover: light-dark(rgb(from var(--colour-neutral-500) r g b / 15%), rgb(from var(--colour-neutral-500) r g b / 20%));
-	--colour-bg-neutral-subtle-active: light-dark(rgb(from var(--colour-neutral-500) r g b / 25%), rgb(from var(--colour-neutral-500) r g b / 40%));
+  /* === Subtle === */
+  --colour-bg-neutral-subtle: light-dark(transparent, transparent);
+  --colour-bg-neutral-subtle-hover: light-dark(
+    rgb(from var(--colour-neutral-500) r g b / 15%),
+    rgb(from var(--colour-neutral-500) r g b / 20%)
+  );
+  --colour-bg-neutral-subtle-active: light-dark(
+    rgb(from var(--colour-neutral-500) r g b / 25%),
+    rgb(from var(--colour-neutral-500) r g b / 40%)
+  );
 
-	/* === Light === */
-	/* Light background for UI elements like buttons */
-	--colour-bg-neutral-light: light-dark(rgb(from var(--colour-neutral-0) r g b / 70%), rgb(from var(--colour-neutral-0) r g b / 5%));
-	--colour-bg-neutral-light-hover: light-dark(rgb(from var(--colour-neutral-100) r g b / 70%), rgb(from var(--colour-neutral-0) r g b / 10%));
-	--colour-bg-neutral-light-active: light-dark(rgb(from var(--colour-neutral-200) r g b / 80%), rgb(from var(--colour-neutral-0) r g b / 15%));
+  /* === Light === */
+  /* Light background for UI elements like buttons */
+  --colour-bg-neutral-light: light-dark(
+    rgb(from var(--colour-neutral-0) r g b / 70%),
+    rgb(from var(--colour-neutral-0) r g b / 5%)
+  );
+  --colour-bg-neutral-light-hover: light-dark(
+    rgb(from var(--colour-neutral-100) r g b / 70%),
+    rgb(from var(--colour-neutral-0) r g b / 10%)
+  );
+  --colour-bg-neutral-light-active: light-dark(
+    rgb(from var(--colour-neutral-200) r g b / 80%),
+    rgb(from var(--colour-neutral-0) r g b / 15%)
+  );
 
-	/* ====== Content ====== */
-	/* === Bold === */
-	/* To be paired with bold background */
-	--colour-text-bold-inverse: light-dark(var(--colour-neutral-0), var(--colour-neutral-950));
-	--colour-icon-bold-inverse: light-dark(var(--colour-neutral-0), var(--colour-neutral-950));
+  /* ====== Content ====== */
+  /* === Bold === */
+  /* To be paired with bold background */
+  --colour-text-bold-inverse: light-dark(var(--colour-neutral-0), var(--colour-neutral-950));
+  --colour-icon-bold-inverse: light-dark(var(--colour-neutral-0), var(--colour-neutral-950));
 
-	/* To be used standalone */
-	--colour-text-bold: light-dark(var(--colour-neutral-900), var(--colour-neutral-100));
-	--colour-icon-bold: light-dark(var(--colour-neutral-700), var(--colour-neutral-200));
+  /* To be used standalone */
+  --colour-text-bold: light-dark(var(--colour-neutral-900), var(--colour-neutral-100));
+  --colour-icon-bold: light-dark(var(--colour-neutral-700), var(--colour-neutral-200));
 
-	/* === Default === */
-	--colour-text: light-dark(var(--colour-neutral-800), var(--colour-neutral-100));
-	--colour-icon: light-dark(var(--colour-neutral-600), var(--colour-neutral-400));
+  /* === Default === */
+  --colour-text: light-dark(var(--colour-neutral-800), var(--colour-neutral-100));
+  --colour-icon: light-dark(var(--colour-neutral-600), var(--colour-neutral-400));
 
-	/* === Subtle === */
-	--colour-text-subtle: light-dark(rgb(from var(--colour-neutral-800) r g b / var(--opacity-subtle)), rgb(from var(--colour-neutral-100) r g b / var(--opacity-subtle)));
-	--colour-icon-subtle: light-dark(rgb(from var(--colour-neutral-600) r g b / var(--opacity-subtle)), rgb(from var(--colour-neutral-400) r g b / var(--opacity-subtle)));
+  /* === Subtle === */
+  --colour-text-subtle: light-dark(
+    rgb(from var(--colour-neutral-800) r g b / var(--opacity-subtle)),
+    rgb(from var(--colour-neutral-100) r g b / var(--opacity-subtle))
+  );
+  --colour-icon-subtle: light-dark(
+    rgb(from var(--colour-neutral-600) r g b / var(--opacity-subtle)),
+    rgb(from var(--colour-neutral-400) r g b / var(--opacity-subtle))
+  );
 
   /* --colour-text-subtle: light-dark(var(--colour-neutral-600), var(--colour-neutral-300)); */
 
@@ -108,7 +162,7 @@
   --colour-link-subtle-hover-decoration: rgb(from var(--colour-link-subtle-hover) r g b / 50%);
   --colour-link-subtle-active-decoration: rgb(from var(--colour-link-subtle-active) r g b / 50%);
 
-	/* ========= Elevation & surface colours ========= */
+  /* ========= Elevation & surface colours ========= */
   /* Overlay elevation is used for UI elements that sit well above the main UI surface, like flags and modals */
   --surface-overlay: light-dark(var(--colour-neutral-25), var(--colour-neutral-800));
   --surface-overlay-hover: light-dark(var(--colour-neutral-50), var(--colour-neutral-700));
@@ -132,97 +186,106 @@
   /* Sunken surfaces are for secondary backgrounds commonly used to group content */
   --surface-sunken: light-dark(var(--colour-neutral-75), var(--colour-neutral-925));
 
-	/* ========= Focus ring ========= */
-	--focus-ring-colour: light-dark(var(--colour-primary-600), var(--colour-primary-400));
-	--focus-ring-width: var(--size-3);
-	--focus-ring-offset-outside: var(--size-2);
-	--focus-ring-offset-inside: calc(-1 * var(--size-3));
-	--focus-ring-offset-inset: calc(-1 * var(--size-6));
+  /* ========= Focus ring ========= */
+  --focus-ring-colour: light-dark(var(--colour-primary-600), var(--colour-primary-400));
+  --focus-ring-width: var(--size-3);
+  --focus-ring-offset-outside: var(--size-2);
+  --focus-ring-offset-inside: calc(-1 * var(--size-3));
+  --focus-ring-offset-inset: calc(-1 * var(--size-6));
 
-	/* ========= Spacing ========= */
-	--spacing-0: var(--size-0);
-	--spacing-25: var(--size-2);
-	--spacing-50: var(--size-4);
-	--spacing-75: var(--size-6);
-	--spacing-100: var(--size-8);
-	--spacing-150: var(--size-12);
-	--spacing-200: var(--size-16);
-	--spacing-250: var(--size-20);
-	--spacing-300: var(--size-24);
-	--spacing-400: var(--size-32);
-	--spacing-500: var(--size-40);
-	--spacing-600: var(--size-48);
-	--spacing-800: var(--size-64);
-	--spacing-1000: var(--size-80);
+  /* ========= Spacing ========= */
+  --spacing-0: var(--size-0);
+  --spacing-25: var(--size-2);
+  --spacing-50: var(--size-4);
+  --spacing-75: var(--size-6);
+  --spacing-100: var(--size-8);
+  --spacing-150: var(--size-12);
+  --spacing-200: var(--size-16);
+  --spacing-250: var(--size-20);
+  --spacing-300: var(--size-24);
+  --spacing-400: var(--size-32);
+  --spacing-500: var(--size-40);
+  --spacing-600: var(--size-48);
+  --spacing-800: var(--size-64);
+  --spacing-1000: var(--size-80);
 
-	/* ========= Typography ========= */
-	--font-family-body: var(--font-family-sans);
-	--font-family-label: var(--font-family-display);
-	--font-family-heading: var(--font-family-display);
+  /* ========= Typography ========= */
+  --font-family-body: var(--font-family-sans);
+  --font-family-label: var(--font-family-display);
+  --font-family-heading: var(--font-family-display);
 
-	/* Body text */
-	--font-body-sm: var(--font-weight-normal) var(--text-size-50) / 1rem var(--font-family-body);
-	--font-body-md: var(--font-weight-normal) var(--text-size-100) / 1.5rem var(--font-family-body);
-	--font-body-lg: var(--font-weight-normal) var(--text-size-200) / 2rem var(--font-family-body);
-	--font-body-xl: var(--font-weight-normal) var(--text-size-300) / 2.25rem var(--font-family-body);
+  /* Body text */
+  --font-body-sm: var(--font-weight-normal) var(--text-size-50) / 1rem var(--font-family-body);
+  --font-body-md: var(--font-weight-normal) var(--text-size-100) / 1.5rem var(--font-family-body);
+  --font-body-lg: var(--font-weight-normal) var(--text-size-200) / 2rem var(--font-family-body);
+  --font-body-xl: var(--font-weight-normal) var(--text-size-300) / 2.25rem var(--font-family-body);
 
-	/* Heading text */
-	--font-heading-2xs: var(--font-weight-medium) var(--text-size-75) / 1rem var(--font-family-heading);
-	--font-heading-xs: var(--font-weight-medium) var(--text-size-100) / 1.25rem var(--font-family-heading); /* Pairs well with font-body-sm */
-	--font-heading-sm: var(--font-weight-medium) var(--text-size-200) / 1.25rem var(--font-family-heading); /* Pairs well with font-body-sm */
-	--font-heading-md: var(--font-weight-medium) var(--text-size-300) / 1.5rem var(--font-family-heading); /* Pairs well with font-body-md */
-	--font-heading-lg: var(--font-weight-medium) var(--text-size-400) / 1.75rem var(--font-family-heading); /* Pairs well with font-body-lg */
-	--font-heading-xl: var(--font-weight-medium) var(--text-size-500) / 2.25rem var(--font-family-heading);
-	--font-heading-2xl: var(--font-weight-medium) var(--text-size-600) / 2.75rem var(--font-family-heading);
-	--font-heading-3xl: var(--font-weight-medium) var(--text-size-700) / 3.25rem var(--font-family-heading);
+  /* Heading text */
+  --font-heading-2xs: var(--font-weight-medium) var(--text-size-75) / 1rem
+    var(--font-family-heading);
+  --font-heading-xs: var(--font-weight-medium) var(--text-size-100) / 1.25rem
+    var(--font-family-heading); /* Pairs well with font-body-sm */
+  --font-heading-sm: var(--font-weight-medium) var(--text-size-200) / 1.25rem
+    var(--font-family-heading); /* Pairs well with font-body-sm */
+  --font-heading-md: var(--font-weight-medium) var(--text-size-300) / 1.5rem
+    var(--font-family-heading); /* Pairs well with font-body-md */
+  --font-heading-lg: var(--font-weight-medium) var(--text-size-400) / 1.75rem
+    var(--font-family-heading); /* Pairs well with font-body-lg */
+  --font-heading-xl: var(--font-weight-medium) var(--text-size-500) / 2.25rem
+    var(--font-family-heading);
+  --font-heading-2xl: var(--font-weight-medium) var(--text-size-600) / 2.75rem
+    var(--font-family-heading);
+  --font-heading-3xl: var(--font-weight-medium) var(--text-size-700) / 3.25rem
+    var(--font-family-heading);
 
-	--font-heading-2xs-tracking: var(--text-tracking-800);
-	--font-heading-xs-tracking: var(--text-tracking-800);
-	--font-heading-sm-tracking: var(--text-tracking-800);
-	--font-heading-md-tracking: var(--text-tracking-800);
-	--font-heading-lg-tracking: var(--text-tracking-800);
-	--font-heading-xl-tracking: var(--text-tracking-800);
-	--font-heading-2xl-tracking: var(--text-tracking-800);
-	--font-heading-3xl-tracking: var(--text-tracking-800);
+  --font-heading-2xs-tracking: var(--text-tracking-800);
+  --font-heading-xs-tracking: var(--text-tracking-800);
+  --font-heading-sm-tracking: var(--text-tracking-800);
+  --font-heading-md-tracking: var(--text-tracking-800);
+  --font-heading-lg-tracking: var(--text-tracking-800);
+  --font-heading-xl-tracking: var(--text-tracking-800);
+  --font-heading-2xl-tracking: var(--text-tracking-800);
+  --font-heading-3xl-tracking: var(--text-tracking-800);
 
-	--font-heading-2xs-text-transform: uppercase;
-	--font-heading-xs-text-transform: uppercase;
-	--font-heading-sm-text-transform: uppercase;
-	--font-heading-md-text-transform: uppercase;
-	--font-heading-lg-text-transform: uppercase;
-	--font-heading-xl-text-transform: uppercase;
-	--font-heading-2xl-text-transform: uppercase;
-	--font-heading-3xl-text-transform: uppercase;
+  --font-heading-2xs-text-transform: uppercase;
+  --font-heading-xs-text-transform: uppercase;
+  --font-heading-sm-text-transform: uppercase;
+  --font-heading-md-text-transform: uppercase;
+  --font-heading-lg-text-transform: uppercase;
+  --font-heading-xl-text-transform: uppercase;
+  --font-heading-2xl-text-transform: uppercase;
+  --font-heading-3xl-text-transform: uppercase;
 
   /* Label text, for UI elements like forms and buttons */
-  --font-label-sm: var(--font-weight-semibold) var(--text-size-50) / 1.25rem var(--font-family-label);
+  --font-label-sm: var(--font-weight-semibold) var(--text-size-50) / 1.25rem
+    var(--font-family-label);
   --font-label-md: var(--font-weight-medium) var(--text-size-100) / 1.5rem var(--font-family-label);
 
-	/* ========= Animations & transitions ========= */
-	--transition-instant: 0ms;
-	--transition-ui: 80ms;
-	--transition-ui-slow: 200ms;
-	--animation-duration-loading: 1.5s;
+  /* ========= Animations & transitions ========= */
+  --transition-instant: 0ms;
+  --transition-ui: 80ms;
+  --transition-ui-slow: 200ms;
+  --animation-duration-loading: 1.5s;
 
-	/* ========= Z-index ========= */
-	--z-index-sunken: 0;
-	--z-index-base: 100;
-	--z-index-raised: 200;
-	--z-index-floating-nav: 300;
-	--z-index-floating-menu: 400;
-	--z-index-blanket: 500;
-	--z-index-modal: 600;
-	--z-index-flag: 800;
+  /* ========= Z-index ========= */
+  --z-index-sunken: 0;
+  --z-index-base: 100;
+  --z-index-raised: 200;
+  --z-index-floating-nav: 300;
+  --z-index-floating-menu: 400;
+  --z-index-blanket: 500;
+  --z-index-modal: 600;
+  --z-index-flag: 800;
 
-	/* ========= Interactive sizes ========= */
-	--size-interactive-small: var(--size-40);
-	--size-interactive-medium: var(--size-48);
-	--size-interactive-large: var(--size-48);
+  /* ========= Interactive sizes ========= */
+  --size-interactive-small: var(--size-40);
+  --size-interactive-medium: var(--size-48);
+  --size-interactive-large: var(--size-48);
 
-	/* Reduced sizes for mouse users */
-	@media (pointer: fine) {
-		--size-interactive-small: var(--size-32);
-		--size-interactive-medium: var(--size-40);
-		--size-interactive-large: var(--size-48);
-	}
+  /* Reduced sizes for mouse users */
+  @media (pointer: fine) {
+    --size-interactive-small: var(--size-32);
+    --size-interactive-medium: var(--size-40);
+    --size-interactive-large: var(--size-48);
+  }
 }

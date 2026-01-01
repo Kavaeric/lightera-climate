@@ -31,26 +31,26 @@
 /* Button Sizes */
 .button-sm {
   gap: var(--button-gap-sm);
-	min-inline-size: var(--button-size-sm);
-	min-block-size: var(--button-size-sm);
-	padding-block: var(--button-padding-block-sm);
-	padding-inline: var(--button-padding-inline-sm);
+  min-inline-size: var(--button-size-sm);
+  min-block-size: var(--button-size-sm);
+  padding-block: var(--button-padding-block-sm);
+  padding-inline: var(--button-padding-inline-sm);
 }
 
 .button-md {
   gap: var(--button-gap-md);
-	min-inline-size: var(--button-size-md);
-	min-block-size: var(--button-size-md);
-	padding-block: var(--button-padding-block-md);
-	padding-inline: var(--button-padding-inline-md);
+  min-inline-size: var(--button-size-md);
+  min-block-size: var(--button-size-md);
+  padding-block: var(--button-padding-block-md);
+  padding-inline: var(--button-padding-inline-md);
 }
 
 .button-lg {
   gap: var(--button-gap-lg);
-	min-inline-size: var(--button-size-lg);
-	min-block-size: var(--button-size-lg);
-	padding-block: var(--button-padding-block-lg);
-	padding-inline: var(--button-padding-inline-lg);
+  min-inline-size: var(--button-size-lg);
+  min-block-size: var(--button-size-lg);
+  padding-block: var(--button-padding-block-lg);
+  padding-inline: var(--button-padding-inline-lg);
 }
 
 /* Mobile collapse behavior */

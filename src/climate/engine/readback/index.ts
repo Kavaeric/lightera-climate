@@ -1,1 +1,1 @@
-export { GPUReadback } from './GPUReadback'
+export { GPUReadback } from './GPUReadback';

@@ -4,11 +4,15 @@
 
 /* You'd want to do this in index.ejs, not here.
    You'd also want to _not_ load the entire font for production */
-   @import 'https://fonts.googleapis.com/css2?family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200';
+@import 'https://fonts.googleapis.com/css2?family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200';
 
 .material-symbols {
   font-family: 'Material Symbols Sharp', sans-serif !important;
-  font-variation-settings: 'opsz' 24, 'wght' 400, 'FILL' 0, 'GRAD' 0;
+  font-variation-settings:
+    'opsz' 24,
+    'wght' 400,
+    'FILL' 0,
+    'GRAD' 0;
   font-feature-settings: initial;
   font-display: swap;
 }
@@ -23,7 +27,8 @@
   } */
 }
 
-html, body {
+html,
+body {
   min-block-size: 100dvh;
   padding: 0;
   margin: 0;

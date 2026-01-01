@@ -1,13 +1,13 @@
-import { useRef, useEffect } from 'react'
-import { useThree } from '@react-three/fiber'
-import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation'
-import { createClimateEngine } from '../climate/engine/createClimateEngine'
-import { useSimulation } from '../context/useSimulation'
+import { useRef, useEffect } from 'react';
+import { useThree } from '@react-three/fiber';
+import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation';
+import { createClimateEngine } from '../climate/engine/createClimateEngine';
+import { useSimulation } from '../context/useSimulation';
 
 interface ClimateEngineProps {
-  simulation: TextureGridSimulation
-  stepsPerFrame: number
-  samplesPerOrbit: number
+  simulation: TextureGridSimulation;
+  stepsPerFrame: number;
+  samplesPerOrbit: number;
 }
 
 /**
@@ -15,7 +15,7 @@ interface ClimateEngineProps {
  * Handles engine initialisation, WebGL context management, and simulation lifecycle.
  */
 export function ClimateEngine({ simulation, stepsPerFrame, samplesPerOrbit }: ClimateEngineProps) {
-  const { gl } = useThree()
+  const { gl } = useThree();
   const {
     activeSimulationConfig,
     activeOrbitalConfig,
@@ -24,13 +24,13 @@ export function ClimateEngine({ simulation, stepsPerFrame, samplesPerOrbit }: Cl
     registerOrchestrator,
     registerRecorder,
     pause,
-  } = useSimulation()
+  } = useSimulation();
 
   // Use ref for stepsPerFrame so changes don't re-initialise the engine
-  const stepsPerFrameRef = useRef(stepsPerFrame)
+  const stepsPerFrameRef = useRef(stepsPerFrame);
   useEffect(() => {
-    stepsPerFrameRef.current = stepsPerFrame
-  }, [stepsPerFrame])
+    stepsPerFrameRef.current = stepsPerFrame;
+  }, [stepsPerFrame]);
 
   // Initialise climate engine
   useEffect(() => {
@@ -45,8 +45,7 @@ export function ClimateEngine({ simulation, stepsPerFrame, samplesPerOrbit }: Cl
       registerOrchestrator,
       registerRecorder,
       onError: pause,
-    })
-
+    });
   }, [
     gl,
     simulation,
@@ -58,31 +57,31 @@ export function ClimateEngine({ simulation, stepsPerFrame, samplesPerOrbit }: Cl
     registerOrchestrator,
     registerRecorder,
     pause,
-  ])
+  ]);
 
   // WebGL context loss handling
   useEffect(() => {
-    const canvas = gl.domElement
+    const canvas = gl.domElement;
 
     const handleContextLost = (event: Event) => {
-      event.preventDefault()
-      console.error('[ClimateEngine] WebGL context lost')
-      pause()
-    }
+      event.preventDefault();
+      console.error('[ClimateEngine] WebGL context lost');
+      pause();
+    };
 
     const handleContextRestored = () => {
-      console.log('[ClimateEngine] WebGL context restored')
+      console.log('[ClimateEngine] WebGL context restored');
       // Context restored, but would need to reinitialise by incrementing simulationKey to trigger recreation
-    }
+    };
 
-    canvas.addEventListener('webglcontextlost', handleContextLost)
-    canvas.addEventListener('webglcontextrestored', handleContextRestored)
+    canvas.addEventListener('webglcontextlost', handleContextLost);
+    canvas.addEventListener('webglcontextrestored', handleContextRestored);
 
     return () => {
-      canvas.removeEventListener('webglcontextlost', handleContextLost)
-      canvas.removeEventListener('webglcontextrestored', handleContextRestored)
-    }
-  }, [gl, pause])
+      canvas.removeEventListener('webglcontextlost', handleContextLost);
+      canvas.removeEventListener('webglcontextrestored', handleContextRestored);
+    };
+  }, [gl, pause]);
 
-  return null // This component doesn't render anything visual
+  return null; // This component doesn't render anything visual
 }

@@ -18,7 +18,7 @@ export {
   createColourmapTexture,
   getColourmapUVMapping,
   generateColourmapSamplerGLSL,
-} from './ColourmapTexture'
+} from './ColourmapTexture';
 
 // Pre-defined colourmaps
 export {
@@ -35,4 +35,4 @@ export {
   COLOURMAP_TERRAIN_ELEVATION,
   COLOURMAP_TERRAIN_WATER,
   COLOURMAP_TERRAIN_ICE,
-} from './definitions'
+} from './definitions';

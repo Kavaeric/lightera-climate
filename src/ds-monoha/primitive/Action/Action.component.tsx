@@ -46,7 +46,7 @@ export const Action = forwardRef<HTMLButtonElement | HTMLSpanElement, ActionProp
       inset = 'outside',
       ...props
     },
-    ref,
+    ref
   ) => {
     // Build CSS classes - basic action class for focus styling + any custom classes
     // Include inset focus ring class if specified
@@ -92,7 +92,7 @@ export const Action = forwardRef<HTMLButtonElement | HTMLSpanElement, ActionProp
         {children}
       </button>
     );
-  },
+  }
 );
 
 Action.displayName = 'Action';

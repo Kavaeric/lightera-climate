@@ -110,7 +110,8 @@ function main() {
 	}
 
 	const outputPath = path.join(outputDir, 'planckLookup.ts');
-	fs.writeFileSync(outputPath, content, 'utf8');
+	const normalizedContent = content.replace(/\r\n/g, '\n');
+	fs.writeFileSync(outputPath, Buffer.from(normalizedContent, 'utf8'));
 
 	console.log(`Planck lookup table: ${width}×${height} (${data.byteLength.toLocaleString()} bytes)`);
 	console.log(`  Temperature range: ${TEMP_MIN}-${TEMP_MAX}K`);

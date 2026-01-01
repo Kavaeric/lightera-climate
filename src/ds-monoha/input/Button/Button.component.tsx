@@ -4,22 +4,21 @@ import { Action, type ActionProps } from '../../primitive';
 import styles from './Button.module.scss';
 import baseStyles from './ButtonBase.module.scss';
 
-export interface ButtonProps
-  extends Partial<
-    Pick<
-      ActionProps,
-      | 'id'
-      | 'disabled'
-      | 'onClick'
-      | 'className'
-      | 'type'
-      | 'aria-label'
-      | 'aria-describedby'
-      | 'aria-pressed'
-      | 'aria-expanded'
-      | 'aria-controls'
-    >
-  > {
+export interface ButtonProps extends Partial<
+  Pick<
+    ActionProps,
+    | 'id'
+    | 'disabled'
+    | 'onClick'
+    | 'className'
+    | 'type'
+    | 'aria-label'
+    | 'aria-describedby'
+    | 'aria-pressed'
+    | 'aria-expanded'
+    | 'aria-controls'
+  >
+> {
   /** Text label displayed on the button. */
   readonly label: string;
   /** Visual style variant of the button. */
@@ -65,9 +64,8 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(
       end,
       mobileCollapse = false,
     },
-    ref,
+    ref
   ) => {
-
     // TODO: Use classNames util once we can properly type CSS modules
     const buttonClassNames = [
       baseStyles['button'],
@@ -164,7 +162,7 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(
         )}
       </Action>
     );
-  },
+  }
 );
 
 Button.displayName = 'Button';

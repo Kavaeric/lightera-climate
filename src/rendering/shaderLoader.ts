@@ -3,9 +3,9 @@
  * Provides helpers for composing shader code with shared includes
  */
 
-import type { ColourmapDefinition } from './colourmaps/ColourmapTexture'
-import { getColourmapUVMapping } from './colourmaps/ColourmapTexture'
-import textureAccessors from './shaders/utility/textureAccessors.glsl?raw'
+import type { ColourmapDefinition } from './colourmaps/ColourmapTexture';
+import { getColourmapUVMapping } from './colourmaps/ColourmapTexture';
+import textureAccessors from './shaders/utility/textureAccessors.glsl?raw';
 
 /**
  * Prepend texture accessor functions to a shader
@@ -16,11 +16,11 @@ import textureAccessors from './shaders/utility/textureAccessors.glsl?raw'
  * @returns Combined shader with texture accessors prepended
  */
 export function withTextureAccessors(shaderCode: string): string {
-  return `precision highp float;\n${textureAccessors}\n${shaderCode}`
+  return `precision highp float;\n${textureAccessors}\n${shaderCode}`;
 }
 
 // Default texture resolution for colourmaps
-const DEFAULT_COLOURMAP_RESOLUTION = 256
+const DEFAULT_COLOURMAP_RESOLUTION = 256;
 
 /**
  * Generate a visualisation shader for a specific accessor function with texture-based colourmap
@@ -48,7 +48,7 @@ export function createAccessorShader(
   inclusiveOverflow: boolean = false,
   resolution: number = DEFAULT_COLOURMAP_RESOLUTION
 ): string {
-  const { offset, scale } = getColourmapUVMapping(resolution)
+  const { offset, scale } = getColourmapUVMapping(resolution);
 
   return `precision highp float;
 ${textureAccessors}
@@ -117,9 +117,9 @@ void main() {
 
   fragColour = vec4(colour, 1.0);
 }
-`
+`;
 }
 
 // Re-export colourmap types and utilities for convenience
-export type { ColourmapDefinition as Colourmap } from './colourmaps/ColourmapTexture'
-export { createColourmapTexture } from './colourmaps/ColourmapTexture'
+export type { ColourmapDefinition as Colourmap } from './colourmaps/ColourmapTexture';
+export { createColourmapTexture } from './colourmaps/ColourmapTexture';

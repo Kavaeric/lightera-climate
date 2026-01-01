@@ -1,5 +1,5 @@
-import * as THREE from 'three'
-import { planckLookupData, PLANCK_LOOKUP_CONFIG } from '../gasTextures/planckLookup'
+import * as THREE from 'three';
+import { planckLookupData, PLANCK_LOOKUP_CONFIG } from '../gasTextures/planckLookup';
 
 /**
  * Create Planck lookup texture from pre-computed data
@@ -19,34 +19,38 @@ import { planckLookupData, PLANCK_LOOKUP_CONFIG } from '../gasTextures/planckLoo
  * @returns DataTexture containing pre-computed Planck values
  */
 export function createPlanckLookupTexture(): THREE.DataTexture {
-	const texture = new THREE.DataTexture(
-		planckLookupData,
-		PLANCK_LOOKUP_CONFIG.numWavelengths,
-		PLANCK_LOOKUP_CONFIG.numTemps,
-		THREE.RedFormat,
-		THREE.FloatType
-	)
+  const texture = new THREE.DataTexture(
+    planckLookupData,
+    PLANCK_LOOKUP_CONFIG.numWavelengths,
+    PLANCK_LOOKUP_CONFIG.numTemps,
+    THREE.RedFormat,
+    THREE.FloatType
+  );
 
-	texture.minFilter = THREE.LinearFilter  // Linear interpolation for smooth temperature transitions
-	texture.magFilter = THREE.LinearFilter
-	texture.wrapS = THREE.ClampToEdgeWrapping
-	texture.wrapT = THREE.ClampToEdgeWrapping
-	texture.needsUpdate = true
+  texture.minFilter = THREE.LinearFilter; // Linear interpolation for smooth temperature transitions
+  texture.magFilter = THREE.LinearFilter;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.needsUpdate = true;
 
-	console.log(`[Planck Lookup] Loaded pre-computed texture: ${PLANCK_LOOKUP_CONFIG.numWavelengths}×${PLANCK_LOOKUP_CONFIG.numTemps}`)
-	console.log(`[Planck Lookup] Temperature range: ${PLANCK_LOOKUP_CONFIG.tempMin}-${PLANCK_LOOKUP_CONFIG.tempMax}K`)
+  console.log(
+    `[Planck Lookup] Loaded pre-computed texture: ${PLANCK_LOOKUP_CONFIG.numWavelengths}×${PLANCK_LOOKUP_CONFIG.numTemps}`
+  );
+  console.log(
+    `[Planck Lookup] Temperature range: ${PLANCK_LOOKUP_CONFIG.tempMin}-${PLANCK_LOOKUP_CONFIG.tempMax}K`
+  );
 
-	return texture
+  return texture;
 }
 
 /**
  * Get temperature range for shader uniform
  */
 export function getPlanckLookupConfig() {
-	return {
-		tempMin: PLANCK_LOOKUP_CONFIG.tempMin,
-		tempMax: PLANCK_LOOKUP_CONFIG.tempMax,
-		tempStep: PLANCK_LOOKUP_CONFIG.tempStep,
-		numTemps: PLANCK_LOOKUP_CONFIG.numTemps
-	}
+  return {
+    tempMin: PLANCK_LOOKUP_CONFIG.tempMin,
+    tempMax: PLANCK_LOOKUP_CONFIG.tempMax,
+    tempStep: PLANCK_LOOKUP_CONFIG.tempStep,
+    numTemps: PLANCK_LOOKUP_CONFIG.numTemps,
+  };
 }

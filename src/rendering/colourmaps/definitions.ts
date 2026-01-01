@@ -3,8 +3,8 @@
  * Each colourmap defines colour ramps and underflow/overflow colours
  */
 
-import * as THREE from 'three'
-import type { ColourmapDefinition } from './ColourmapTexture'
+import * as THREE from 'three';
+import type { ColourmapDefinition } from './ColourmapTexture';
 
 /**
  * Greyscale colourmap - simple black to white
@@ -12,30 +12,30 @@ import type { ColourmapDefinition } from './ColourmapTexture'
 export const COLOURMAP_GREYSCALE: ColourmapDefinition = {
   name: 'greyscale',
   colours: [
-    new THREE.Vector3(0.0, 0.0, 0.0),   // Black
-    new THREE.Vector3(1.0, 1.0, 1.0),   // White
+    new THREE.Vector3(0.0, 0.0, 0.0), // Black
+    new THREE.Vector3(1.0, 1.0, 1.0), // White
   ],
   underflowColour: new THREE.Vector3(0.0, 0.0, 0.2), // Navy blue for underflow
   overflowColour: new THREE.Vector3(1.0, 0.0, 1.0), // Magenta for overflow
-}
+};
 
 /** "Yel15" via https://sciviscolor.org/ */
 export const COLOURMAP_YELLOW_YEL15: ColourmapDefinition = {
   name: 'yellow_yel15',
   colours: [
     new THREE.Vector3(0.301961, 0.047059, 0.090196),
-    new THREE.Vector3(0.400000, 0.039216, 0.058824),
+    new THREE.Vector3(0.4, 0.039216, 0.058824),
     new THREE.Vector3(0.501961, 0.054902, 0.031373),
-    new THREE.Vector3(0.600000, 0.121569, 0.023529),
+    new THREE.Vector3(0.6, 0.121569, 0.023529),
     new THREE.Vector3(0.678431, 0.180392, 0.011765),
-    new THREE.Vector3(0.760784, 0.239216, 0.000000),
-    new THREE.Vector3(0.800000, 0.305882, 0.000000),
+    new THREE.Vector3(0.760784, 0.239216, 0.0),
+    new THREE.Vector3(0.8, 0.305882, 0.0),
     new THREE.Vector3(0.890196, 0.411765, 0.019608),
     new THREE.Vector3(0.909804, 0.486275, 0.035294),
     new THREE.Vector3(0.921569, 0.545098, 0.054902),
     new THREE.Vector3(0.929412, 0.607843, 0.094118),
-    new THREE.Vector3(0.941176, 0.678431, 0.149020),
-    new THREE.Vector3(0.949020, 0.741176, 0.219608),
+    new THREE.Vector3(0.941176, 0.678431, 0.14902),
+    new THREE.Vector3(0.94902, 0.741176, 0.219608),
     new THREE.Vector3(0.960784, 0.803922, 0.286275),
     new THREE.Vector3(0.968627, 0.862745, 0.388235),
     new THREE.Vector3(0.968627, 0.905882, 0.486275),
@@ -43,12 +43,12 @@ export const COLOURMAP_YELLOW_YEL15: ColourmapDefinition = {
     new THREE.Vector3(0.980392, 0.968627, 0.654902),
     new THREE.Vector3(0.988235, 0.988235, 0.741176),
     new THREE.Vector3(0.984314, 0.988235, 0.843137),
-    new THREE.Vector3(1.000000, 1.000000, 0.988235),
-    new THREE.Vector3(1.000000, 1.000000, 0.988235),
+    new THREE.Vector3(1.0, 1.0, 0.988235),
+    new THREE.Vector3(1.0, 1.0, 0.988235),
   ],
   underflowColour: new THREE.Vector3(0.0, 0.0, 0.2), // Navy blue
   overflowColour: new THREE.Vector3(1.0, 0.0, 1.0), // Magenta
-}
+};
 
 /**
  * "BlueB1" via https://sciviscolor.org/
@@ -58,19 +58,19 @@ export const COLOURMAP_BLUE_B1: ColourmapDefinition = {
   colours: [
     new THREE.Vector3(0.882353, 0.980392, 0.964706), // x=0.0
     new THREE.Vector3(0.690196, 0.921569, 0.913725), // x=0.1
-    new THREE.Vector3(0.552941, 0.823529, 0.850980), // x=0.2
-    new THREE.Vector3(0.478431, 0.737255, 0.800000), // x=0.3
+    new THREE.Vector3(0.552941, 0.823529, 0.85098), // x=0.2
+    new THREE.Vector3(0.478431, 0.737255, 0.8), // x=0.3
     new THREE.Vector3(0.384314, 0.596078, 0.701961), // x=0.4
     new THREE.Vector3(0.321569, 0.490196, 0.639216), // x=0.5
     new THREE.Vector3(0.262745, 0.392157, 0.580392), // x=0.6
     new THREE.Vector3(0.207843, 0.301961, 0.521569), // x=0.7
-    new THREE.Vector3(0.156863, 0.207843, 0.450980), // x=0.8
-    new THREE.Vector3(0.121569, 0.145098, 0.400000), // x=0.9
-    new THREE.Vector3(0.098039, 0.086275, 0.349020), // x=1.0
+    new THREE.Vector3(0.156863, 0.207843, 0.45098), // x=0.8
+    new THREE.Vector3(0.121569, 0.145098, 0.4), // x=0.9
+    new THREE.Vector3(0.098039, 0.086275, 0.34902), // x=1.0
   ],
   underflowColour: new THREE.Vector3(0.0, 0.0, 0.0),
   overflowColour: new THREE.Vector3(0.0, 1.0, 1.0),
-}
+};
 
 /**
  * "c16" via https://sciviscolor.org/
@@ -78,30 +78,30 @@ export const COLOURMAP_BLUE_B1: ColourmapDefinition = {
 export const COLOURMAP_TEAL_C16: ColourmapDefinition = {
   name: 'teal_c16',
   colours: [
-    new THREE.Vector3(0.949020, 1.000000, 0.980392),
-    new THREE.Vector3(0.901961, 1.000000, 0.949020),
+    new THREE.Vector3(0.94902, 1.0, 0.980392),
+    new THREE.Vector3(0.901961, 1.0, 0.94902),
     new THREE.Vector3(0.831373, 0.980392, 0.917647),
     new THREE.Vector3(0.768627, 0.960784, 0.894118),
     new THREE.Vector3(0.698039, 0.929412, 0.862745),
     new THREE.Vector3(0.639216, 0.901961, 0.843137),
     new THREE.Vector3(0.588235, 0.870588, 0.827451),
     new THREE.Vector3(0.541176, 0.831373, 0.803922),
-    new THREE.Vector3(0.501961, 0.800000, 0.796078),
+    new THREE.Vector3(0.501961, 0.8, 0.796078),
     new THREE.Vector3(0.454902, 0.745098, 0.760784),
     new THREE.Vector3(0.419608, 0.694118, 0.729412),
     new THREE.Vector3(0.380392, 0.631373, 0.690196),
     new THREE.Vector3(0.345098, 0.580392, 0.658824),
-    new THREE.Vector3(0.317647, 0.525490, 0.619608),
+    new THREE.Vector3(0.317647, 0.52549, 0.619608),
     new THREE.Vector3(0.305882, 0.470588, 0.580392),
     new THREE.Vector3(0.290196, 0.415686, 0.529412),
     new THREE.Vector3(0.278431, 0.352941, 0.470588),
-    new THREE.Vector3(0.258824, 0.298039, 0.400000),
+    new THREE.Vector3(0.258824, 0.298039, 0.4),
     new THREE.Vector3(0.235294, 0.247059, 0.329412),
     new THREE.Vector3(0.180392, 0.176471, 0.231373),
   ],
   underflowColour: new THREE.Vector3(0.0, 0.0, 0.0),
   overflowColour: new THREE.Vector3(1.0, 0.0, 1.0),
-}
+};
 
 /**
  * Specific colourmap for water state
@@ -119,7 +119,7 @@ export const COLOURMAP_WATER_STATE: ColourmapDefinition = {
   ],
   underflowColour: new THREE.Vector3(0.0, 0.0, 0.0),
   overflowColour: new THREE.Vector3(1.0, 0.0, 1.0),
-}
+};
 
 /**
  * "sd" via https://sciviscolor.org/
@@ -170,32 +170,32 @@ export const COLOURMAP_BLUE_SD: ColourmapDefinition = {
     new THREE.Vector3(0.8690512475907817, 0.8896086313756596, 0.9987933876893348),
     new THREE.Vector3(0.8795852740383322, 0.8990871064934212, 0.9992111681398302),
     new THREE.Vector3(0.8900769443002639, 0.9085875152181073, 0.9996134041708363),
-    new THREE.Vector3(0.9005281293207135, 0.9181095973202068, 0.9999999849571296)
+    new THREE.Vector3(0.9005281293207135, 0.9181095973202068, 0.9999999849571296),
   ],
   underflowColour: new THREE.Vector3(0.0, 0.0, 0.0),
   overflowColour: new THREE.Vector3(1.0, 1.0, 1.0),
-}
+};
 
 /** "TR4" via https://sciviscolor.org/ */
 export const COLOURMAP_TR4: ColourmapDefinition = {
   name: 'tr4',
   colours: [
-    new THREE.Vector3(0.200000, 0.168627, 0.160784),
-    new THREE.Vector3(0.400000, 0.364706, 0.341176),
-    new THREE.Vector3(0.650980, 0.623529, 0.584314),
-    new THREE.Vector3(0.800000, 0.780392, 0.745098),
+    new THREE.Vector3(0.2, 0.168627, 0.160784),
+    new THREE.Vector3(0.4, 0.364706, 0.341176),
+    new THREE.Vector3(0.65098, 0.623529, 0.584314),
+    new THREE.Vector3(0.8, 0.780392, 0.745098),
     new THREE.Vector3(0.901961, 0.886275, 0.854902),
-    new THREE.Vector3(1.000000, 0.996078, 0.968627),
-    new THREE.Vector3(1.000000, 0.996078, 0.968627),
+    new THREE.Vector3(1.0, 0.996078, 0.968627),
+    new THREE.Vector3(1.0, 0.996078, 0.968627),
     new THREE.Vector3(0.941176, 0.878431, 0.639216),
-    new THREE.Vector3(0.878431, 0.733333, 0.474510),
-    new THREE.Vector3(0.800000, 0.552941, 0.337255),
+    new THREE.Vector3(0.878431, 0.733333, 0.47451),
+    new THREE.Vector3(0.8, 0.552941, 0.337255),
     new THREE.Vector3(0.721569, 0.376471, 0.231373),
     new THREE.Vector3(0.560784, 0.133333, 0.113725),
   ],
   underflowColour: new THREE.Vector3(0.0, 0.0, 0.0),
   overflowColour: new THREE.Vector3(1.0, 0.0, 1.0),
-}
+};
 
 /** "Extended Kindlmann" via www.kennethmoreland.com */
 export const COLOURMAP_EXTENDED_KINDLMANN: ColourmapDefinition = {
@@ -220,7 +220,7 @@ export const COLOURMAP_EXTENDED_KINDLMANN: ColourmapDefinition = {
   ],
   underflowColour: new THREE.Vector3(0.0, 0.0, 0.2),
   overflowColour: new THREE.Vector3(1.0, 0.0, 1.0),
-}
+};
 
 /**
  * "Plasma" colourmap from matplotlib
@@ -263,7 +263,7 @@ export const COLOURMAP_PLASMA: ColourmapDefinition = {
   ],
   underflowColour: new THREE.Vector3(0.0, 0.0, 0.0),
   overflowColour: new THREE.Vector3(1.0, 0.0, 1.0),
-}
+};
 
 /**
  * "Fast" by Moreland
@@ -306,7 +306,7 @@ export const COLOURMAP_FAST: ColourmapDefinition = {
   ],
   underflowColour: new THREE.Vector3(0.0, 0.0, 0.2), // Navy blue
   overflowColour: new THREE.Vector3(1.0, 0.0, 1.0), // Magenta
-}
+};
 
 /**
  * Elevation terrain colourmap: grey rocky body appearance
@@ -315,20 +315,20 @@ export const COLOURMAP_FAST: ColourmapDefinition = {
 export const COLOURMAP_TERRAIN_ELEVATION: ColourmapDefinition = {
   name: 'elevation_terrain',
   colours: [
-    new THREE.Vector3(0.200000, 0.185098, 0.167255), // Lowest elevation
+    new THREE.Vector3(0.2, 0.185098, 0.167255), // Lowest elevation
     new THREE.Vector3(0.258824, 0.243922, 0.238235),
     new THREE.Vector3(0.321569, 0.306667, 0.293137),
     new THREE.Vector3(0.380392, 0.369412, 0.358039),
     new THREE.Vector3(0.439216, 0.426078, 0.412941),
-    new THREE.Vector3(0.509804, 0.484510, 0.479608),
-    new THREE.Vector3(0.650980, 0.631373, 0.632941),
-    new THREE.Vector3(0.749020, 0.737255, 0.720980),
+    new THREE.Vector3(0.509804, 0.48451, 0.479608),
+    new THREE.Vector3(0.65098, 0.631373, 0.632941),
+    new THREE.Vector3(0.74902, 0.737255, 0.72098),
     new THREE.Vector3(0.858824, 0.858824, 0.842549),
-    new THREE.Vector3(0.988235, 0.988235, 0.969020), // Highest elevation
+    new THREE.Vector3(0.988235, 0.988235, 0.96902), // Highest elevation
   ],
   underflowColour: new THREE.Vector3(0.0, 0.0, 0.2), // Navy blue
   overflowColour: new THREE.Vector3(1.0, 0.0, 1.0), // Magenta
-}
+};
 
 /**
  * Water depth colourmap: ocean blues
@@ -338,30 +338,30 @@ export const COLOURMAP_TERRAIN_WATER: ColourmapDefinition = {
   name: 'water_depth_terrain',
   colours: [
     new THREE.Vector3(0.329412, 0.639216, 0.756863), // Shallowest water, 0m
-    new THREE.Vector3(0.120824, 0.355490, 0.460980), // 250m
+    new THREE.Vector3(0.120824, 0.35549, 0.46098), // 250m
     new THREE.Vector3(0.020157, 0.169608, 0.271176), // 500m
     new THREE.Vector3(0.019216, 0.152549, 0.262353),
     new THREE.Vector3(0.017615, 0.146676, 0.258724),
     new THREE.Vector3(0.016014, 0.140803, 0.255096),
-    new THREE.Vector3(0.014413, 0.134930, 0.251468),
-    new THREE.Vector3(0.012812, 0.129057, 0.247840),
+    new THREE.Vector3(0.014413, 0.13493, 0.251468),
+    new THREE.Vector3(0.012812, 0.129057, 0.24784),
     new THREE.Vector3(0.011211, 0.123184, 0.224212),
-    new THREE.Vector3(0.009610, 0.117311, 0.210583),
+    new THREE.Vector3(0.00961, 0.117311, 0.210583),
     new THREE.Vector3(0.008009, 0.111438, 0.206955),
     new THREE.Vector3(0.006409, 0.105565, 0.193327),
     new THREE.Vector3(0.004808, 0.099692, 0.189699),
     new THREE.Vector3(0.003207, 0.093819, 0.176071),
     new THREE.Vector3(0.001606, 0.087945, 0.162443),
     new THREE.Vector3(0.000005, 0.082072, 0.158815),
-    new THREE.Vector3(0.000000, 0.076199, 0.145186),
-    new THREE.Vector3(0.000000, 0.070326, 0.131558),
-    new THREE.Vector3(0.000000, 0.064453, 0.107930),
-    new THREE.Vector3(0.000000, 0.058580, 0.084302),
-    new THREE.Vector3(0.000000, 0.052549, 0.062353), // Deepest water
+    new THREE.Vector3(0.0, 0.076199, 0.145186),
+    new THREE.Vector3(0.0, 0.070326, 0.131558),
+    new THREE.Vector3(0.0, 0.064453, 0.10793),
+    new THREE.Vector3(0.0, 0.05858, 0.084302),
+    new THREE.Vector3(0.0, 0.052549, 0.062353), // Deepest water
   ],
   underflowColour: new THREE.Vector3(0.0, 0.0, 0.2), // Navy blue
-  overflowColour: new THREE.Vector3(0.000000, 0.052549, 0.062353), // Deepest water colour
-}
+  overflowColour: new THREE.Vector3(0.0, 0.052549, 0.062353), // Deepest water colour
+};
 
 /**
  * Ice thickness colourmap: ice sheet whites
@@ -370,10 +370,10 @@ export const COLOURMAP_TERRAIN_WATER: ColourmapDefinition = {
 export const COLOURMAP_TERRAIN_ICE: ColourmapDefinition = {
   name: 'ice_thickness_terrain',
   colours: [
-    new THREE.Vector3(0.80, 0.82, 0.83), // Thinnest ice
-    new THREE.Vector3(0.90, 0.91, 0.92),
-    new THREE.Vector3(0.90, 0.90, 0.91),
-    new THREE.Vector3(0.90, 0.90, 0.90),
+    new THREE.Vector3(0.8, 0.82, 0.83), // Thinnest ice
+    new THREE.Vector3(0.9, 0.91, 0.92),
+    new THREE.Vector3(0.9, 0.9, 0.91),
+    new THREE.Vector3(0.9, 0.9, 0.9),
     new THREE.Vector3(0.91, 0.91, 0.91),
     new THREE.Vector3(0.91, 0.92, 0.92),
     new THREE.Vector3(0.92, 0.92, 0.92),
@@ -383,4 +383,4 @@ export const COLOURMAP_TERRAIN_ICE: ColourmapDefinition = {
   ],
   underflowColour: new THREE.Vector3(0.0, 0.2, 0.2), // Cyan
   overflowColour: new THREE.Vector3(0.93, 0.94, 0.94), // Thickest ice colour
-}
+};

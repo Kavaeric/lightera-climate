@@ -1,69 +1,69 @@
-import * as THREE from 'three'
-import { kDistributionData as co2K } from '../gasTextures/co2'
-import { kDistributionData as ch4K } from '../gasTextures/ch4'
-import { kDistributionData as n2oK } from '../gasTextures/n2o'
-import { kDistributionData as o3K } from '../gasTextures/o3'
-import { kDistributionData as coK } from '../gasTextures/co'
-import { kDistributionData as so2K } from '../gasTextures/so2'
-import { kDistributionData as hclK } from '../gasTextures/hcl'
-import { kDistributionData as hfK } from '../gasTextures/hfl'
-import { wavelengthBinWidthData } from '../gasTextures/co2'
-import { planckLookupData, PLANCK_LOOKUP_CONFIG } from '../gasTextures/planckLookup'
+import * as THREE from 'three';
+import { kDistributionData as co2K } from '../gasTextures/co2';
+import { kDistributionData as ch4K } from '../gasTextures/ch4';
+import { kDistributionData as n2oK } from '../gasTextures/n2o';
+import { kDistributionData as o3K } from '../gasTextures/o3';
+import { kDistributionData as coK } from '../gasTextures/co';
+import { kDistributionData as so2K } from '../gasTextures/so2';
+import { kDistributionData as hclK } from '../gasTextures/hcl';
+import { kDistributionData as hfK } from '../gasTextures/hfl';
+import { wavelengthBinWidthData } from '../gasTextures/co2';
+import { planckLookupData, PLANCK_LOOKUP_CONFIG } from '../gasTextures/planckLookup';
 
 /**
  * Configuration for the dry transmission lookup texture
  */
 export const DRY_TRANSMISSION_CONFIG = {
-	tempMin: PLANCK_LOOKUP_CONFIG.tempMin,
-	tempMax: PLANCK_LOOKUP_CONFIG.tempMax,
-	tempStep: PLANCK_LOOKUP_CONFIG.tempStep,
-	numTemps: PLANCK_LOOKUP_CONFIG.numTemps,
-} as const
+  tempMin: PLANCK_LOOKUP_CONFIG.tempMin,
+  tempMax: PLANCK_LOOKUP_CONFIG.tempMax,
+  tempStep: PLANCK_LOOKUP_CONFIG.tempStep,
+  numTemps: PLANCK_LOOKUP_CONFIG.numTemps,
+} as const;
 
 /**
  * Number of wavelength bins in the k-distribution data
  */
-const NUM_WAVELENGTH_BINS = 128
+const NUM_WAVELENGTH_BINS = 128;
 
 /**
  * Number of k-values per wavelength bin (for correlated-k method)
  */
-const NUM_K_VALUES = 4
+const NUM_K_VALUES = 4;
 
 /**
  * Pre-computed weight for k-distribution (equal weights)
  */
-const K_WEIGHT = 1.0 / NUM_K_VALUES
+const K_WEIGHT = 1.0 / NUM_K_VALUES;
 
 /**
  * Gas indices for dry atmosphere gases (excludes H2O)
  * These are radiatively active gases with permanent dipole moments
  */
 const DRY_GAS_DATA = [
-	{ data: co2K, name: 'CO2' },
-	{ data: ch4K, name: 'CH4' },
-	{ data: n2oK, name: 'N2O' },
-	{ data: o3K, name: 'O3' },
-	{ data: coK, name: 'CO' },
-	{ data: so2K, name: 'SO2' },
-	{ data: hclK, name: 'HCl' },
-	{ data: hfK, name: 'HF' },
-	// Note: O2 and N2 are excluded as they have negligible IR absorption
-]
+  { data: co2K, name: 'CO2' },
+  { data: ch4K, name: 'CH4' },
+  { data: n2oK, name: 'N2O' },
+  { data: o3K, name: 'O3' },
+  { data: coK, name: 'CO' },
+  { data: so2K, name: 'SO2' },
+  { data: hclK, name: 'HCl' },
+  { data: hfK, name: 'HF' },
+  // Note: O2 and N2 are excluded as they have negligible IR absorption
+];
 
 /**
  * Gas concentration configuration for dry transmission calculation
  * These are the default planetary atmospheric concentrations
  */
 export interface DryGasConcentrations {
-	co2: number  // molar fraction
-	ch4: number  // molar fraction
-	n2o: number  // molar fraction
-	o3: number   // molar fraction
-	co: number   // molar fraction
-	so2: number  // molar fraction
-	hcl: number  // molar fraction
-	hf: number   // molar fraction
+  co2: number; // molar fraction
+  ch4: number; // molar fraction
+  n2o: number; // molar fraction
+  o3: number; // molar fraction
+  co: number; // molar fraction
+  so2: number; // molar fraction
+  hcl: number; // molar fraction
+  hf: number; // molar fraction
 }
 
 /**
@@ -76,12 +76,12 @@ export interface DryGasConcentrations {
  * @returns Transmission coefficient [0, 1]
  */
 function calculateBinTransmission(kValues: number[], columnDensity: number): number {
-	let transmission = 0.0
-	for (let i = 0; i < NUM_K_VALUES; i++) {
-		const opticalDepth = kValues[i] * columnDensity
-		transmission += K_WEIGHT * Math.exp(-opticalDepth)
-	}
-	return transmission
+  let transmission = 0.0;
+  for (let i = 0; i < NUM_K_VALUES; i++) {
+    const opticalDepth = kValues[i] * columnDensity;
+    transmission += K_WEIGHT * Math.exp(-opticalDepth);
+  }
+  return transmission;
 }
 
 /**
@@ -92,13 +92,8 @@ function calculateBinTransmission(kValues: number[], columnDensity: number): num
  * @returns Array of 4 k-values
  */
 function getKValues(gasData: Float32Array, binIndex: number): number[] {
-	const offset = binIndex * NUM_K_VALUES
-	return [
-		gasData[offset + 0],
-		gasData[offset + 1],
-		gasData[offset + 2],
-		gasData[offset + 3],
-	]
+  const offset = binIndex * NUM_K_VALUES;
+  return [gasData[offset + 0], gasData[offset + 1], gasData[offset + 2], gasData[offset + 3]];
 }
 
 /**
@@ -109,8 +104,8 @@ function getKValues(gasData: Float32Array, binIndex: number): number[] {
  * @returns Spectral exitance in W/(m²·μm)
  */
 function getPlanckValue(binIndex: number, tempIndex: number): number {
-	const index = tempIndex * NUM_WAVELENGTH_BINS + binIndex
-	return planckLookupData[index]
+  const index = tempIndex * NUM_WAVELENGTH_BINS + binIndex;
+  return planckLookupData[index];
 }
 
 /**
@@ -125,38 +120,35 @@ function getPlanckValue(binIndex: number, tempIndex: number): number {
  * @param columnDensities Array of column densities for each dry gas
  * @returns Effective transmission coefficient [0, 1]
  */
-function calculateDryTransmission(
-	tempIndex: number,
-	columnDensities: number[]
-): number {
-	let totalFlux = 0.0
-	let transmittedFlux = 0.0
+function calculateDryTransmission(tempIndex: number, columnDensities: number[]): number {
+  let totalFlux = 0.0;
+  let transmittedFlux = 0.0;
 
-	// Integrate over wavelength bins (exclude last bin which has zero width)
-	for (let binIndex = 0; binIndex < NUM_WAVELENGTH_BINS - 1; binIndex++) {
-		// Get bin width (wavelength not needed for transmission calculation)
-		const binWidth = wavelengthBinWidthData[binIndex * 2 + 1]
+  // Integrate over wavelength bins (exclude last bin which has zero width)
+  for (let binIndex = 0; binIndex < NUM_WAVELENGTH_BINS - 1; binIndex++) {
+    // Get bin width (wavelength not needed for transmission calculation)
+    const binWidth = wavelengthBinWidthData[binIndex * 2 + 1];
 
-		// Get Planck spectral exitance for this temperature and wavelength
-		const spectralExitance = getPlanckValue(binIndex, tempIndex)
-		const binFlux = spectralExitance * binWidth
+    // Get Planck spectral exitance for this temperature and wavelength
+    const spectralExitance = getPlanckValue(binIndex, tempIndex);
+    const binFlux = spectralExitance * binWidth;
 
-		// Calculate combined transmission for all dry gases (multiplicative - Beer's law)
-		let transmission = 1.0
-		for (let gasIdx = 0; gasIdx < DRY_GAS_DATA.length; gasIdx++) {
-			const gasK = DRY_GAS_DATA[gasIdx].data
-			const kValues = getKValues(gasK, binIndex)
-			const gasTransmission = calculateBinTransmission(kValues, columnDensities[gasIdx])
-			transmission *= gasTransmission
-		}
+    // Calculate combined transmission for all dry gases (multiplicative - Beer's law)
+    let transmission = 1.0;
+    for (let gasIdx = 0; gasIdx < DRY_GAS_DATA.length; gasIdx++) {
+      const gasK = DRY_GAS_DATA[gasIdx].data;
+      const kValues = getKValues(gasK, binIndex);
+      const gasTransmission = calculateBinTransmission(kValues, columnDensities[gasIdx]);
+      transmission *= gasTransmission;
+    }
 
-		// Accumulate weighted fluxes
-		totalFlux += binFlux
-		transmittedFlux += binFlux * transmission
-	}
+    // Accumulate weighted fluxes
+    totalFlux += binFlux;
+    transmittedFlux += binFlux * transmission;
+  }
 
-	// Return fraction transmitted
-	return totalFlux > 0 ? transmittedFlux / totalFlux : 1.0
+  // Return fraction transmitted
+  return totalFlux > 0 ? transmittedFlux / totalFlux : 1.0;
 }
 
 /**
@@ -170,21 +162,21 @@ function calculateDryTransmission(
  * @returns Column density in molecules/cm²
  */
 function calculateColumnDensity(
-	pressure_Pa: number,
-	gravity: number,
-	meanMolecularMass: number
+  pressure_Pa: number,
+  gravity: number,
+  meanMolecularMass: number
 ): number {
-	// N = (P / g) / m_mean in molecules/m²
-	const totalColumn_m2 = pressure_Pa / gravity / meanMolecularMass
-	// Convert to molecules/cm² (1 m² = 10⁴ cm²)
-	return totalColumn_m2 / 1e4
+  // N = (P / g) / m_mean in molecules/m²
+  const totalColumn_m2 = pressure_Pa / gravity / meanMolecularMass;
+  // Convert to molecules/cm² (1 m² = 10⁴ cm²)
+  return totalColumn_m2 / 1e4;
 }
 
 export interface DryTransmissionTextureConfig {
-	surfacePressure: number      // Pa
-	surfaceGravity: number       // m/s²
-	meanMolecularMass: number    // kg/molecule
-	gasConcentrations: DryGasConcentrations
+  surfacePressure: number; // Pa
+  surfaceGravity: number; // m/s²
+  meanMolecularMass: number; // kg/molecule
+  gasConcentrations: DryGasConcentrations;
 }
 
 /**
@@ -208,86 +200,88 @@ export interface DryTransmissionTextureConfig {
  * @returns DataTexture containing pre-computed dry transmission values
  */
 export function createDryTransmissionTexture(
-	config: DryTransmissionTextureConfig
+  config: DryTransmissionTextureConfig
 ): THREE.DataTexture {
-	const { surfacePressure, surfaceGravity, meanMolecularMass, gasConcentrations } = config
-	const { numTemps } = DRY_TRANSMISSION_CONFIG
+  const { surfacePressure, surfaceGravity, meanMolecularMass, gasConcentrations } = config;
+  const { numTemps } = DRY_TRANSMISSION_CONFIG;
 
-	console.log('[Dry Transmission] Computing lookup texture...')
-	console.log(`  Temperature range: ${DRY_TRANSMISSION_CONFIG.tempMin}-${DRY_TRANSMISSION_CONFIG.tempMax}K`)
-	console.log(`  Surface pressure: ${surfacePressure} Pa`)
-	console.log(`  Surface gravity: ${surfaceGravity} m/s²`)
+  console.log('[Dry Transmission] Computing lookup texture...');
+  console.log(
+    `  Temperature range: ${DRY_TRANSMISSION_CONFIG.tempMin}-${DRY_TRANSMISSION_CONFIG.tempMax}K`
+  );
+  console.log(`  Surface pressure: ${surfacePressure} Pa`);
+  console.log(`  Surface gravity: ${surfaceGravity} m/s²`);
 
-	// Calculate total column density
-	const totalColumn = calculateColumnDensity(surfacePressure, surfaceGravity, meanMolecularMass)
+  // Calculate total column density
+  const totalColumn = calculateColumnDensity(surfacePressure, surfaceGravity, meanMolecularMass);
 
-	// Calculate column densities for each dry gas
-	const columnDensities = [
-		totalColumn * gasConcentrations.co2,
-		totalColumn * gasConcentrations.ch4,
-		totalColumn * gasConcentrations.n2o,
-		totalColumn * gasConcentrations.o3,
-		totalColumn * gasConcentrations.co,
-		totalColumn * gasConcentrations.so2,
-		totalColumn * gasConcentrations.hcl,
-		totalColumn * gasConcentrations.hf,
-	]
+  // Calculate column densities for each dry gas
+  const columnDensities = [
+    totalColumn * gasConcentrations.co2,
+    totalColumn * gasConcentrations.ch4,
+    totalColumn * gasConcentrations.n2o,
+    totalColumn * gasConcentrations.o3,
+    totalColumn * gasConcentrations.co,
+    totalColumn * gasConcentrations.so2,
+    totalColumn * gasConcentrations.hcl,
+    totalColumn * gasConcentrations.hf,
+  ];
 
-	// Allocate texture data
-	const data = new Float32Array(numTemps)
+  // Allocate texture data
+  const data = new Float32Array(numTemps);
 
-	// Compute transmission for each temperature
-	for (let tempIdx = 0; tempIdx < numTemps; tempIdx++) {
-		data[tempIdx] = calculateDryTransmission(tempIdx, columnDensities)
-	}
+  // Compute transmission for each temperature
+  for (let tempIdx = 0; tempIdx < numTemps; tempIdx++) {
+    data[tempIdx] = calculateDryTransmission(tempIdx, columnDensities);
+  }
 
-	// Log some sample values for debugging
-	const sampleTemps = [250, 288, 300, 350]
-	console.log('  Sample transmission values:')
-	sampleTemps.forEach(temp => {
-		const idx = temp - DRY_TRANSMISSION_CONFIG.tempMin
-		if (idx >= 0 && idx < numTemps) {
-			console.log(`    ${temp}K: ${data[idx].toFixed(4)}`)
-		}
-	})
+  // Log some sample values for debugging
+  const sampleTemps = [250, 288, 300, 350];
+  console.log('  Sample transmission values:');
+  sampleTemps.forEach((temp) => {
+    const idx = temp - DRY_TRANSMISSION_CONFIG.tempMin;
+    if (idx >= 0 && idx < numTemps) {
+      console.log(`    ${temp}K: ${data[idx].toFixed(4)}`);
+    }
+  });
 
-	// Validate data size matches expected texture size
-	// For RedFormat: expected size = width * height * 1 channel
-	const expectedSize = numTemps * 1 * 1
-	if (data.length !== expectedSize) {
-		throw new Error(
-			`[Dry Transmission] Data size mismatch: expected ${expectedSize} elements, got ${data.length}`
-		)
-	}
+  // Validate data size matches expected texture size
+  // For RedFormat: expected size = width * height * 1 channel
+  const expectedSize = numTemps * 1 * 1;
+  if (data.length !== expectedSize) {
+    throw new Error(
+      `[Dry Transmission] Data size mismatch: expected ${expectedSize} elements, got ${data.length}`
+    );
+  }
 
-	// Create texture
-	const texture = new THREE.DataTexture(
-		data,
-		numTemps,  // width = temperatures
-		1,         // height = 1 (1D lookup)
-		THREE.RedFormat,
-		THREE.FloatType
-	)
+  // Create texture
+  const texture = new THREE.DataTexture(
+    data,
+    numTemps, // width = temperatures
+    1, // height = 1 (1D lookup)
+    THREE.RedFormat,
+    THREE.FloatType
+  );
 
-	// Use linear filtering for smooth temperature interpolation
-	texture.minFilter = THREE.LinearFilter
-	texture.magFilter = THREE.LinearFilter
-	texture.wrapS = THREE.ClampToEdgeWrapping
-	texture.wrapT = THREE.ClampToEdgeWrapping
-	texture.needsUpdate = true
+  // Use linear filtering for smooth temperature interpolation
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.needsUpdate = true;
 
-	console.log(`[Dry Transmission] Texture created: ${numTemps}×1 (${data.length} elements)`)
+  console.log(`[Dry Transmission] Texture created: ${numTemps}×1 (${data.length} elements)`);
 
-	return texture
+  return texture;
 }
 
 /**
  * Get configuration for shader uniforms
  */
 export function getDryTransmissionConfig() {
-	return {
-		tempMin: DRY_TRANSMISSION_CONFIG.tempMin,
-		tempMax: DRY_TRANSMISSION_CONFIG.tempMax,
-		numTemps: DRY_TRANSMISSION_CONFIG.numTemps,
-	}
+  return {
+    tempMin: DRY_TRANSMISSION_CONFIG.tempMin,
+    tempMax: DRY_TRANSMISSION_CONFIG.tempMax,
+    numTemps: DRY_TRANSMISSION_CONFIG.numTemps,
+  };
 }

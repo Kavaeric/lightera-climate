@@ -2,51 +2,51 @@
  * Display configuration - visualisation and UI settings
  */
 
-import type { VisualisationModeId } from '../types/visualisationModes'
+import type { VisualisationModeId } from '../types/visualisationModes';
 
 export interface DisplayConfig {
   // Visualisation mode - what to display on the planet
-  visualisationMode: VisualisationModeId
+  visualisationMode: VisualisationModeId;
 
   // Surface temperature display range for colour mapping
-  surfaceTemperatureRange: { min: number; max: number } // Kelvin
+  surfaceTemperatureRange: { min: number; max: number }; // Kelvin
 
   // Atmospheric temperature display range for colour mapping
-  atmosphericTemperatureRange: { min: number; max: number } // Kelvin
+  atmosphericTemperatureRange: { min: number; max: number }; // Kelvin
 
   // Elevation display range for greyscale mapping
-  elevationRange: { min: number; max: number } // metres
+  elevationRange: { min: number; max: number }; // metres
 
   // Water depth display range (from hydrology - evolves with evaporation/freezing)
-  waterDepthRange: { min: number; max: number } // metres
+  waterDepthRange: { min: number; max: number }; // metres
 
   // Salinity display range for greyscale mapping
-  salinityRange: { min: number; max: number } // PSU (Practical Salinity Units)
+  salinityRange: { min: number; max: number }; // PSU (Practical Salinity Units)
 
   // Ice thickness display range for greyscale mapping
-  iceThicknessRange: { min: number; max: number } // metres
+  iceThicknessRange: { min: number; max: number }; // metres
 
   // Albedo display range for greyscale mapping
-  albedoRange: { min: number; max: number } // 0-1 (fraction of light reflected)
+  albedoRange: { min: number; max: number }; // 0-1 (fraction of light reflected)
 
   // Solar flux display range for greyscale mapping
-  solarFluxRange: { min: number; max: number } // W/m² (incoming solar radiation at TOA)
+  solarFluxRange: { min: number; max: number }; // W/m² (incoming solar radiation at TOA)
 
   // Precipitable water display range for greyscale mapping
-  precipitableWaterRange: { min: number; max: number } // mm (total column water vapour)
+  precipitableWaterRange: { min: number; max: number }; // mm (total column water vapour)
 
   // Surface pressure display range for greyscale mapping
-  surfacePressureRange: { min: number; max: number } // Pa (surface atmospheric pressure)
+  surfacePressureRange: { min: number; max: number }; // Pa (surface atmospheric pressure)
 
   // Colour mapping - architecture allows future expansion to other colourmaps
-  colourmap: 'fast' // Currently only 'fast' supported; will expand to 'viridis' | 'blackbody' later
+  colourmap: 'fast'; // Currently only 'fast' supported; will expand to 'viridis' | 'blackbody' later
 
   // Underflow/overflow colours (RGB values 0-1)
-  underflowColour: [number, number, number] // Colour for surface temperatures below min (e.g., deep blue)
-  overflowColour: [number, number, number] // Colour for surface temperatures above max (e.g., magenta)
+  underflowColour: [number, number, number]; // Colour for surface temperatures below min (e.g., deep blue)
+  overflowColour: [number, number, number]; // Colour for surface temperatures above max (e.g., magenta)
 
   // Cell highlighting threshold
-  highlightThreshold: number // Distance threshold for detecting which cell is highlighted
+  highlightThreshold: number; // Distance threshold for detecting which cell is highlighted
 }
 
 /**
@@ -69,4 +69,4 @@ export const DISPLAY_CONFIG_DEFAULT: DisplayConfig = {
   underflowColour: [0.0, 0.0, 0.2], // Navy blue for cold
   overflowColour: [1.0, 0.0, 1.0], // Magenta for hot
   highlightThreshold: 0.0005, // Tighter threshold reduces z-fighting at cell boundaries
-}
+};

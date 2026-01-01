@@ -5,5 +5,5 @@
 
 export interface TerrainConfig {
   // Elevation data (one value per geodesic cell) - STATIC, never changes
-  elevation: number[] // metres - height above/below sea level (negative = underwater)
+  elevation: number[]; // metres - height above/below sea level (negative = underwater)
 }

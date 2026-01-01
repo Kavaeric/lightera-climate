@@ -1,15 +1,15 @@
-import * as THREE from 'three'
-import { indexTo2D } from '../grid/CellAccessors'
+import * as THREE from 'three';
+import { indexTo2D } from '../grid/CellAccessors';
 
 /**
  * Handles all GPU -> CPU readback operations
  * Centralises async texture reading for debugging and UI display
  */
 export class GPUReadback {
-  private textureWidth: number
+  private textureWidth: number;
 
   constructor(textureWidth: number) {
-    this.textureWidth = textureWidth
+    this.textureWidth = textureWidth;
   }
 
   /**
@@ -20,13 +20,13 @@ export class GPUReadback {
     renderer: THREE.WebGLRenderer,
     climateTarget: THREE.WebGLRenderTarget
   ): Promise<number> {
-    const buffer = new Float32Array(4)
-    const coords = indexTo2D(cellIndex, this.textureWidth)
+    const buffer = new Float32Array(4);
+    const coords = indexTo2D(cellIndex, this.textureWidth);
 
     // Read a single pixel
-    renderer.readRenderTargetPixels(climateTarget, coords.x, coords.y, 1, 1, buffer)
+    renderer.readRenderTargetPixels(climateTarget, coords.x, coords.y, 1, 1, buffer);
 
-    return buffer[0] // R channel = surfaceTemperature
+    return buffer[0]; // R channel = surfaceTemperature
   }
 
   /**
@@ -37,14 +37,14 @@ export class GPUReadback {
     renderer: THREE.WebGLRenderer,
     climateTarget: THREE.WebGLRenderTarget
   ): Promise<{ surfaceTemperature: number }> {
-    const coords = indexTo2D(cellIndex, this.textureWidth)
-    const buffer = new Float32Array(4)
+    const coords = indexTo2D(cellIndex, this.textureWidth);
+    const buffer = new Float32Array(4);
 
-    renderer.readRenderTargetPixels(climateTarget, coords.x, coords.y, 1, 1, buffer)
+    renderer.readRenderTargetPixels(climateTarget, coords.x, coords.y, 1, 1, buffer);
 
     return {
       surfaceTemperature: buffer[0],
-    }
+    };
   }
 
   /**
@@ -55,16 +55,16 @@ export class GPUReadback {
     renderer: THREE.WebGLRenderer,
     hydrologyTarget: THREE.WebGLRenderTarget
   ): Promise<{ waterDepth: number; iceThickness: number; salinity: number }> {
-    const coords = indexTo2D(cellIndex, this.textureWidth)
-    const buffer = new Float32Array(4)
+    const coords = indexTo2D(cellIndex, this.textureWidth);
+    const buffer = new Float32Array(4);
 
-    renderer.readRenderTargetPixels(hydrologyTarget, coords.x, coords.y, 1, 1, buffer)
+    renderer.readRenderTargetPixels(hydrologyTarget, coords.x, coords.y, 1, 1, buffer);
 
     return {
-      waterDepth: buffer[0],         // R channel
-      iceThickness: buffer[1],       // G channel
-      salinity: buffer[3],           // A channel
-    }
+      waterDepth: buffer[0], // R channel
+      iceThickness: buffer[1], // G channel
+      salinity: buffer[3], // A channel
+    };
   }
 
   /**
@@ -75,16 +75,16 @@ export class GPUReadback {
     renderer: THREE.WebGLRenderer,
     climateTarget: THREE.WebGLRenderTarget
   ): Promise<{ albedo: number }> {
-    const coords = indexTo2D(cellIndex, this.textureWidth)
-    const buffer = new Float32Array(4)
+    const coords = indexTo2D(cellIndex, this.textureWidth);
+    const buffer = new Float32Array(4);
 
     // Surface data (surface temperature + albedo) is now stored in climate texture
     // R = surfaceTemperature, A = albedo
-    renderer.readRenderTargetPixels(climateTarget, coords.x, coords.y, 1, 1, buffer)
+    renderer.readRenderTargetPixels(climateTarget, coords.x, coords.y, 1, 1, buffer);
 
     return {
       albedo: buffer[3], // A channel = effectiveAlbedo
-    }
+    };
   }
 
   /**
@@ -96,15 +96,15 @@ export class GPUReadback {
     renderer: THREE.WebGLRenderer,
     atmosphereTarget: THREE.WebGLRenderTarget
   ): Promise<{ atmosphericTemperature: number; pressure: number; precipitableWater: number }> {
-    const coords = indexTo2D(cellIndex, this.textureWidth)
-    const buffer = new Float32Array(4)
+    const coords = indexTo2D(cellIndex, this.textureWidth);
+    const buffer = new Float32Array(4);
 
-    renderer.readRenderTargetPixels(atmosphereTarget, coords.x, coords.y, 1, 1, buffer)
+    renderer.readRenderTargetPixels(atmosphereTarget, coords.x, coords.y, 1, 1, buffer);
 
     return {
       atmosphericTemperature: buffer[0], // R channel = atmosphericTemperature
-      pressure: buffer[1],               // G channel = pressure (Pa)
-      precipitableWater: buffer[2],      // B channel = precipitableWater (mm)
-    }
+      pressure: buffer[1], // G channel = pressure (Pa)
+      precipitableWater: buffer[2], // B channel = precipitableWater (mm)
+    };
   }
 }

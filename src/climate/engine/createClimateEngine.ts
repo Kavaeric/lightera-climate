@@ -1,51 +1,56 @@
-import * as THREE from 'three'
-import { TextureGridSimulation } from './TextureGridSimulation'
-import { SimulationOrchestrator } from './SimulationOrchestrator'
-import { SimulationRecorder } from './SimulationRecorder'
-import type { OrbitalConfig } from '../../config/orbitalConfig'
-import { PHYSICS_CONSTANTS, type PlanetaryConfig } from '../../config/planetaryConfig'
-import { calculateMeanMolecularMass, calculateAtmosphereHeatCapacity } from '../atmosphereCalculations'
-import type { SimulationConfig } from '../../config/simulationConfig'
-import { createDryTransmissionTexture, getDryTransmissionConfig } from '../../data/textures/createDryTransmissionTexture'
-import type { GPUResources } from '../../types/gpu'
+import * as THREE from 'three';
+import { TextureGridSimulation } from './TextureGridSimulation';
+import { SimulationOrchestrator } from './SimulationOrchestrator';
+import { SimulationRecorder } from './SimulationRecorder';
+import type { OrbitalConfig } from '../../config/orbitalConfig';
+import { PHYSICS_CONSTANTS, type PlanetaryConfig } from '../../config/planetaryConfig';
+import {
+  calculateMeanMolecularMass,
+  calculateAtmosphereHeatCapacity,
+} from '../atmosphereCalculations';
+import type { SimulationConfig } from '../../config/simulationConfig';
+import {
+  createDryTransmissionTexture,
+  getDryTransmissionConfig,
+} from '../../data/textures/createDryTransmissionTexture';
+import type { GPUResources } from '../../types/gpu';
 
 // Import shaders (includes are processed automatically by vite-plugin-glsl)
 // Importing without ?raw allows Vite to process #include directives.
-import fullscreenVertexShader from '../../rendering/shaders/utility/fullscreen.vert'
-import radiationFragmentShader from '../passes/01-radiation/radiation.frag'
-import hydrologyFragmentShader from '../passes/02-hydrology/hydrology.frag'
-import diffusionFragmentShader from '../passes/03-diffusion/diffusion.frag'
+import fullscreenVertexShader from '../../rendering/shaders/utility/fullscreen.vert';
+import radiationFragmentShader from '../passes/01-radiation/radiation.frag';
+import hydrologyFragmentShader from '../passes/02-hydrology/hydrology.frag';
+import diffusionFragmentShader from '../passes/03-diffusion/diffusion.frag';
 
 export interface ClimateEngineConfig {
-  gl: THREE.WebGLRenderer
-  simulation: TextureGridSimulation
-  orbitalConfig: OrbitalConfig
-  planetaryConfig: PlanetaryConfig
-  simulationConfig: SimulationConfig
-  getStepsPerFrame: () => number
-  samplesPerOrbit: number
-  registerOrchestrator: (orchestrator: SimulationOrchestrator | null) => void
-  registerRecorder: (recorder: SimulationRecorder | null) => void
-  onError: () => void
+  gl: THREE.WebGLRenderer;
+  simulation: TextureGridSimulation;
+  orbitalConfig: OrbitalConfig;
+  planetaryConfig: PlanetaryConfig;
+  simulationConfig: SimulationConfig;
+  getStepsPerFrame: () => number;
+  samplesPerOrbit: number;
+  registerOrchestrator: (orchestrator: SimulationOrchestrator | null) => void;
+  registerRecorder: (recorder: SimulationRecorder | null) => void;
+  onError: () => void;
 }
 
 /**
  * Validates that GPU resources were created successfully.
  * This is a lightweight check; actual validation happens during first render.
  */
-function validateGPUResources(
-  gl: THREE.WebGLRenderer,
-  resources: GPUResources
-): void {
+function validateGPUResources(gl: THREE.WebGLRenderer, resources: GPUResources): void {
   // Check that materials were created
-  if (!resources.radiationMaterial
-   || !resources.hydrologyMaterial
-   || !resources.diffusionMaterial) {
-    throw new Error('GPU materials were not created')
+  if (
+    !resources.radiationMaterial ||
+    !resources.hydrologyMaterial ||
+    !resources.diffusionMaterial
+  ) {
+    throw new Error('GPU materials were not created');
   }
 
   // Check that shader programs will compile (lightweight check)
-  const glContext = gl.getContext()
+  const glContext = gl.getContext();
 
   // Clear any existing errors
   while (glContext.getError() !== glContext.NO_ERROR) {
@@ -53,12 +58,12 @@ function validateGPUResources(
   }
 
   // Force shader compilation
-  gl.compile(resources.scene, resources.camera)
+  gl.compile(resources.scene, resources.camera);
 
   // Check for compilation errors
-  const error = glContext.getError()
+  const error = glContext.getError();
   if (error !== glContext.NO_ERROR) {
-    console.warn(`WebGL warning during shader compilation: ${error}`)
+    console.warn(`WebGL warning during shader compilation: ${error}`);
     // Don't throw - this may be a false positive
   }
 }
@@ -79,34 +84,34 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
     registerOrchestrator,
     registerRecorder,
     onError,
-  } = config
+  } = config;
 
-  const { yearLength, rotationsPerYear, solarFlux, axialTilt } = orbitalConfig
-  const { stepsPerOrbit } = simulationConfig
+  const { yearLength, rotationsPerYear, solarFlux, axialTilt } = orbitalConfig;
+  const { stepsPerOrbit } = simulationConfig;
 
-  console.log('ClimateEngine: Initialising...')
-  console.log(`  Solar flux: ${solarFlux} W/m²`)
-  console.log(`  Steps per orbit: ${stepsPerOrbit}`)
+  console.log('ClimateEngine: Initialising...');
+  console.log(`  Solar flux: ${solarFlux} W/m²`);
+  console.log(`  Steps per orbit: ${stepsPerOrbit}`);
 
-  const dt = yearLength / stepsPerOrbit
-  console.log(`  Timestep: ${dt.toFixed(1)}s`)
+  const dt = yearLength / stepsPerOrbit;
+  console.log(`  Timestep: ${dt.toFixed(1)}s`);
 
   // Error handler for GPU operations
   const handleGPUError = (error: Error) => {
-    console.error('[ClimateEngine] GPU error:', error)
-    onError()
-  }
+    console.error('[ClimateEngine] GPU error:', error);
+    onError();
+  };
 
-  let gpuResources: GPUResources | null = null
-  let orchestrator: SimulationOrchestrator | null = null
-  let recorder: SimulationRecorder | null = null
-  let animationFrameId: number | null = null
+  let gpuResources: GPUResources | null = null;
+  let orchestrator: SimulationOrchestrator | null = null;
+  let recorder: SimulationRecorder | null = null;
+  let animationFrameId: number | null = null;
 
   try {
     // Create scene and materials
-    const scene = new THREE.Scene()
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
-    const geometry = new THREE.PlaneGeometry(2, 2)
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const geometry = new THREE.PlaneGeometry(2, 2);
 
     // Create blank render target for texture uniforms
     const blankRenderTarget = new THREE.WebGLRenderTarget(
@@ -120,19 +125,21 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
         wrapS: THREE.ClampToEdgeWrapping,
         wrapT: THREE.ClampToEdgeWrapping,
       }
-    )
+    );
 
     // Calculate atmospheric properties from gas composition
-    const meanMolecularMass = calculateMeanMolecularMass(planetaryConfig)
-    const atmosphereHeatCapacity = calculateAtmosphereHeatCapacity(planetaryConfig)
-    console.log(`  Mean molecular mass: ${(meanMolecularMass * 6.022e23 * 1000).toFixed(2)} g/mol`)
-    console.log(`  Atmosphere heat capacity: ${atmosphereHeatCapacity.toExponential(3)} J/(m²·K)`)
+    const meanMolecularMass = calculateMeanMolecularMass(planetaryConfig);
+    const atmosphereHeatCapacity = calculateAtmosphereHeatCapacity(planetaryConfig);
+    console.log(`  Mean molecular mass: ${(meanMolecularMass * 6.022e23 * 1000).toFixed(2)} g/mol`);
+    console.log(`  Atmosphere heat capacity: ${atmosphereHeatCapacity.toExponential(3)} J/(m²·K)`);
 
     // Create dry transmission lookup texture (pre-computed for CO2, CH4, N2O, O3, CO, SO2, HCl, HF)
     // This must be created after meanMolecularMass is calculated
     // Gas concentrations default to 0 if not specified in config
     if (planetaryConfig.surfacePressure === undefined) {
-      console.warn('[Climate Engine] surfacePressure not specified in planetary config, atmospheric transmission will be disabled')
+      console.warn(
+        '[Climate Engine] surfacePressure not specified in planetary config, atmospheric transmission will be disabled'
+      );
     }
     const dryTransmissionTexture = createDryTransmissionTexture({
       surfacePressure: planetaryConfig.surfacePressure ?? 0,
@@ -148,8 +155,8 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
         hcl: planetaryConfig.hclConcentration ?? 0,
         hf: planetaryConfig.hfConcentration ?? 0,
       },
-    })
-    const dryTransmissionConfig = getDryTransmissionConfig()
+    });
+    const dryTransmissionConfig = getDryTransmissionConfig();
 
     // Create merged radiation material (Pass 1 - combined shortwave + longwave)
     // Handles both solar heating and greenhouse effect in a single pass
@@ -182,7 +189,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
         meanMolecularMass: { value: meanMolecularMass },
         atmosphereHeatCapacity: { value: atmosphereHeatCapacity },
       },
-    })
+    });
 
     // Create hydrology material (Pass 2)
     // Handles water cycle dynamics: evaporation, precipitation, ice formation
@@ -200,7 +207,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
         auxiliaryData: { value: null }, // Will be set each frame (to preserve solar flux)
         dt: { value: dt },
       },
-    })
+    });
 
     // Create diffusion material (Pass 3)
     // Handles thermal conduction between cells using Fourier's law
@@ -219,12 +226,12 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
         planetRadius: { value: planetaryConfig.radius },
         dt: { value: dt },
       },
-    })
+    });
 
     // Create mesh (material will be set below during initialisation)
-    const mesh = new THREE.Mesh(geometry)
-    mesh.frustumCulled = false
-    scene.add(mesh)
+    const mesh = new THREE.Mesh(geometry);
+    mesh.frustumCulled = false;
+    scene.add(mesh);
 
     // Initialise hydrology render targets first (needed for surface albedo calculation)
     const hydrologyInitMaterial = new THREE.ShaderMaterial({
@@ -240,14 +247,14 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       uniforms: {
         sourceTexture: { value: simulation.createInitialHydrologyTexture() },
       },
-    })
+    });
 
-    mesh.material = hydrologyInitMaterial
-    gl.setRenderTarget(simulation.getHydrologyDataCurrent())
-    gl.clear()
-    gl.render(scene, camera)
-    gl.setRenderTarget(null)
-    hydrologyInitMaterial.dispose()
+    mesh.material = hydrologyInitMaterial;
+    gl.setRenderTarget(simulation.getHydrologyDataCurrent());
+    gl.clear();
+    gl.render(scene, camera);
+    gl.setRenderTarget(null);
+    hydrologyInitMaterial.dispose();
 
     // Initialise surface texture: RGBA = [temperature, -, -, albedo]
     // Albedo is calculated based on initial hydrology state (water/ice coverage)
@@ -286,21 +293,21 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
         initTemp: { value: PHYSICS_CONSTANTS.COSMIC_BACKGROUND_TEMP },
         hydrologyData: { value: simulation.getHydrologyDataCurrent().texture },
       },
-    })
+    });
 
-    mesh.material = surfaceInitMaterial
-    gl.setRenderTarget(simulation.getClimateDataCurrent())
-    gl.clear()
-    gl.render(scene, camera)
-    gl.setRenderTarget(null)
-    surfaceInitMaterial.dispose()
+    mesh.material = surfaceInitMaterial;
+    gl.setRenderTarget(simulation.getClimateDataCurrent());
+    gl.clear();
+    gl.render(scene, camera);
+    gl.setRenderTarget(null);
+    surfaceInitMaterial.dispose();
 
     // Initialise atmosphere render targets with same temperature as surface to avoid initial shock
     // The atmosphere will equilibrate to its own temperature based on solar absorption and IR loss
     // Atmosphere texture: RGBA = [temperature, pressure, precipitableWater, albedo]
-    const initAtmosphereTemp = PHYSICS_CONSTANTS.COSMIC_BACKGROUND_TEMP
-    const initAtmospherePressure = planetaryConfig.surfacePressure ?? 101325 // Pa
-    const initPrecipitableWater = 0.0 // mm (completely dry atmosphere initially)
+    const initAtmosphereTemp = PHYSICS_CONSTANTS.COSMIC_BACKGROUND_TEMP;
+    const initAtmospherePressure = planetaryConfig.surfacePressure ?? 101325; // Pa
+    const initPrecipitableWater = 0.0; // mm (completely dry atmosphere initially)
     const atmosphereInitMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: `
@@ -319,20 +326,20 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
         initPrecipitableWater: { value: initPrecipitableWater },
         initAlbedo: { value: 0.0 }, // Atmosphere starts with no albedo (no cloud cover)
       },
-    })
+    });
 
-    mesh.material = atmosphereInitMaterial
+    mesh.material = atmosphereInitMaterial;
     // Initialise BOTH atmosphere buffers to avoid reading garbage on first frame
-    gl.setRenderTarget(simulation.getAtmosphereDataCurrent())
-    gl.clear()
-    gl.render(scene, camera)
-    gl.setRenderTarget(null)
+    gl.setRenderTarget(simulation.getAtmosphereDataCurrent());
+    gl.clear();
+    gl.render(scene, camera);
+    gl.setRenderTarget(null);
 
-    gl.setRenderTarget(simulation.getAtmosphereDataNext())
-    gl.clear()
-    gl.render(scene, camera)
-    gl.setRenderTarget(null)
-    atmosphereInitMaterial.dispose()
+    gl.setRenderTarget(simulation.getAtmosphereDataNext());
+    gl.clear();
+    gl.render(scene, camera);
+    gl.setRenderTarget(null);
+    atmosphereInitMaterial.dispose();
 
     // Store GPU resources
     gpuResources = {
@@ -344,12 +351,12 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       diffusionMaterial,
       blankRenderTarget,
       mesh,
-    }
+    };
 
     // Validate GPU resources were created successfully
-    console.log('ClimateEngine: Validating GPU resources...')
-    validateGPUResources(gl, gpuResources)
-    console.log('ClimateEngine: GPU resources validated successfully')
+    console.log('ClimateEngine: Validating GPU resources...');
+    validateGPUResources(gl, gpuResources);
+    console.log('ClimateEngine: GPU resources validated successfully');
 
     // Create orchestrator
     orchestrator = new SimulationOrchestrator(
@@ -360,9 +367,9 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
         stepsPerOrbit,
       },
       handleGPUError
-    )
+    );
 
-    registerOrchestrator(orchestrator)
+    registerOrchestrator(orchestrator);
 
     // Create simulation recorder
     recorder = new SimulationRecorder(
@@ -372,63 +379,63 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
       },
       simulation,
       gl
-    )
-    registerRecorder(recorder)
+    );
+    registerRecorder(recorder);
 
     // Reset recorder when simulation starts (in case of reuse)
-    recorder.reset()
+    recorder.reset();
 
     // Register recorder with orchestrator to receive step notifications
     orchestrator.onStep((physicsStep, orbitIdx) => {
-      recorder!.onPhysicsStep(physicsStep, orbitIdx)
-    })
+      recorder!.onPhysicsStep(physicsStep, orbitIdx);
+    });
 
     // Start simulation loop
     const simulationLoop = () => {
       // Execute simulation frame - orchestrator handles all control flow
-      orchestrator!.tick(getStepsPerFrame(), gl, simulation, gpuResources!)
+      orchestrator!.tick(getStepsPerFrame(), gl, simulation, gpuResources!);
 
       // Restore render target to canvas
-      gl.setRenderTarget(null)
+      gl.setRenderTarget(null);
 
       // Schedule next frame
-      animationFrameId = requestAnimationFrame(simulationLoop)
-    }
+      animationFrameId = requestAnimationFrame(simulationLoop);
+    };
 
     // Start loop
-    animationFrameId = requestAnimationFrame(simulationLoop)
+    animationFrameId = requestAnimationFrame(simulationLoop);
 
-    console.log('ClimateEngine: Initialisation complete')
+    console.log('ClimateEngine: Initialisation complete');
   } catch (error) {
-    console.error('[ClimateEngine] Initialisation failed:', error)
-    handleGPUError(error instanceof Error ? error : new Error(String(error)))
+    console.error('[ClimateEngine] Initialisation failed:', error);
+    handleGPUError(error instanceof Error ? error : new Error(String(error)));
   }
 
   // Return cleanup function
   return () => {
     if (animationFrameId !== null) {
-      cancelAnimationFrame(animationFrameId)
+      cancelAnimationFrame(animationFrameId);
     }
 
-    registerOrchestrator(null)
-    registerRecorder(null)
+    registerOrchestrator(null);
+    registerRecorder(null);
 
     if (gpuResources) {
-      gpuResources.geometry.dispose()
-      gpuResources.radiationMaterial.dispose()
-      gpuResources.hydrologyMaterial.dispose()
-      gpuResources.diffusionMaterial.dispose()
-      gpuResources.blankRenderTarget.dispose()
-      gpuResources.scene.clear()
+      gpuResources.geometry.dispose();
+      gpuResources.radiationMaterial.dispose();
+      gpuResources.hydrologyMaterial.dispose();
+      gpuResources.diffusionMaterial.dispose();
+      gpuResources.blankRenderTarget.dispose();
+      gpuResources.scene.clear();
     }
 
     if (recorder) {
-      recorder.dispose()
+      recorder.dispose();
     }
 
-    gpuResources = null
-    orchestrator = null
-    recorder = null
-    animationFrameId = null
-  }
+    gpuResources = null;
+    orchestrator = null;
+    recorder = null;
+    animationFrameId = null;
+  };
 }

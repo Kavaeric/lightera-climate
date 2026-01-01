@@ -6,7 +6,7 @@
   --button-transition: all var(--transition-ui) ease-in-out;
   --button-font: var(--font-label-md);
   --button-group-gap: var(--spacing-50);
-	
+
   /* Small */
   --button-size-sm: var(--size-interactive-small);
   --button-padding-block-sm: var(--spacing-25);

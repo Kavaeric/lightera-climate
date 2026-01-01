@@ -253,7 +253,8 @@ function main() {
 	}
 
 	const mainOutputPath = path.join(__dirname, '..', 'src', 'data', 'gasAbsorptionData.ts');
-	fs.writeFileSync(mainOutputPath, tsContent, 'utf8');
+	const normalizedContent = tsContent.replace(/\r\n/g, '\n');
+	fs.writeFileSync(mainOutputPath, Buffer.from(normalizedContent, 'utf8'));
 
 	// === OUTPUT: GPU TEXTURE FILES ===
 	// Generate individual files per gas for GPU texture data
@@ -300,7 +301,8 @@ function main() {
 		gasTextureContent += '\n]);\n';
 
 		const gasFilePath = path.join(textureDir, `${gas}.ts`);
-		fs.writeFileSync(gasFilePath, gasTextureContent, 'utf8');
+		const normalizedGasContent = gasTextureContent.replace(/\r\n/g, '\n');
+		fs.writeFileSync(gasFilePath, Buffer.from(normalizedGasContent, 'utf8'));
 	}
 
 	console.log(`\nMain output: ${mainOutputPath}`);

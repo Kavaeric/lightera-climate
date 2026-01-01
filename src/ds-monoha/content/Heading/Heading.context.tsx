@@ -31,4 +31,3 @@ export const HeadingContextProvider: FC<HeadingContextProviderProps> = ({ childr
 
   return <HeadingContext.Provider value={contextValue}>{children}</HeadingContext.Provider>;
 };
-

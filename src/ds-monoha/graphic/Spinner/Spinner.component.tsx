@@ -22,12 +22,12 @@ export const Spinner = ({ className, em = false, size, style }: SpinnerProps) =>
   useEffect(() => {
     if (spinnerRef.current) {
       const computedFontSize = Number.parseFloat(
-        window.getComputedStyle(spinnerRef.current).fontSize,
+        window.getComputedStyle(spinnerRef.current).fontSize
       );
 
       const computedFontWeight = Number.parseInt(
         window.getComputedStyle(spinnerRef.current).fontWeight,
-        10,
+        10
       );
 
       setFontSize(computedFontSize);

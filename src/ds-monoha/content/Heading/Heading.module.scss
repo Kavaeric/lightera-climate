@@ -1,85 +1,85 @@
 // Base heading styles
 .heading {
-	display: inline-flex;
-	gap: var(--spacing-50);
-	align-items: center;
-	padding: 0;
-	margin: 0;
-	font-family: var(--font-family-heading);
-	font-weight: var(--font-weight-semibold);
-	line-height: 1.2;
+  display: inline-flex;
+  gap: var(--spacing-50);
+  align-items: center;
+  padding: 0;
+  margin: 0;
+  font-family: var(--font-family-heading);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.2;
 }
 
 // Size variants using design system tokens
 .heading-2xs {
-	font: var(--font-heading-2xs);
-	letter-spacing: var(--font-heading-2xs-tracking);
-	text-transform: var(--font-heading-2xs-text-transform);
+  font: var(--font-heading-2xs);
+  letter-spacing: var(--font-heading-2xs-tracking);
+  text-transform: var(--font-heading-2xs-text-transform);
 }
 
 .heading-xs {
-	font: var(--font-heading-xs);
-	letter-spacing: var(--font-heading-xs-tracking);
-	text-transform: var(--font-heading-xs-text-transform);
+  font: var(--font-heading-xs);
+  letter-spacing: var(--font-heading-xs-tracking);
+  text-transform: var(--font-heading-xs-text-transform);
 }
 
 .heading-sm {
-	font: var(--font-heading-sm);
-	letter-spacing: var(--font-heading-sm-tracking);
-	text-transform: var(--font-heading-sm-text-transform);
+  font: var(--font-heading-sm);
+  letter-spacing: var(--font-heading-sm-tracking);
+  text-transform: var(--font-heading-sm-text-transform);
 }
 
 .heading-md {
-	font: var(--font-heading-md);
-	letter-spacing: var(--font-heading-md-tracking);
-	text-transform: var(--font-heading-md-text-transform);
+  font: var(--font-heading-md);
+  letter-spacing: var(--font-heading-md-tracking);
+  text-transform: var(--font-heading-md-text-transform);
 }
 
 .heading-lg {
-	font: var(--font-heading-lg);
-	letter-spacing: var(--font-heading-lg-tracking);
-	text-transform: var(--font-heading-lg-text-transform);
+  font: var(--font-heading-lg);
+  letter-spacing: var(--font-heading-lg-tracking);
+  text-transform: var(--font-heading-lg-text-transform);
 }
 
 .heading-xl {
-	font: var(--font-heading-xl);
-	letter-spacing: var(--font-heading-xl-tracking);
-	text-transform: var(--font-heading-xl-text-transform);
+  font: var(--font-heading-xl);
+  letter-spacing: var(--font-heading-xl-tracking);
+  text-transform: var(--font-heading-xl-text-transform);
 }
 
 .heading-2xl {
-	font: var(--font-heading-2xl);
-	letter-spacing: var(--font-heading-2xl-tracking);
-	text-transform: var(--font-heading-2xl-text-transform);
+  font: var(--font-heading-2xl);
+  letter-spacing: var(--font-heading-2xl-tracking);
+  text-transform: var(--font-heading-2xl-text-transform);
 }
 
 .heading-3xl {
-	font: var(--font-heading-3xl);
-	letter-spacing: var(--font-heading-3xl-tracking);
-	text-transform: var(--font-heading-3xl-text-transform);
+  font: var(--font-heading-3xl);
+  letter-spacing: var(--font-heading-3xl-tracking);
+  text-transform: var(--font-heading-3xl-text-transform);
 }
 
 // Color variants using design system text color tokens
 .heading-neutral {
-	color: var(--color-text);
+  color: var(--color-text);
 }
 
 .heading-bold {
-	color: var(--color-text-bold);
+  color: var(--color-text-bold);
 }
 
 .heading-subtle {
-	color: var(--color-text-subtle);
+  color: var(--color-text-subtle);
 }
 
 .heading-brand {
-	color: var(--color-text-brand);
+  color: var(--color-text-brand);
 }
 
 .heading-brand-bold {
-	color: var(--color-text-brand-bold);
+  color: var(--color-text-brand-bold);
 }
 
 .heading-brand-inverse {
-	color: var(--color-text-brand-inverse);
+  color: var(--color-text-brand-inverse);
 }

@@ -1,4 +1,4 @@
-import * as THREE from 'three'
+import * as THREE from 'three';
 
 /**
  * Pure utility functions for cell coordinate conversion
@@ -8,14 +8,11 @@ import * as THREE from 'three'
 /**
  * Convert cell index to 2D texture coordinates
  */
-export function indexTo2D(
-  index: number,
-  textureWidth: number
-): { x: number; y: number } {
+export function indexTo2D(index: number, textureWidth: number): { x: number; y: number } {
   return {
     x: index % textureWidth,
     y: Math.floor(index / textureWidth),
-  }
+  };
 }
 
 /**
@@ -27,7 +24,7 @@ export function coordsToDataIndex(
   textureWidth: number,
   channels: number
 ): number {
-  return (y * textureWidth + x) * channels
+  return (y * textureWidth + x) * channels;
 }
 
 /**
@@ -38,11 +35,8 @@ export function getCellUV(
   textureWidth: number,
   textureHeight: number
 ): [number, number] {
-  const coords = indexTo2D(cellIndex, textureWidth)
-  return [
-    (coords.x + 0.5) / textureWidth,
-    (coords.y + 0.5) / textureHeight,
-  ]
+  const coords = indexTo2D(cellIndex, textureWidth);
+  return [(coords.x + 0.5) / textureWidth, (coords.y + 0.5) / textureHeight];
 }
 
 /**
@@ -50,15 +44,15 @@ export function getCellUV(
  * Returns power-of-2 dimensions for optimal GPU performance
  */
 export function calculateTextureDimensions(cellCount: number): {
-  width: number
-  height: number
+  width: number;
+  height: number;
 } {
-  const sqrtCells = Math.sqrt(cellCount)
-  const baseWidth = Math.ceil(sqrtCells)
-  const width = Math.pow(2, Math.ceil(Math.log2(baseWidth)))
-  let height = Math.ceil(cellCount / width)
-  height = Math.pow(2, Math.ceil(Math.log2(height)))
-  return { width, height }
+  const sqrtCells = Math.sqrt(cellCount);
+  const baseWidth = Math.ceil(sqrtCells);
+  const width = Math.pow(2, Math.ceil(Math.log2(baseWidth)));
+  let height = Math.ceil(cellCount / width);
+  height = Math.pow(2, Math.ceil(Math.log2(height)));
+  return { width, height };
 }
 
 /**
@@ -70,5 +64,5 @@ export function createDataTextureSettings(): Partial<THREE.DataTexture> {
     magFilter: THREE.NearestFilter,
     wrapS: THREE.ClampToEdgeWrapping,
     wrapT: THREE.ClampToEdgeWrapping,
-  }
+  };
 }

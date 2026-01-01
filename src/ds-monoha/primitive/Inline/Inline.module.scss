@@ -1,57 +1,57 @@
 .inline {
-	display: flex;
-	flex-direction: row;
+  display: flex;
+  flex-direction: row;
 }
 
 .inline--hug {
-	flex-grow: 0;
+  flex-grow: 0;
 }
 
 /* Fill functionality */
 .inline--fill {
-	flex-grow: 1;
-	inline-size: 100%;
+  flex-grow: 1;
+  inline-size: 100%;
 }
 
 /* Wrap functionality */
 .inline--wrap {
-	flex-wrap: wrap;
+  flex-wrap: wrap;
 }
 
 /* Block alignment (cross-axis) */
 .inline--align-block-start {
-	align-items: flex-start;
+  align-items: flex-start;
 }
 
 .inline--align-block-center {
-	align-items: center;
+  align-items: center;
 }
 
 .inline--align-block-end {
-	align-items: flex-end;
+  align-items: flex-end;
 }
 
 .inline--align-block-stretch {
-	align-items: stretch;
+  align-items: stretch;
 }
 
 .inline--align-block-baseline {
-	align-items: baseline;
+  align-items: baseline;
 }
 
 /* Inline alignment (main-axis) */
 .inline--align-inline-start {
-	justify-content: flex-start;
+  justify-content: flex-start;
 }
 
 .inline--align-inline-center {
-	justify-content: center;
+  justify-content: center;
 }
 
 .inline--align-inline-end {
-	justify-content: flex-end;
+  justify-content: flex-end;
 }
 
 .inline--align-inline-spread {
-	justify-content: space-between;
+  justify-content: space-between;
 }

@@ -4,7 +4,7 @@
   margin: 0;
 
   /* Disabled state - prevent interaction but maintain focus visibility */
-  &[aria-disabled="true"] {
+  &[aria-disabled='true'] {
     cursor: not-allowed;
   }
 }

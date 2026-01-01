@@ -1,14 +1,14 @@
-import * as THREE from 'three'
-import { OrbitControls, GizmoHelper, GizmoViewport } from '@react-three/drei'
-import { PlanetInteraction } from './PlanetInteraction'
-import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation'
+import * as THREE from 'three';
+import { OrbitControls, GizmoHelper, GizmoViewport } from '@react-three/drei';
+import { PlanetInteraction } from './PlanetInteraction';
+import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation';
 
 interface ClimateSceneControlsProps {
   // Planet interaction
-  simulation: TextureGridSimulation
-  meshRef: React.RefObject<THREE.Mesh | null>
-  onHoverCell?: (cellIndex: number | null) => void
-  onCellClick?: (cellIndex: number) => void
+  simulation: TextureGridSimulation;
+  meshRef: React.RefObject<THREE.Mesh | null>;
+  onHoverCell?: (cellIndex: number | null) => void;
+  onCellClick?: (cellIndex: number) => void;
 }
 
 /**
@@ -39,5 +39,5 @@ export function ClimateSceneControls({
         onCellClick={onCellClick}
       />
     </>
-  )
+  );
 }

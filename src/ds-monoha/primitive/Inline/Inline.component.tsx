@@ -3,8 +3,9 @@ import { type FlexElement, type NonInteractiveProps } from '../../core/types';
 import { type BorderRadiusTokens, type SpacingTokens } from '../../tokens/types';
 import styles from './Inline.module.scss';
 
-export interface InlineProps<T extends ElementType = 'div'>
-  extends NonInteractiveProps<HTMLAttributes<HTMLElement>> {
+export interface InlineProps<T extends ElementType = 'div'> extends NonInteractiveProps<
+  HTMLAttributes<HTMLElement>
+> {
   /** Content to be laid out horizontally. */
   readonly children?: ReactNode;
   /** Additional CSS classes to apply to the inline element. */
@@ -71,7 +72,7 @@ export const Inline = forwardRef(
       style,
       ...props
     }: InlineProps<T>,
-    ref: React.ForwardedRef<HTMLElement>,
+    ref: React.ForwardedRef<HTMLElement>
   ): React.JSX.Element => {
     const Component = (as || 'div') as ElementType;
 
@@ -140,7 +141,7 @@ export const Inline = forwardRef(
         {children}
       </Component>
     );
-  },
+  }
 );
 
 Inline.displayName = 'Inline';

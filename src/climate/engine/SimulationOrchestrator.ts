@@ -1,38 +1,38 @@
-import * as THREE from 'three'
-import { SimulationExecutor, type ExecutorConfig } from './SimulationExecutor'
-import type { TextureGridSimulation } from './TextureGridSimulation'
-import type { GPUResources } from '../../types/gpu'
+import * as THREE from 'three';
+import { SimulationExecutor, type ExecutorConfig } from './SimulationExecutor';
+import type { TextureGridSimulation } from './TextureGridSimulation';
+import type { GPUResources } from '../../types/gpu';
 
 /**
  * Configuration for the orchestrator.
  */
 export interface OrchestratorConfig extends ExecutorConfig {
-  stepsPerOrbit: number
+  stepsPerOrbit: number;
 }
 
 /**
  * Control state for the orchestrator.
  */
-export type ControlState = 'idle' | 'running' | 'paused' | 'completed'
+export type ControlState = 'idle' | 'running' | 'paused' | 'completed';
 
 /**
  * Current simulation progress.
  */
 export interface SimulationProgress {
-  orbitIdx: number
-  physicsStep: number
-  controlState: ControlState
+  orbitIdx: number;
+  physicsStep: number;
+  controlState: ControlState;
 }
 
 /**
  * Milestone events that the orchestrator can emit.
  */
-export type MilestoneType = 'orbit_complete' | 'simulation_complete'
+export type MilestoneType = 'orbit_complete' | 'simulation_complete';
 
 export interface Milestone {
-  type: MilestoneType
-  orbitIdx: number
-  physicsStep: number
+  type: MilestoneType;
+  orbitIdx: number;
+  physicsStep: number;
 }
 
 /**
@@ -46,19 +46,19 @@ export interface Milestone {
  * - Coordinates with the recorder for data collection.
  */
 export class SimulationOrchestrator {
-  private executor: SimulationExecutor
-  private config: OrchestratorConfig
+  private executor: SimulationExecutor;
+  private config: OrchestratorConfig;
 
-  private orbitIdx: number = 0
-  private physicsStep: number = 0
-  private controlState: ControlState = 'idle'
+  private orbitIdx: number = 0;
+  private physicsStep: number = 0;
+  private controlState: ControlState = 'idle';
 
-  private milestoneCallbacks: ((milestone: Milestone) => void)[] = []
-  private stepCallbacks: ((physicsStep: number, orbitIdx: number) => void)[] = []
+  private milestoneCallbacks: ((milestone: Milestone) => void)[] = [];
+  private stepCallbacks: ((physicsStep: number, orbitIdx: number) => void)[] = [];
 
   constructor(config: OrchestratorConfig, errorCallback?: (error: Error) => void) {
-    this.config = config
-    this.executor = new SimulationExecutor(config, errorCallback)
+    this.config = config;
+    this.executor = new SimulationExecutor(config, errorCallback);
   }
 
   /**
@@ -69,14 +69,14 @@ export class SimulationOrchestrator {
       orbitIdx: this.orbitIdx,
       physicsStep: this.physicsStep,
       controlState: this.controlState,
-    }
+    };
   }
 
   /**
    * Register a callback for milestones.
    */
   onMilestone(callback: (milestone: Milestone) => void): void {
-    this.milestoneCallbacks.push(callback)
+    this.milestoneCallbacks.push(callback);
   }
 
   /**
@@ -84,7 +84,7 @@ export class SimulationOrchestrator {
    * Used by recorder to track simulation progress.
    */
   onStep(callback: (physicsStep: number, orbitIdx: number) => void): void {
-    this.stepCallbacks.push(callback)
+    this.stepCallbacks.push(callback);
   }
 
   /**
@@ -93,9 +93,9 @@ export class SimulationOrchestrator {
   play(): void {
     if (this.controlState === 'completed') {
       // Don't allow resuming a completed simulation
-      return
+      return;
     }
-    this.controlState = 'running'
+    this.controlState = 'running';
   }
 
   /**
@@ -103,7 +103,7 @@ export class SimulationOrchestrator {
    */
   pause(): void {
     if (this.controlState === 'running') {
-      this.controlState = 'paused'
+      this.controlState = 'paused';
     }
   }
 
@@ -125,22 +125,22 @@ export class SimulationOrchestrator {
   ): number {
     // Only execute if running
     if (this.controlState !== 'running') {
-      return 0
+      return 0;
     }
 
-    let stepsExecuted = 0
+    let stepsExecuted = 0;
 
     // Execute multiple steps per frame for performance
     for (let i = 0; i < stepsPerFrame; i++) {
-      const success = this.executeStep(gl, simulation, gpuResources)
+      const success = this.executeStep(gl, simulation, gpuResources);
       if (!success) {
         // Stop execution on error
-        break
+        break;
       }
-      stepsExecuted++
+      stepsExecuted++;
     }
 
-    return stepsExecuted
+    return stepsExecuted;
   }
 
   /**
@@ -164,16 +164,16 @@ export class SimulationOrchestrator {
       gpuResources.mesh,
       gpuResources.scene,
       gpuResources.camera
-    )
+    );
 
     if (!success) {
-      return false
+      return false;
     }
 
     // Update state tracking
-    this.advanceStep()
+    this.advanceStep();
 
-    return true
+    return true;
   }
 
   /**
@@ -181,40 +181,40 @@ export class SimulationOrchestrator {
    */
   private advanceStep(): void {
     // Advance one physics step
-    this.physicsStep++
+    this.physicsStep++;
 
     // Check if we've completed an orbit
     if (this.physicsStep >= this.config.stepsPerOrbit) {
-      this.physicsStep = 0
-      this.orbitIdx++
+      this.physicsStep = 0;
+      this.orbitIdx++;
 
       // Emit orbit completion milestone
       this.emitMilestone({
         type: 'orbit_complete',
         orbitIdx: this.orbitIdx,
         physicsStep: this.physicsStep,
-      })
+      });
     }
 
     // Advance executor state
-    this.executor.step()
+    this.executor.step();
 
     // Notify step callbacks (for recorder)
-    this.emitStepCallbacks()
+    this.emitStepCallbacks();
   }
 
   /**
    * Check if simulation is running.
    */
   isRunning(): boolean {
-    return this.controlState === 'running'
+    return this.controlState === 'running';
   }
 
   /**
    * Check if simulation is completed.
    */
   isCompleted(): boolean {
-    return this.controlState === 'completed'
+    return this.controlState === 'completed';
   }
 
   /**
@@ -222,7 +222,7 @@ export class SimulationOrchestrator {
    */
   private emitMilestone(milestone: Milestone): void {
     for (const callback of this.milestoneCallbacks) {
-      callback(milestone)
+      callback(milestone);
     }
   }
 
@@ -231,7 +231,7 @@ export class SimulationOrchestrator {
    */
   private emitStepCallbacks(): void {
     for (const callback of this.stepCallbacks) {
-      callback(this.physicsStep, this.orbitIdx)
+      callback(this.physicsStep, this.orbitIdx);
     }
   }
 }
