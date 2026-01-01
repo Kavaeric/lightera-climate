@@ -131,7 +131,7 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(functi
 
   // Create atmosphere geometry based on the planet radius and atmosphere height
   const atmosphereGeometry = useMemo(() => {
-    const geometry = new THREE.SphereGeometry(radius, 64, 64);
+    const geometry = new THREE.SphereGeometry(radius, 128, 64);
     return geometry;
   }, [radius]);
 
