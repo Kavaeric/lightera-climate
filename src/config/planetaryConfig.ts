@@ -3,15 +3,6 @@
  * These parameters define the basic physical characteristics of the planet
  */
 
-/**
- * Universal physical constants
- * These are fundamental constants that do not change between simulations
- */
-export const PHYSICS_CONSTANTS = {
-  // Cosmic microwave background temperature
-  COSMIC_BACKGROUND_TEMP: 2.7, // K
-} as const;
-
 export interface PlanetaryConfig {
   // Planet radius
   radius: number; // metres

@@ -25,7 +25,7 @@ export class TerrainTextureManager {
   }
 
   /**
-   * Create default terrain texture (flat land, elevation only)
+   * Create default terrain texture
    */
   private createDefaultTerrainTexture(): THREE.DataTexture {
     const data = new Float32Array(this.textureWidth * this.textureHeight * 4); // RGBA

@@ -34,24 +34,12 @@ float getCellArea(vec2 uv) {
 
 // ============================================================================
 // TERRAIN TEXTURE
-// Layout: RGBA = [elevation, waterDepth, salinity, baseAlbedo]
+// Layout: RGBA = [elevation, reserved, reserved, reserved]
 // Note: This is a static texture that doesn't change during simulation.
 // ============================================================================
 
 float getElevation(vec2 uv) {
   return texture(terrainData, uv).r;
-}
-
-float getTerrainWaterDepth(vec2 uv) {
-  return texture(terrainData, uv).g;
-}
-
-float getTerrainSalinity(vec2 uv) {
-  return texture(terrainData, uv).b;
-}
-
-float getBaseAlbedo(vec2 uv) {
-  return texture(terrainData, uv).a;
 }
 
 // ============================================================================

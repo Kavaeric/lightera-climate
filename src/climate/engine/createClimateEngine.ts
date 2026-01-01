@@ -3,7 +3,7 @@ import { TextureGridSimulation } from './TextureGridSimulation';
 import { SimulationOrchestrator } from './SimulationOrchestrator';
 import { SimulationRecorder } from './SimulationRecorder';
 import type { OrbitalConfig } from '../../config/orbitalConfig';
-import { PHYSICS_CONSTANTS, type PlanetaryConfig } from '../../config/planetaryConfig';
+import { type PlanetaryConfig } from '../../config/planetaryConfig';
 import {
   calculateMeanMolecularMass,
   calculateAtmosphereHeatCapacity,
@@ -18,6 +18,7 @@ import type { GPUResources } from '../../types/gpu';
 // Import shaders (includes are processed automatically by vite-plugin-glsl)
 // Importing without ?raw allows Vite to process #include directives.
 import fullscreenVertexShader from '../../rendering/shaders/utility/fullscreen.vert';
+import initialisationFragmentShader from '../passes/00-initialisation/initialisation.frag';
 import radiationFragmentShader from '../passes/01-radiation/radiation.frag';
 import hydrologyFragmentShader from '../passes/02-hydrology/hydrology.frag';
 import diffusionFragmentShader from '../passes/03-diffusion/diffusion.frag';
@@ -64,7 +65,7 @@ function validateGPUResources(gl: THREE.WebGLRenderer, resources: GPUResources):
   const error = glContext.getError();
   if (error !== glContext.NO_ERROR) {
     console.warn(`WebGL warning during shader compilation: ${error}`);
-    // Don't throw - this may be a false positive
+    // Don't throw, may be a false positive
   }
 }
 
@@ -89,12 +90,21 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
   const { yearLength, rotationsPerYear, solarFlux, axialTilt } = orbitalConfig;
   const { stepsPerOrbit } = simulationConfig;
 
-  console.log('ClimateEngine: Initialising...');
+  console.log('[ClimateEngine] Initialising...');
   console.log(`  Solar flux: ${solarFlux} W/m²`);
   console.log(`  Steps per orbit: ${stepsPerOrbit}`);
 
   const dt = yearLength / stepsPerOrbit;
-  console.log(`  Timestep: ${dt.toFixed(1)}s`);
+  // Format dt as hours, minutes, seconds
+  const dtSeconds = Math.round(dt);
+  const stepHours = Math.floor(dtSeconds / 3600);
+  const stepMinutes = Math.floor((dtSeconds % 3600) / 60);
+  const stepSeconds = (dtSeconds % 60).toFixed(1);
+  console.log(
+    `  Timestep: ${
+      stepHours > 0 ? `${stepHours}h ` : ''
+    }${stepMinutes > 0 ? `${stepMinutes}m ` : ''}${stepSeconds}s`
+  );
 
   // Error handler for GPU operations
   const handleGPUError = (error: Error) => {
@@ -130,7 +140,7 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
     // Calculate atmospheric properties from gas composition
     const meanMolecularMass = calculateMeanMolecularMass(planetaryConfig);
     const atmosphereHeatCapacity = calculateAtmosphereHeatCapacity(planetaryConfig);
-    console.log(`  Mean molecular mass: ${(meanMolecularMass * 6.022e23 * 1000).toFixed(2)} g/mol`);
+    console.log(`  Atmospheric mean molecular mass: ${(meanMolecularMass * 6.022e23 * 1000).toFixed(2)} g/mol`);
     console.log(`  Atmosphere heat capacity: ${atmosphereHeatCapacity.toExponential(3)} J/(m²·K)`);
 
     // Create dry transmission lookup texture (pre-computed for CO2, CH4, N2O, O3, CO, SO2, HCl, HF)
@@ -233,113 +243,92 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
     mesh.frustumCulled = false;
     scene.add(mesh);
 
-    // Initialise hydrology render targets first (needed for surface albedo calculation)
-    const hydrologyInitMaterial = new THREE.ShaderMaterial({
+    // Initialise all simulation state using unified initialisation shader
+    // Uses MRT to output surface, atmosphere, and hydrology states in one pass
+    const initAtmospherePressure = planetaryConfig.surfacePressure ?? 101325; // Pa
+    const initPrecipitableWater = 0.0; // mm (completely dry atmosphere initially)
+
+    const initialisationMaterial = new THREE.ShaderMaterial({
+      vertexShader: fullscreenVertexShader,
+      fragmentShader: initialisationFragmentShader,
+      glslVersion: THREE.GLSL3,
+      uniforms: {
+        terrainData: { value: simulation.terrainData },
+        initAtmospherePressure: { value: initAtmospherePressure },
+        initPrecipitableWater: { value: initPrecipitableWater },
+        solarFlux: { value: solarFlux },
+      },
+    });
+
+    mesh.material = initialisationMaterial;
+
+    // Create MRT to render all three states at once
+    // Uses the same pattern as radiationMRT and hydrologyMRT
+    const initRenderTarget = new THREE.WebGLRenderTarget(
+      simulation.getTextureWidth(),
+      simulation.getTextureHeight(),
+      {
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
+        format: THREE.RGBAFormat,
+        type: THREE.FloatType,
+        wrapS: THREE.ClampToEdgeWrapping,
+        wrapT: THREE.ClampToEdgeWrapping,
+        count: 3, // 3 outputs: surface, atmosphere, hydrology
+      }
+    ) as unknown as THREE.WebGLRenderTarget<THREE.Texture[]>;
+
+    // Render initialisation pass
+    gl.setRenderTarget(initRenderTarget);
+    gl.clear();
+    gl.render(scene, camera);
+    gl.setRenderTarget(null);
+
+    // Copy results to simulation buffers
+    const copyMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
       fragmentShader: `
         precision highp float;
         uniform sampler2D sourceTexture;
-        varying vec2 vUv;
+        in vec2 vUv;
+        out vec4 fragColour;
         void main() {
-          gl_FragColor = texture2D(sourceTexture, vUv);
+          fragColour = texture(sourceTexture, vUv);
         }
       `,
+      glslVersion: THREE.GLSL3,
       uniforms: {
-        sourceTexture: { value: simulation.createInitialHydrologyTexture() },
+        sourceTexture: { value: null },
       },
     });
 
-    mesh.material = hydrologyInitMaterial;
-    gl.setRenderTarget(simulation.getHydrologyDataCurrent());
-    gl.clear();
-    gl.render(scene, camera);
-    gl.setRenderTarget(null);
-    hydrologyInitMaterial.dispose();
+    mesh.material = copyMaterial;
 
-    // Initialise surface texture: RGBA = [temperature, -, -, albedo]
-    // Albedo is calculated based on initial hydrology state (water/ice coverage)
-    const surfaceInitMaterial = new THREE.ShaderMaterial({
-      vertexShader: fullscreenVertexShader,
-      fragmentShader: `
-        precision highp float;
-        uniform float initTemp;
-        uniform sampler2D hydrologyData;
-
-        // Material albedo constants (must match constants.glsl)
-        const float MATERIAL_ROCK_ALBEDO_VISIBLE = 0.15;
-        const float MATERIAL_WATER_ALBEDO_VISIBLE = 0.06;
-        const float MATERIAL_ICE_ALBEDO_VISIBLE = 0.70;
-
-        varying vec2 vUv;
-
-        void main() {
-          // Read hydrology state to determine surface albedo
-          vec4 hydrology = texture2D(hydrologyData, vUv);
-          float waterDepth = hydrology.r;
-          float iceThickness = hydrology.g;
-
-          // Calculate effective albedo (same logic as getEffectiveAlbedo in surfaceThermal.glsl)
-          float hasWater = step(0.001, waterDepth);
-          float hasIce = step(0.001, iceThickness);
-
-          float albedo = MATERIAL_ROCK_ALBEDO_VISIBLE;
-          albedo = mix(albedo, MATERIAL_WATER_ALBEDO_VISIBLE, hasWater);
-          albedo = mix(albedo, MATERIAL_ICE_ALBEDO_VISIBLE, hasIce);
-
-          gl_FragColor = vec4(initTemp, 0.0, 0.0, albedo);
-        }
-      `,
-      uniforms: {
-        initTemp: { value: PHYSICS_CONSTANTS.COSMIC_BACKGROUND_TEMP },
-        hydrologyData: { value: simulation.getHydrologyDataCurrent().texture },
-      },
-    });
-
-    mesh.material = surfaceInitMaterial;
+    // Copy surface state
+    copyMaterial.uniforms.sourceTexture.value = initRenderTarget.textures[0];
     gl.setRenderTarget(simulation.getClimateDataCurrent());
     gl.clear();
     gl.render(scene, camera);
     gl.setRenderTarget(null);
-    surfaceInitMaterial.dispose();
 
-    // Initialise atmosphere render targets with same temperature as surface to avoid initial shock
-    // The atmosphere will equilibrate to its own temperature based on solar absorption and IR loss
-    // Atmosphere texture: RGBA = [temperature, pressure, precipitableWater, albedo]
-    const initAtmosphereTemp = PHYSICS_CONSTANTS.COSMIC_BACKGROUND_TEMP;
-    const initAtmospherePressure = planetaryConfig.surfacePressure ?? 101325; // Pa
-    const initPrecipitableWater = 0.0; // mm (completely dry atmosphere initially)
-    const atmosphereInitMaterial = new THREE.ShaderMaterial({
-      vertexShader: fullscreenVertexShader,
-      fragmentShader: `
-        precision highp float;
-        uniform float initTemp;
-        uniform float initPressure;
-        uniform float initPrecipitableWater;
-        uniform float initAlbedo;
-        void main() {
-          gl_FragColor = vec4(initTemp, initPressure, initPrecipitableWater, initAlbedo);
-        }
-      `,
-      uniforms: {
-        initTemp: { value: initAtmosphereTemp },
-        initPressure: { value: initAtmospherePressure },
-        initPrecipitableWater: { value: initPrecipitableWater },
-        initAlbedo: { value: 0.0 }, // Atmosphere starts with no albedo (no cloud cover)
-      },
-    });
-
-    mesh.material = atmosphereInitMaterial;
-    // Initialise BOTH atmosphere buffers to avoid reading garbage on first frame
+    // Copy atmosphere state
+    copyMaterial.uniforms.sourceTexture.value = initRenderTarget.textures[1];
     gl.setRenderTarget(simulation.getAtmosphereDataCurrent());
     gl.clear();
     gl.render(scene, camera);
     gl.setRenderTarget(null);
 
-    gl.setRenderTarget(simulation.getAtmosphereDataNext());
+    // Copy hydrology state
+    copyMaterial.uniforms.sourceTexture.value = initRenderTarget.textures[2];
+    gl.setRenderTarget(simulation.getHydrologyDataCurrent());
     gl.clear();
     gl.render(scene, camera);
     gl.setRenderTarget(null);
-    atmosphereInitMaterial.dispose();
+
+    // Cleanup initialisation resources
+    initialisationMaterial.dispose();
+    copyMaterial.dispose();
+    initRenderTarget.dispose();
 
     // Store GPU resources
     gpuResources = {

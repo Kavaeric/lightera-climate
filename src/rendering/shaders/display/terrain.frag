@@ -53,7 +53,7 @@ void main() {
   float normalisedElevation = (elevation - elevationMin) / (elevationMax - elevationMin);
 
   // Detect underflow/overflow for fallback colouring
-  float isUnderflow = step(normalisedElevation, 0.0 + 1e-6);
+  float isUnderflow = step(normalisedElevation, 0.0 - 1e-6);
   float isOverflow = step(1.0 + 1e-6, normalisedElevation);
   float isNormal = (1.0 - isUnderflow) * (1.0 - isOverflow);
 
@@ -75,7 +75,7 @@ void main() {
   float normalisedWaterDepth = (waterDepth - 0.0) / (5000.0 - 0.0);
 
   // Detect underflow/overflow for fallback colouring
-  float isUnderflowWaterDepth = step(normalisedWaterDepth, 0.0 + 1e-6);
+  float isUnderflowWaterDepth = step(normalisedWaterDepth, 0.0 - 1e-6);
   float isOverflowWaterDepth = step(1.0 + 1e-6, normalisedWaterDepth);
   float isNormalWaterDepth = (1.0 - isUnderflowWaterDepth) * (1.0 - isOverflowWaterDepth);
 
@@ -100,7 +100,7 @@ void main() {
   float normalisedIceThickness = (iceThickness - 0.0) / (5000.0 - 0.0);
 
   // Detect underflow/overflow for fallback colouring
-  float isUnderflowIceThickness = step(normalisedIceThickness, 0.0 + 1e-6);
+  float isUnderflowIceThickness = step(normalisedIceThickness, 0.0 - 1e-6);
   float isOverflowIceThickness = step(1.0 + 1e-6, normalisedIceThickness);
   float isNormalIceThickness = (1.0 - isUnderflowIceThickness) * (1.0 - isOverflowIceThickness);
 

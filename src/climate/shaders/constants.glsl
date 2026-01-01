@@ -6,9 +6,23 @@ precision highp float;
 // I actually memorised more digits than this
 const float PI = 3.14159265358979323846264338327950288419716939937510582097494459;
 
-// Stefan-Boltzmann constant
-// The power of a black body
+// Stefan-Boltzmann constant, intensity of blackbody radiation
 const float STEFAN_BOLTZMANN_CONST = 5.670374419e-8; // W/(m²·K⁴)
+
+// Cosmic background temperature
+const float COSMIC_BACKGROUND_TEMP = 2.7; // K
+
+// Speed of light in a vacuum
+const float SPEED_OF_LIGHT = 299792458.0;   // m/s
+
+// Planck constant
+const float PLANCK_CONST = 6.62607015e-34;  // J·s
+
+// Boltzmann constant, energy of a gas as a function of its temperature
+const float BOLTZMANN_CONST = 1.380649e-23; // J/K
+
+// Unit conversions
+const float SQUARE_METRES_TO_SQUARE_CM = 1e4; // 1 m² = 10⁴ cm²
 
 // Simulation constants
 // The depth of the surface layer of the planet being simulated
@@ -48,15 +62,3 @@ const float MATERIAL_ICE_ALBEDO_VISIBLE = 0.60;
 const float MATERIAL_ICE_ALBEDO_INFRARED = 0.10;
 const float MATERIAL_ICE_EMISSIVITY = 0.985;
 const float MATERIAL_ICE_LATENT_HEAT_FUSION = 334000.0; // J/kg (energy to melt 1kg ice at 0°C)=
-
-// Planck constant (for blackbody radiation calculations)
-const float PLANCK_CONST = 6.62607015e-34;  // J·s
-
-// Speed of light
-const float SPEED_OF_LIGHT = 299792458.0;   // m/s
-
-// Boltzmann constant
-const float BOLTZMANN_CONST = 1.380649e-23; // J/K
-
-// Unit conversions
-const float SQUARE_METRES_TO_SQUARE_CM = 1e4; // 1 m² = 10⁴ cm²

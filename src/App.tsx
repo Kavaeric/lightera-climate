@@ -23,7 +23,6 @@ import { useOrbitalConfig } from './context/OrbitalConfigProvider';
 import { useRuntimeControls } from './context/RuntimeControlsProvider';
 import { useUIState } from './context/UIStateProvider';
 import { TerrainDataLoader } from './terrain/TerrainDataLoader';
-import { HydrologyInitialiser } from './climate/hydrology/HydrologyInitialiser';
 
 function ClimateApp() {
   // Get state from hooks
@@ -45,7 +44,6 @@ function ClimateApp() {
 
   // Static config and simulation state
   const [planetaryConfig] = useState<PlanetaryConfig>(PLANETARY_CONFIG_EARTH);
-  const [seaLevel] = useState(0);
   const {
     activeSimulationConfig,
     activePlanetaryConfig,
@@ -100,13 +98,12 @@ function ClimateApp() {
     return new TextureGridSimulation(activeSimulationConfig);
   }, [activeSimulationConfig]);
 
-  // Generate terrain and hydrology when simulation is created
+  // Generate terrain when simulation is created
   useEffect(() => {
     if (!simulation) return;
 
     // Generate random terrain
     const terrainLoader = new TerrainDataLoader();
-    const hydrologyInit = new HydrologyInitialiser();
 
     // Use simulationKey as seed for reproducible randomness
     const seed = simulationKey;
@@ -122,12 +119,8 @@ function ClimateApp() {
     const terrain = terrainLoader.generateProcedural(cellCount, cellLatLons, seed);
     simulation.setTerrainData(terrain);
 
-    // Initialise hydrology from elevation (creates oceans below sea level)
-    const hydrology = hydrologyInit.initialiseFromElevation(terrain.elevation, seaLevel);
-    simulation.setHydrologyData(hydrology.waterDepth, hydrology.salinity, hydrology.iceThickness);
-
-    console.log(`Generated new terrain with seed ${seed}, sea level ${seaLevel}m`);
-  }, [simulation, simulationKey, seaLevel]);
+    console.log(`Generated new terrain with seed ${seed}`);
+  }, [simulation, simulationKey]);
 
   const { setSelectedCell } = useUIState();
 

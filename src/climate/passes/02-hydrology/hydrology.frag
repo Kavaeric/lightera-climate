@@ -248,7 +248,7 @@ void main() {
 	// === SURFACE ALBEDO UPDATE ===
 	// Calculate new albedo based on updated hydrology state
 	// Ice and water have different albedos than bare rock
-	float newSurfaceAlbedo = getEffectiveAlbedo(newWaterDepth, newIceThickness, MATERIAL_ROCK_ALBEDO_VISIBLE);
+	float newSurfaceAlbedo = getAlbedo(newWaterDepth, newIceThickness, MATERIAL_ROCK_ALBEDO_VISIBLE);
 
 	// === WATER STATE FOR VISUALISATION ===
 	// Determine water state based on temperature thresholds

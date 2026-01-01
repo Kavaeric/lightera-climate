@@ -88,7 +88,7 @@ float getSurfaceEmissivity(float waterDepth, float iceThickness) {
  * @param baseAlbedo   Base albedo of underlying terrain
  * @return Effective visible albedo (0-1)
  */
-float getEffectiveAlbedo(float waterDepth, float iceThickness, float baseAlbedo) {
+float getAlbedo(float waterDepth, float iceThickness, float baseAlbedo) {
 	float hasWater = step(0.001, waterDepth);
 	float hasIce = step(0.001, iceThickness);
 
