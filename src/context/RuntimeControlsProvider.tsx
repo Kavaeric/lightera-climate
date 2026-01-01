@@ -14,8 +14,8 @@ interface RuntimeControlsProviderProps {
 }
 
 export function RuntimeControlsProvider({ children }: RuntimeControlsProviderProps) {
-  const [stepsPerFrame, setStepsPerFrame] = useState(500);
-  const [samplesPerOrbit, setSamplesPerOrbit] = useState(50);
+  const [stepsPerFrame, setStepsPerFrame] = useState(100);
+  const [samplesPerOrbit, setSamplesPerOrbit] = useState(32);
 
   return (
     <RuntimeControlsContext.Provider
