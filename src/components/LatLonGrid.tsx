@@ -223,7 +223,7 @@ export function LatLonGrid({
   // Display settings
   latitudeSegments = 64,
   longitudeSegments = 64,
-  lineWidth = 2,
+  lineWidth = 4,
   opacity = 0.4,
   backOpacity = 0.1,
 }: LatLonGridProps): React.JSX.Element {
@@ -365,36 +365,6 @@ export function LatLonGrid({
         />
       </mesh>
 
-      {/* Prime meridian */}
-      <mesh raycast={raycast}>
-        <meshLineGeometry attach="geometry" points={primeMeridianPoints} />
-        <xRayMeshLineMaterial
-          lineWidth={lineWidth}
-          color={'white'}
-          opacity={opacity}
-          backfacingOpacity={backOpacity}
-          resolution={resolution}
-          sizeAttenuation={0} // Use screenspace size
-          depthTest={false}
-          transparent
-        />
-      </mesh>
-
-      {/* Antimeridian */}
-      <mesh raycast={raycast}>
-        <meshLineGeometry attach="geometry" points={antimeridianPoints} />
-        <xRayMeshLineMaterial
-          lineWidth={lineWidth * LANDMARK_LINE_WIDTH_MULTIPLIER}
-          color={'coral'}
-          opacity={opacity * LANDMARK_LINE_OPACITY_MULTIPLIER}
-          backfacingOpacity={backOpacity}
-          resolution={resolution}
-          sizeAttenuation={0} // Use screenspace size
-          depthTest={false}
-          transparent
-        />
-      </mesh>
-
       {/* Northern tropic line */}
       <mesh raycast={raycast}>
         <meshLineGeometry attach="geometry" points={tropicSouthPoints} />
@@ -446,6 +416,36 @@ export function LatLonGrid({
         <xRayMeshLineMaterial
           lineWidth={lineWidth * LANDMARK_LINE_WIDTH_MULTIPLIER}
           color={'white'}
+          opacity={opacity * LANDMARK_LINE_OPACITY_MULTIPLIER}
+          backfacingOpacity={backOpacity}
+          resolution={resolution}
+          sizeAttenuation={0} // Use screenspace size
+          depthTest={false}
+          transparent
+        />
+      </mesh>
+
+      {/* Prime meridian */}
+      <mesh raycast={raycast}>
+        <meshLineGeometry attach="geometry" points={primeMeridianPoints} />
+        <xRayMeshLineMaterial
+          lineWidth={lineWidth}
+          color={'white'}
+          opacity={opacity}
+          backfacingOpacity={backOpacity}
+          resolution={resolution}
+          sizeAttenuation={0} // Use screenspace size
+          depthTest={false}
+          transparent
+        />
+      </mesh>
+
+      {/* Antimeridian */}
+      <mesh raycast={raycast}>
+        <meshLineGeometry attach="geometry" points={antimeridianPoints} />
+        <xRayMeshLineMaterial
+          lineWidth={lineWidth * LANDMARK_LINE_WIDTH_MULTIPLIER}
+          color={'coral'}
           opacity={opacity * LANDMARK_LINE_OPACITY_MULTIPLIER}
           backfacingOpacity={backOpacity}
           resolution={resolution}

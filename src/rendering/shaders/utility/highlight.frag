@@ -14,21 +14,18 @@ in vec2 vUv;
 in float vFacing;
 in float vFresnel;
 in vec3 vWorldPosition;
-in vec3 vViewDirection;
+in float vIsFacingCamera;
 
 out vec4 fragColour;
 
 void main() {
   // Detect if this fragment is backfacing (for fading effect)
   vec3 normal = normalize(vWorldPosition);
-  float facing = dot(vViewDirection, normal);
-  float isFrontFacing = step(0.0, facing);
 
   vec3 color = vec3(0.0);
   float alpha = 0.0;
   float hoverAlpha = 0.2;
-  float selectAlpha = 0.2;
-  float backSelectAlpha = 0.4;
+  float backSelectAlpha = 0.3;
 
   // Check if this is the selected cell
   float selectedX = mod(selectedCellIndex, textureWidth);
@@ -41,8 +38,7 @@ void main() {
 
   if (isSelected > 0.5) {
     color = vec3(1.0, 1.0, 1.0); // White highlight for selection
-    // alpha = selectAlpha * isFrontFacing + backSelectAlpha * (1.0 - isFrontFacing); // Stronger on front, dimmer on back
-    alpha = (vFresnel + selectAlpha) * (isFrontFacing) + backSelectAlpha * (1.0 - isFrontFacing);
+    alpha = vFresnel * vIsFacingCamera + backSelectAlpha * (1.0 - vIsFacingCamera);
     fragColour = vec4(color, alpha);
     return;
   }

@@ -36,6 +36,17 @@ export const ClimateOverlays = forwardRef<THREE.Mesh, ClimateOverlaysProps>(
   ) {
     return (
       <>
+        {/* Lat/Lon grid overlay */}
+        <LatLonGrid visible={showLatLonGrid} axialTilt={axialTilt} />
+
+        {/* Cell outline overlay - surface outline */}
+        <CellOutlineOverlay
+          subdivisions={subdivisions}
+          radius={radius}
+          hoveredCellIndex={hoveredCellIndex}
+          selectedCellIndex={selectedCellIndex}
+        />
+
         {/* Cell highlighting overlay - raised solid highlight */}
         <CellHighlightOverlay
           ref={ref}
@@ -46,17 +57,6 @@ export const ClimateOverlays = forwardRef<THREE.Mesh, ClimateOverlaysProps>(
           hoveredCellIndex={hoveredCellIndex}
           selectedCellIndex={selectedCellIndex}
         />
-
-        {/* Cell outline overlay - surface outline */}
-        <CellOutlineOverlay
-          subdivisions={subdivisions}
-          radius={radius}
-          hoveredCellIndex={hoveredCellIndex}
-          selectedCellIndex={selectedCellIndex}
-        />
-
-        {/* Lat/Lon grid overlay */}
-        <LatLonGrid visible={showLatLonGrid} axialTilt={axialTilt} />
       </>
     );
   }

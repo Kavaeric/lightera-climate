@@ -2,11 +2,13 @@
 // Passes cell UV coordinates to fragment shader for hit detection
 // Calculates view direction for backface fading effect
 
+#include "./isFacingCamera.glsl"
+
 out vec2 vUv;
 out float vFacing;
 out float vFresnel;
 out vec3 vWorldPosition;
-out vec3 vViewDirection;
+out float vIsFacingCamera;
 
 void main() {
   vUv = uv;
@@ -20,8 +22,8 @@ void main() {
   vFacing = dot(normal, viewDir);
   vFresnel = 1.0 - vFacing;
 
-  // Calculate view direction for backface detection
-  vViewDirection = normalize(cameraPosition - worldPosition.xyz);
+  // Calculate view direction for fading effect
+  vIsFacingCamera = isFacingCamera(worldPosition.xyz, cameraPosition);
 
   gl_Position = projectionMatrix * viewMatrix * worldPosition;
 }

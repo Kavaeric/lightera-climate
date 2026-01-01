@@ -3,8 +3,8 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Grid } from '../climate/geometry/geodesic';
 import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation';
-import highlightVertexShader from '../rendering/shaders/utility/highlight.vert?raw';
-import highlightFragmentShader from '../rendering/shaders/utility/highlight.frag?raw';
+import highlightVertexShader from '../rendering/shaders/utility/highlight.vert';
+import highlightFragmentShader from '../rendering/shaders/utility/highlight.frag';
 
 interface CellHighlightOverlayProps {
   subdivisions: number;

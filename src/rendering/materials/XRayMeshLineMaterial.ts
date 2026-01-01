@@ -10,146 +10,12 @@
  */
 
 import * as THREE from 'three';
+import vertexShader from '../shaders/utility/xrayMeshLine.vert?raw';
+import fragmentShaderRaw from '../shaders/utility/xrayMeshLine.frag?raw';
 
 const version = (() => parseInt(THREE.REVISION.replace(/\D+/g, '')))();
-const colorspace_fragment = version >= 154 ? 'colorspace_fragment' : 'encodings_fragment';
-
-const vertexShader = `
-  #include <common>
-  #include <logdepthbuf_pars_vertex>
-  #include <fog_pars_vertex>
-  #include <clipping_planes_pars_vertex>
-
-  attribute vec3 previous;
-  attribute vec3 next;
-  attribute float side;
-  attribute float width;
-  attribute float counters;
-
-  uniform vec2 resolution;
-  uniform float lineWidth;
-  uniform vec3 color;
-  uniform float opacity;
-  uniform float sizeAttenuation;
-
-  varying vec2 vUV;
-  varying vec4 vColor;
-  varying float vCounters;
-  varying vec3 vWorldPosition;
-  varying vec3 vViewDirection;
-
-  vec2 fix(vec4 i, float aspect) {
-    vec2 res = i.xy / i.w;
-    res.x *= aspect;
-    return res;
-  }
-
-  void main() {
-    float aspect = resolution.x / resolution.y;
-    vColor = vec4(color, opacity);
-    vUV = uv;
-    vCounters = counters;
-
-    // Calculate world position and view direction for backface detection
-    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-    vWorldPosition = worldPosition.xyz;
-    vViewDirection = normalize(cameraPosition - worldPosition.xyz);
-
-    mat4 m = projectionMatrix * modelViewMatrix;
-    vec4 finalPosition = m * vec4(position, 1.0) * aspect;
-    vec4 prevPos = m * vec4(previous, 1.0);
-    vec4 nextPos = m * vec4(next, 1.0);
-
-    vec2 currentP = fix(finalPosition, aspect);
-    vec2 prevP = fix(prevPos, aspect);
-    vec2 nextP = fix(nextPos, aspect);
-
-    float w = lineWidth * width;
-
-    vec2 dir;
-    if (nextP == currentP) dir = normalize(currentP - prevP);
-    else if (prevP == currentP) dir = normalize(nextP - currentP);
-    else {
-      vec2 dir1 = normalize(currentP - prevP);
-      vec2 dir2 = normalize(nextP - currentP);
-      dir = normalize(dir1 + dir2);
-    }
-
-    vec4 normal = vec4(-dir.y, dir.x, 0., 1.);
-    normal.xy *= .5 * w;
-    if (sizeAttenuation == 0.) {
-      normal.xy *= finalPosition.w;
-      normal.xy /= (vec4(resolution, 0., 1.) * projectionMatrix).xy * aspect;
-    }
-
-    finalPosition.xy += normal.xy * side;
-    gl_Position = finalPosition;
-    #include <logdepthbuf_vertex>
-    #include <fog_vertex>
-    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    #include <clipping_planes_vertex>
-    #include <fog_vertex>
-  }
-`;
-
-const fragmentShader = `
-  #include <fog_pars_fragment>
-  #include <logdepthbuf_pars_fragment>
-  #include <clipping_planes_pars_fragment>
-
-  uniform sampler2D map;
-  uniform sampler2D alphaMap;
-  uniform float useGradient;
-  uniform float useMap;
-  uniform float useAlphaMap;
-  uniform float useDash;
-  uniform float dashArray;
-  uniform float dashOffset;
-  uniform float dashRatio;
-  uniform float visibility;
-  uniform float alphaTest;
-  uniform vec2 repeat;
-  uniform vec3 gradient[2];
-
-  // X-ray uniforms
-  uniform float backfacingOpacity;
-  uniform vec3 sphereCenter;
-
-  varying vec2 vUV;
-  varying vec4 vColor;
-  varying float vCounters;
-  varying vec3 vWorldPosition;
-  varying vec3 vViewDirection;
-
-  void main() {
-    #include <logdepthbuf_fragment>
-    vec4 diffuseColor = vColor;
-    if (useGradient == 1.) diffuseColor = vec4(mix(gradient[0], gradient[1], vCounters), 1.0);
-    if (useMap == 1.) diffuseColor *= texture2D(map, vUV * repeat);
-    if (useAlphaMap == 1.) diffuseColor.a *= texture2D(alphaMap, vUV * repeat).a;
-    if (diffuseColor.a < alphaTest) discard;
-    if (useDash == 1.) diffuseColor.a *= ceil(mod(vCounters + dashOffset, dashArray) - (dashArray * dashRatio));
-    diffuseColor.a *= step(vCounters, visibility);
-
-    // X-ray backface fade calculation
-    // For a sphere centered at sphereCenter, the normal is the normalized direction from center to position
-    vec3 sphereNormal = normalize(vWorldPosition - sphereCenter);
-
-    // Calculate dot product of view direction and sphere normal
-    // Negative means we're looking at the back side of the sphere
-    float facing = dot(vViewDirection, sphereNormal);
-
-    // Apply backfacing opacity when facing away from camera
-    float backfaceFactor = facing > 0.0 ? 1.0 : backfacingOpacity;
-    diffuseColor.a *= backfaceFactor;
-
-    #include <clipping_planes_fragment>
-    gl_FragColor = diffuseColor;
-    #include <fog_fragment>
-    #include <tonemapping_fragment>
-    #include <${colorspace_fragment}>
-  }
-`;
+const colorspaceFragment = version >= 154 ? 'colorspace_fragment' : 'encodings_fragment';
+const fragmentShader = fragmentShaderRaw.replace('COLORSPACE_FRAGMENT', colorspaceFragment);
 
 export interface XRayMeshLineMaterialParameters {
   lineWidth?: number;
@@ -172,7 +38,6 @@ export interface XRayMeshLineMaterialParameters {
   repeat?: THREE.Vector2;
   // X-ray properties
   backfacingOpacity?: number;
-  sphereCenter?: THREE.Vector3;
   // Standard material properties
   transparent?: boolean;
   depthTest?: boolean;
@@ -198,7 +63,6 @@ export class XRayMeshLineMaterial extends THREE.ShaderMaterial {
   declare visibility: number;
   declare repeat: THREE.Vector2;
   declare backfacingOpacity: number;
-  declare sphereCenter: THREE.Vector3;
 
   constructor(parameters?: XRayMeshLineMaterialParameters) {
     super({
@@ -224,7 +88,6 @@ export class XRayMeshLineMaterial extends THREE.ShaderMaterial {
         repeat: { value: new THREE.Vector2(1, 1) },
         // X-ray uniforms
         backfacingOpacity: { value: 0.2 },
-        sphereCenter: { value: new THREE.Vector3(0, 0, 0) },
       },
       vertexShader,
       fragmentShader,
@@ -405,15 +268,6 @@ export class XRayMeshLineMaterial extends THREE.ShaderMaterial {
           this.uniforms.backfacingOpacity.value = value;
         },
       },
-      sphereCenter: {
-        enumerable: true,
-        get() {
-          return this.uniforms.sphereCenter.value;
-        },
-        set(value) {
-          this.uniforms.sphereCenter.value.copy(value);
-        },
-      },
     });
 
     this.setValues(parameters as THREE.ShaderMaterialParameters);
@@ -440,7 +294,6 @@ export class XRayMeshLineMaterial extends THREE.ShaderMaterial {
     this.alphaTest = source.alphaTest;
     this.repeat.copy(source.repeat);
     this.backfacingOpacity = source.backfacingOpacity;
-    this.sphereCenter.copy(source.sphereCenter);
     return this;
   }
 }
