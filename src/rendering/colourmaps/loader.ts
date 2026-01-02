@@ -12,7 +12,7 @@ export interface ColourmapJSON {
   name: string;
   stops: Array<{
     position: number;
-    color: [number, number, number];
+    colour: [number, number, number];
   }>;
   interpolationSpace?: 'rgb' | 'lab';
   underflowColour: [number, number, number];
@@ -63,11 +63,11 @@ export function validateColourmapJSON(data: unknown): asserts data is ColourmapJ
       throw new Error(`Stop ${i} position must be between 0 and 1 (got ${stopObj.position})`);
     }
 
-    if (!Array.isArray(stopObj.color) || stopObj.color.length !== 3) {
-      throw new Error(`Stop ${i} must have a color array with 3 values`);
+    if (!Array.isArray(stopObj.colour) || stopObj.colour.length !== 3) {
+      throw new Error(`Stop ${i} must have a colour array with 3 values`);
     }
-    if (!stopObj.color.every((c) => typeof c === 'number')) {
-      throw new Error(`Stop ${i} color must contain only numbers`);
+    if (!stopObj.colour.every((c) => typeof c === 'number')) {
+      throw new Error(`Stop ${i} colour must contain only numbers`);
     }
 
     // Check that stops are sorted by position

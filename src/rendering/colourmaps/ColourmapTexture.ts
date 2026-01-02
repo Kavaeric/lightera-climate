@@ -10,12 +10,12 @@ import * as THREE from 'three';
  */
 export interface ColourmapDefinition {
   name: string;
-  // Color stops with positions and RGB colors (0-1 range)
+  // Colour stops with positions and RGB colours (0-1 range)
   stops: Array<{
     position: number; // 0.0 to 1.0
-    color: [number, number, number] | { r: number; g: number; b: number } | THREE.Vector3;
+    colour: [number, number, number] | { r: number; g: number; b: number } | THREE.Vector3;
   }>;
-  // Optional: interpolation color space
+  // Optional: interpolation colour space
   interpolationSpace?: 'rgb' | 'lab';
   // Colour for values below the minimum range
   underflowColour: [number, number, number] | { r: number; g: number; b: number } | THREE.Vector3;
@@ -30,7 +30,7 @@ export interface ColourmapDefinition {
 const DEFAULT_RESOLUTION = 256;
 
 /**
- * Get RGB values from various color formats
+ * Get RGB values from various colour formats
  */
 function getRGB(
   colour: [number, number, number] | { r: number; g: number; b: number } | THREE.Vector3
@@ -57,18 +57,18 @@ function lerpColour(
 
 /**
  * Sample a colourmap at a normalized position t [0, 1]
- * Handles both position-based stops and legacy evenly-spaced colors
+ * Handles both position-based stops and legacy evenly-spaced colours
  */
 function sampleColourmap(
   stops: Array<{
     position: number;
-    color: [number, number, number] | { r: number; g: number; b: number } | THREE.Vector3;
+    colour: [number, number, number] | { r: number; g: number; b: number } | THREE.Vector3;
   }>,
   t: number
 ): [number, number, number] {
   const n = stops.length;
   if (n === 0) return [0, 0, 0];
-  if (n === 1) return getRGB(stops[0].color);
+  if (n === 1) return getRGB(stops[0].colour);
 
   // Clamp t to [0, 1]
   t = Math.max(0, Math.min(1, t));
@@ -80,10 +80,10 @@ function sampleColourmap(
 
   // Handle edge cases
   if (t <= stops[0].position) {
-    return getRGB(stops[0].color);
+    return getRGB(stops[0].colour);
   }
   if (t >= stops[n - 1].position) {
-    return getRGB(stops[n - 1].color);
+    return getRGB(stops[n - 1].colour);
   }
 
   // Binary search for the bracket
@@ -102,14 +102,14 @@ function sampleColourmap(
 
   // Avoid division by zero if stops have the same position
   if (positionRange === 0) {
-    return getRGB(lower.color);
+    return getRGB(lower.colour);
   }
 
   const localT = (t - lower.position) / positionRange;
-  const colorA = getRGB(lower.color);
-  const colorB = getRGB(upper.color);
+  const colourA = getRGB(lower.colour);
+  const colourB = getRGB(upper.colour);
 
-  return lerpColour(colorA, colorB, localT);
+  return lerpColour(colourA, colourB, localT);
 }
 
 /**

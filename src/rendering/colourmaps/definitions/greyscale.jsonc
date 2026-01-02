@@ -1,0 +1,14 @@
+// "Greyscale" colourmap, via https://www.kennethmoreland.com/color-advice/.
+// A simple greyscale colourmap that ramps from pure black to pure white.
+{
+  "name": "greyscale",
+  "stops": [
+    { "position": 0, "colour": [0, 0, 0] },
+    { "position": 1, "colour": [1, 1, 1] }
+  ],
+  "underflowColour": [0.0, 0.0, 0.2],
+  "overflowColour": [1.0, 0.0, 1.0],
+  "metadata": {
+    "name": "Greyscale"
+  }
+}

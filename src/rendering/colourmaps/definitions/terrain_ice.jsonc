@@ -1,0 +1,16 @@
+// Realistic-ish ice sheet colours for the terrain visualisation mode.
+// Configured to be up to 2000m, so as it turns out every stop position 
+// is a percentage of 2000m, e.g. 0.01 represents 20m.
+// Starts off greyish white and slowly transitions to a full, brighter shade
+// as the ice sheet thickens.
+{
+  "name": "ice_thickness_terrain",
+  "stops": [
+    { "position": 0, "colour": [0.73, 0.76, 0.85] },
+    { "position": 0.01, "colour": [0.78, 0.8, 0.86] },
+    { "position": 0.02, "colour": [0.81, 0.83, 0.87] },
+    { "position": 1, "colour": [0.83, 0.85, 0.88] }
+  ],
+  "underflowColour": [0, 0.2, 0.2],
+  "overflowColour": [0.83, 0.83, 0.88]
+}

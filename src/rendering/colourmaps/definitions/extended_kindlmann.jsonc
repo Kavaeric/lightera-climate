@@ -1,0 +1,27 @@
+// "Extended Kindlmann" colourmap, via https://www.kennethmoreland.com/color-advice/.
+// A perceptually uniform colourmap based on the colourmap by Kindlmann et al. (2002),
+// which itself is a rainbow map but with luminance adjustments to make it perceptually uniform.
+// This extended version includes more hues to provide better coverage.
+{
+  "name": "extended_kindlmann",
+  "stops": [
+    { "position": 0.00, "colour": [0, 0, 0] },
+    { "position": 0.12, "colour": [0.070588235, 0.019607843, 0.435294118] },
+    { "position": 0.25, "colour": [0.011764706, 0.262745098, 0.262745098] },
+    { "position": 0.38, "colour": [0.039215686, 0.403921569, 0.019607843] },
+    { "position": 0.50, "colour": [0.486274510, 0.482352941, 0.023529412] },
+    { "position": 0.62, "colour": [0.968627451, 0.431372549, 0.313725490] },
+    { "position": 0.75, "colour": [0.980392157, 0.431372549, 0.313725490] },
+    { "position": 0.88, "colour": [0.898039216, 0.831372549, 0.992156863] },
+    { "position": 1.00, "colour": [1, 1, 1] }
+
+  ],
+  "underflowColour": [0.0, 0.0, 0.2],
+  "overflowColour": [1.0, 0.0, 1.0],
+  "metadata": {
+    "name": "Extended Kindlmann",
+    "source": "https://doi.org/10.1109/VISUAL.2002.1183788",
+    "creator": "G Kindlmann; E Reinhard; S Creem",
+    "url": "https://www.kennethmoreland.com/color-advice/",
+  }
+}

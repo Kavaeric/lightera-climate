@@ -1,0 +1,25 @@
+// "Fast" colourmap, via https://www.kennethmoreland.com/color-advice/.
+// This colourmap is the default colourmap for Paraview, a scientific data vis tool.
+// Designed for 3D surfaces, it's intentionally designed to avoid getting too dark.
+{
+  "name": "fast",
+  "stops": [
+    { "position": 0.00, "colour": [0.054901961, 0.054901961, 0.470588235] },
+    { "position": 0.17, "colour": [0.243137255, 0.458823529, 0.811764706] },
+    { "position": 0.30, "colour": [0.356862745, 0.745098039, 0.952941176] },
+    { "position": 0.43, "colour": [0.686274510, 0.929411765, 0.917647059] },
+    { "position": 0.50, "colour": [0.898039216, 0.945098039, 0.768627451] },
+    { "position": 0.59, "colour": [0.956862745, 0.835294118, 0.509803922] },
+    { "position": 0.71, "colour": [0.929411765, 0.619607843, 0.313725490] },
+    { "position": 0.85, "colour": [0.800000000, 0.352941176, 0.160784314] },
+    { "position": 1.00, "colour": [0.588235294, 0.078431373, 0.117647059] }
+  ],
+  "underflowColour": [0.0, 0.0, 0.2],
+  "overflowColour": [1.0, 0.0, 1.0],
+  "metadata": {
+    "name": "Fast",
+    "source": "ParaView",
+    "url": "https://www.kennethmoreland.com/color-advice/",
+    "license": "BSD 3-Clause"
+  }
+}

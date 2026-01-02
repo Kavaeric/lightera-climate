@@ -1,0 +1,11 @@
+// Custom water colourmap used for water phase/state visualisation mode.
+{
+  "name": "water_state",
+  "stops": [
+    { "position": 0, "colour": [0.2, 0.2, 0.4] },
+    { "position": 0.5, "colour": [0, 0.4, 1] },
+    { "position": 1, "colour": [0.7, 0.7, 0.9] }
+  ],
+  "underflowColour": [0.0, 0.0, 0.0],
+  "overflowColour": [1.0, 0.0, 1.0]
+}

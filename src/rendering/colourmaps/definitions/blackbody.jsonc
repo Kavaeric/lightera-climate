@@ -1,0 +1,19 @@
+// "Blackbody" colourmap, via https://www.kennethmoreland.com/color-advice/.
+// A perceptually uniform 2D colourmap with shades inspired by blackbody radiation,
+// that ramps from pure black to pure white.
+{
+  "name": "blackbody",
+  "stops": [
+    { "position": 0.00, "colour": [0, 0, 0] },
+    { "position": 0.39, "colour": [0.698039216, 0.133333333, 0.133333333] },
+    { "position": 0.58, "colour": [1.08627451, 0.411764706, 0.019607843] },
+    { "position": 0.89, "colour": [0.901960784, 0.901960784, 0.207843137] },
+    { "position": 1.00, "colour": [1, 1, 1] }
+  ],
+  "underflowColour": [0.0, 0.0, 0.2],
+  "overflowColour": [1.0, 0.0, 1.0],
+  "metadata": {
+    "name": "Blackbody",
+    "url": "https://www.kennethmoreland.com/color-advice/"
+  }
+}

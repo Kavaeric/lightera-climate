@@ -1,0 +1,16 @@
+// Realistic-ish ocean colours for the terrain visualisation mode.
+// Configured to be up to 5000m, so as it turns out every stop position 
+// is a percentage of 5000m, e.g. 0.01 represents 50m.
+// Ramp starts with some bright azure blue for shallows but quickly deepens to
+// a navy blue.
+{
+  "name": "water_depth_terrain",
+  "stops": [
+    { "position": 0, "colour": [0.169412, 0.429216, 0.506863] },
+    { "position": 0.01, "colour": [0.021824, 0.165409, 0.28098] },
+    { "position": 0.05, "colour": [0.008009, 0.061438, 0.096955] },
+    { "position": 1, "colour": [0, 0.052549, 0.062353] }
+  ],
+  "underflowColour": [0, 0, 0.2],
+  "overflowColour": [0, 0.052549, 0.062353]
+}

@@ -1,0 +1,24 @@
+// "BlueB1", via https://sciviscolor.org/.
+{
+  "name": "blue_b1",
+  "stops": [
+    { "position": 0.0, "colour": [0.882353, 0.980392, 0.964706] },
+    { "position": 0.1, "colour": [0.690196, 0.921569, 0.913725] },
+    { "position": 0.2, "colour": [0.552941, 0.823529, 0.850980] },
+    { "position": 0.3, "colour": [0.478431, 0.737255, 0.800000] },
+    { "position": 0.4, "colour": [0.384314, 0.596078, 0.701961] },
+    { "position": 0.5, "colour": [0.321569, 0.490196, 0.639216] },
+    { "position": 0.6, "colour": [0.262745, 0.392157, 0.580392] },
+    { "position": 0.7, "colour": [0.207843, 0.301961, 0.521569] },
+    { "position": 0.8, "colour": [0.156863, 0.207843, 0.450980] },
+    { "position": 0.9, "colour": [0.121569, 0.145098, 0.400000] },
+    { "position": 1.0, "colour": [0.098039, 0.086275, 0.349020] }
+  ],
+  "underflowColour": [0, 0, 0],
+  "overflowColour": [0, 1, 1],
+  "metadata": {
+    "name": "Blue B1",
+    "source": "SciVisColor by Texas Advanced Computing Center",
+    "url": "https://sciviscolor.org/"
+  }
+}

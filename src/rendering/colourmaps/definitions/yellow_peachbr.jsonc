@@ -1,0 +1,18 @@
+// "Yellow PeachBr", via https://sciviscolor.org/.
+{
+  "name": "yellow_peachbr",
+  "stops": [
+    { "position": 0.000000, "colour": [0.6039911989390059, 0.2245039878204096, 0.18116251623528154] },
+    { "position": 0.261192, "colour": [0.7935335338702899, 0.5120350825744299, 0.33766355143077936] },
+    { "position": 0.500000, "colour": [0.9111802116296020, 0.7444309703162184, 0.46945511152703084] },
+    { "position": 0.744918, "colour": [0.9760021555139174, 0.9302053713302962, 0.64292452113997760] },
+    { "position": 1.000000, "colour": [0.9986330332380996, 1.0000000000000000, 0.89927627945199220] }
+  ],
+  "underflowColour": [0.0, 0.0, 0.0],
+  "overflowColour": [0.0, 1.0, 1.0],
+  "metadata": {
+    "name": "Yellow PeachBr",
+    "source": "SciVisColor by Texas Advanced Computing Center",
+    "url": "https://sciviscolor.org/"
+  }
+}

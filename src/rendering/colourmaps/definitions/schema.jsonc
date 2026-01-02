@@ -1,37 +1,37 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Colourmap Definition",
-  "description": "Defines a colourmap with position-based color stops for data visualization",
+  "title": "Colourmap definition",
+  "description": "Defines a colourmap for data visualisation.",
   "type": "object",
   "required": ["name", "stops", "underflowColour", "overflowColour"],
   "properties": {
     "name": {
       "type": "string",
-      "description": "Unique identifier for this colourmap"
+      "description": "Unique identifier for this colourmap."
     },
     "stops": {
       "type": "array",
-      "description": "Array of color stops with positions (must be sorted by position)",
+      "description": "Array of colour stops with positions (must be sorted by position).",
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["position", "color"],
+        "required": ["position", "colour"],
         "properties": {
           "position": {
             "type": "number",
             "minimum": 0.0,
             "maximum": 1.0,
-            "description": "Normalized position of this color stop (0.0 to 1.0)"
+            "description": "Normalised position of this colour stop (0.0 to 1.0)."
           },
-          "color": {
+          "colour": {
             "type": "array",
-            "description": "RGB color values in 0-1 range",
+            "description": "RGB colour values in 0-1 range.",
             "minItems": 3,
             "maxItems": 3,
             "items": {
               "type": "number",
               "minimum": 0.0,
-              "description": "Color channel value (0.0 to 1.0, may exceed 1.0 for HDR colors)"
+              "description": "Colour channel value (0.0 to 1.0, may exceed 1.0 for HDR colours)"
             }
           }
         }
@@ -40,12 +40,12 @@
     "interpolationSpace": {
       "type": "string",
       "enum": ["rgb", "lab"],
-      "description": "Color space for interpolation (default: rgb)",
+      "description": "Colour space for interpolation (default: rgb).",
       "default": "rgb"
     },
     "underflowColour": {
       "type": "array",
-      "description": "RGB color for values below the minimum range",
+      "description": "RGB colour for values below the minimum range.",
       "minItems": 3,
       "maxItems": 3,
       "items": {
@@ -55,7 +55,7 @@
     },
     "overflowColour": {
       "type": "array",
-      "description": "RGB color for values above the maximum range",
+      "description": "RGB colour for values above the maximum range.",
       "minItems": 3,
       "maxItems": 3,
       "items": {
@@ -65,27 +65,27 @@
     },
     "metadata": {
       "type": "object",
-      "description": "Optional metadata about the colourmap",
+      "description": "Optional metadata about the colourmap.",
       "properties": {
         "source": {
           "type": "string",
-          "description": "Where this colourmap came from (e.g., 'sciviscolor.org', 'kennethmoreland.com')"
+          "description": "Where this colourmap came from."
         },
         "creator": {
           "type": "string",
-          "description": "Creator or author of the colourmap"
+          "description": "Creator or author of the colourmap."
         },
         "url": {
           "type": "string",
-          "description": "URL to more information about this colourmap"
+          "description": "URL to more information about this colourmap."
         },
         "license": {
           "type": "string",
-          "description": "License or usage terms"
+          "description": "License or usage terms."
         },
         "description": {
           "type": "string",
-          "description": "Description of the colourmap's purpose or characteristics"
+          "description": "Description of the colourmap's purpose or characteristics."
         }
       }
     }

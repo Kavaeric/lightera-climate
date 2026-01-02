@@ -22,7 +22,6 @@
 // Texture creation utilities
 export {
   type ColourmapDefinition,
-  type LegacyColourmapDefinition,
   createColourmapTexture,
   getColourmapUVMapping,
   generateColourmapSamplerGLSL,
@@ -40,12 +39,11 @@ export {
 // Pre-defined colourmap constants (loaded from JSON files)
 export {
   COLOURMAP_GREYSCALE,
-  COLOURMAP_YELLOW_YEL15,
+  COLOURMAP_YELLOW_PEACHBR,
   COLOURMAP_BLUE_B1,
   COLOURMAP_TEAL_C16,
   COLOURMAP_WATER_STATE,
-  COLOURMAP_BLUE_SD,
-  COLOURMAP_TR4,
+  COLOURMAP_VIOLET_SD,
   COLOURMAP_EXTENDED_KINDLMANN,
   COLOURMAP_PLASMA,
   COLOURMAP_FAST,

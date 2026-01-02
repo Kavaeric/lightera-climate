@@ -9,9 +9,9 @@ import {
   COLOURMAP_GREYSCALE,
   COLOURMAP_BLUE_B1,
   COLOURMAP_TEAL_C16,
-  COLOURMAP_BLUE_SD,
+  COLOURMAP_VIOLET_SD,
   COLOURMAP_PLASMA,
-  COLOURMAP_YELLOW_YEL15,
+  COLOURMAP_YELLOW_PEACHBR,
   COLOURMAP_WATER_STATE,
   COLOURMAP_EXTENDED_KINDLMANN,
   COLOURMAP_TERRAIN_ELEVATION,
@@ -283,14 +283,14 @@ export const VISUALISATION_WATER_DEPTH: VisualisationMode = {
 export const VISUALISATION_ICE_THICKNESS: VisualisationMode = {
   id: 'iceThickness',
   name: 'Hydrology: Ice thickness',
-  colourmap: COLOURMAP_BLUE_SD,
+  colourmap: COLOURMAP_VIOLET_SD,
   getRange: (displayConfig) => displayConfig.iceThicknessRange,
-  customFragmentShader: createAccessorShader('getIceThickness', COLOURMAP_BLUE_SD, false, false),
+  customFragmentShader: createAccessorShader('getIceThickness', COLOURMAP_VIOLET_SD, false, false),
   buildCustomUniforms: (simulation, displayConfig) => {
     const range = displayConfig.iceThicknessRange;
     return {
       hydrologyData: { value: simulation.getHydrologyDataCurrent().texture },
-      colourmapTexture: { value: createColourmapTexture(COLOURMAP_BLUE_SD) },
+      colourmapTexture: { value: createColourmapTexture(COLOURMAP_VIOLET_SD) },
       valueMin: { value: range.min },
       valueMax: { value: range.max },
     };
@@ -331,14 +331,14 @@ export const VISUALISATION_SALINITY: VisualisationMode = {
 export const VISUALISATION_SOLAR_FLUX: VisualisationMode = {
   id: 'solarFlux',
   name: 'Auxiliary: Solar flux',
-  colourmap: COLOURMAP_YELLOW_YEL15,
+  colourmap: COLOURMAP_YELLOW_PEACHBR,
   getRange: (displayConfig) => displayConfig.solarFluxRange,
-  customFragmentShader: createAccessorShader('getSolarFlux', COLOURMAP_YELLOW_YEL15, true, true),
+  customFragmentShader: createAccessorShader('getSolarFlux', COLOURMAP_YELLOW_PEACHBR, true, true),
   buildCustomUniforms: (simulation, displayConfig) => {
     const range = displayConfig.solarFluxRange;
     return {
       auxiliaryData: { value: simulation.getAuxiliaryTarget().texture },
-      colourmapTexture: { value: createColourmapTexture(COLOURMAP_YELLOW_YEL15) },
+      colourmapTexture: { value: createColourmapTexture(COLOURMAP_YELLOW_PEACHBR) },
       valueMin: { value: range.min },
       valueMax: { value: range.max },
     };

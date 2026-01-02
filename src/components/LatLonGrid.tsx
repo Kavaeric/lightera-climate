@@ -429,9 +429,9 @@ export function LatLonGrid({
       <mesh raycast={raycast}>
         <meshLineGeometry attach="geometry" points={primeMeridianPoints} />
         <xRayMeshLineMaterial
-          lineWidth={lineWidth}
+          lineWidth={lineWidth * LANDMARK_LINE_WIDTH_MULTIPLIER}
           color={'white'}
-          opacity={opacity}
+          opacity={opacity * LANDMARK_LINE_OPACITY_MULTIPLIER}
           backfacingOpacity={backOpacity}
           resolution={resolution}
           sizeAttenuation={0} // Use screenspace size

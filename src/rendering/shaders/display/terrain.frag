@@ -72,6 +72,7 @@ void main() {
   float waterDepth = getWaterDepth(vUv);
 
   // Normalise to [0, 1]
+  // This shader is hardcoded to use a depth of up to 5000m as it's a primarily visual shader.
   float normalisedWaterDepth = (waterDepth - 0.0) / (5000.0 - 0.0);
 
   // Detect underflow/overflow for fallback colouring
@@ -97,7 +98,8 @@ void main() {
   float iceThickness = getIceThickness(vUv);
 
   // Normalise to [0, 1]
-  float normalisedIceThickness = (iceThickness - 0.0) / (5000.0 - 0.0);
+  // Hardcoded to 2000m
+  float normalisedIceThickness = (iceThickness - 0.0) / (2000.0 - 0.0);
 
   // Detect underflow/overflow for fallback colouring
   float isUnderflowIceThickness = step(normalisedIceThickness, 0.0 - 1e-6);
