@@ -248,7 +248,7 @@ export async function createClimateEngine(
         terrainData: { value: simulation.terrainData },
         atmosphereData: { value: null }, // Will be set each frame
         auxiliaryData: { value: null }, // Will be set each frame (to preserve solar flux)
-        surfaceGravity: { value: planetaryConfig.surfaceGravity }, // m/s² - for water vapor pressure calculations
+        surfaceGravity: { value: planetaryConfig.surfaceGravity }, // m/s² - for water vapour pressure calculations
         dt: { value: dt },
       },
     });

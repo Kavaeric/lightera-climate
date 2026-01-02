@@ -130,7 +130,7 @@ void main() {
 	// === LONGWAVE CALCULATION ===
 
 	// Derive dry pressure from total pressure (Dalton's Law)
-	// Water vapor adds to atmospheric pressure, doesn't dilute other gases
+	// Water vapour adds to atmospheric pressure, doesn't dilute other gases
 	float dryPressure_Pa = calculateDryPressure(
 		atmospherePressure,
 		precipitableWater_mm,
@@ -138,7 +138,7 @@ void main() {
 	);
 
 	// Calculate dry gas column density from DRY pressure
-	// This ensures adding water vapor doesn't dilute the dry gases
+	// This ensures adding water vapour doesn't dilute the dry gases
 	float dryColumn_cm2 = calculateColumnDensity(
 		dryPressure_Pa,
 		surfaceGravity,
@@ -235,7 +235,7 @@ void main() {
 		(surfaceNetPowerPerArea * dt) / surfaceHeatCapacity;
 
 	// Atmosphere temperature update
-	// Adjust heat capacity for water vapor content (H2O has higher specific heat than dry air)
+	// Adjust heat capacity for water vapour content (H2O has higher specific heat than dry air)
 	float adjustedAtmosphereHeatCapacity = adjustHeatCapacityForWaterVapour(atmosphereHeatCapacity, precipitableWater_mm);
 	float newAtmosphereTemperature = atmosphereTemperature +
 		(atmosphereNetPowerPerArea * dt) / adjustedAtmosphereHeatCapacity;

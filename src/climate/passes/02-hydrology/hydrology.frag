@@ -206,7 +206,7 @@ void main() {
 	// Ensure non-negative values after vaporisation
 	newWaterDepth = max(0.0, newWaterDepth);
 
-	// === ATMOSPHERIC WATER VAPOR UPDATE ===
+	// === ATMOSPHERIC WATER VAPOUR UPDATE ===
 	//
 	// Add vaporised water to atmosphere using Dalton's Law:
 	// P_total = P_dry + P_H2O
