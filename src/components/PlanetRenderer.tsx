@@ -2,9 +2,9 @@ import { useMemo, forwardRef, useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { Grid } from '../climate/geometry/geodesic';
-import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation';
-import type { DisplayConfig } from '../config/displayConfig';
 import { getVisualisationMode } from '../rendering/visualisationModes';
+import { useSimulation } from '../context/useSimulation';
+import { useDisplayConfig } from '../context/useDisplayConfig'
 
 // Import vertex shader for all visualisations
 import visualiseVertexShader from '../rendering/shaders/display/visualise.vert?raw';
@@ -13,26 +13,27 @@ import atmosphereVertexShader from '../rendering/shaders/display/atmosphere.vert
 import atmosphereFragmentShader from '../rendering/shaders/display/atmosphere.frag?raw';
 
 interface PlanetRendererProps {
-  subdivisions: number;
-  radius: number;
+  radius?: number;
   atmosphereHeight?: number;
-  simulation: TextureGridSimulation;
-  displayConfig: DisplayConfig;
 }
 
 /**
- * Renders the 3D planet visualisation with surface temperature data from GPU texture
- * Pure data visualisation component - no interaction or selection logic
- * Highlighting is handled separately by CellHighlightOverlay
- * Interaction is handled separately by PlanetInteraction
- * Each vertex has a UV coordinate pointing to its cell's pixel in the state texture
+ * Renders the 3D planet visualisation with surface temperature data from GPU texture.
+ * Each vertex has a UV coordinate pointing to its cell's pixel in the state texture.
  */
 export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(function PlanetRenderer(
-  { subdivisions, radius, atmosphereHeight = 0.005, simulation, displayConfig },
+  { radius = 1, atmosphereHeight = 0.005 },
   ref
 ) {
+  // Get simulation and display config from contexts
+  const { getSimulation, activeSimulationConfig } = useSimulation();
+  const { displayConfig } = useDisplayConfig();
+  const simulation = getSimulation();
+  const subdivisions = activeSimulationConfig.resolution;
+
   // Generate geometry with UV coordinates mapped to texture
   const planetGeometry = useMemo(() => {
+    if (!simulation) return new THREE.BufferGeometry();
     const grid = new Grid(subdivisions);
     const vertices: number[] = [];
     const normals: number[] = [];
@@ -46,7 +47,7 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(functi
       // Get UV coordinates for this cell (maps to pixel in texture)
       const [cellU, cellV] = simulation.getCellUV(cellIndex);
 
-      // Add triangles for this cell - NO SHARED VERTICES
+      // Add triangles for this cell. NO SHARED VERTICES
       // Each triangle gets its own 3 vertices for per-face coloring
       for (const triangle of cell.faceTriangles) {
         // Vertex A
@@ -79,6 +80,8 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(functi
 
   // Create shader material with custom fragment shader from visualisation mode
   const planetMaterial = useMemo(() => {
+    if (!simulation) return new THREE.MeshBasicMaterial();
+
     // Get visualisation mode configuration
     const mode = getVisualisationMode(displayConfig.visualisationMode);
 
@@ -108,8 +111,10 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(functi
   // Update texture uniforms every frame to handle buffer swaps
   // This ensures the visualisation always shows the most recent simulation state
   useFrame(() => {
+    if (!simulation) return;
+
     const currentMaterial = materialRef.current;
-    if (!currentMaterial) return;
+    if (!currentMaterial || !('uniforms' in currentMaterial)) return;
 
     const uniforms = currentMaterial.uniforms;
 

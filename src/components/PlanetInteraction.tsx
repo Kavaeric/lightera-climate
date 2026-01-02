@@ -2,6 +2,7 @@ import { useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation';
+import { uvToCellIndex } from '../climate/engine/grid';
 
 interface PlanetInteractionProps {
   simulation: TextureGridSimulation;
@@ -11,8 +12,9 @@ interface PlanetInteractionProps {
 }
 
 /**
- * Handles mouse interaction with the planet
- * Uses raycasting to detect which cell was clicked or hovered
+ * Handles mouse interaction with the planet.
+ * Uses raycasting to detect which cell was clicked or hovered, and
+ * converts the UV coordinates to cell index.
  */
 export function PlanetInteraction({
   simulation,
@@ -23,6 +25,10 @@ export function PlanetInteraction({
   const { camera, gl, raycaster } = useThree();
   const pointerRef = useRef(new THREE.Vector2());
   const hoveredCellRef = useRef<number | null>(null);
+
+  // Cache texture dimensions for O(1) UV-to-index conversion
+  const textureWidth = simulation.getTextureWidth();
+  const textureHeight = simulation.getTextureHeight();
 
   useEffect(() => {
     const canvas = gl.domElement;
@@ -50,20 +56,11 @@ export function PlanetInteraction({
         const u = uvAttribute.getX(vertexIndex);
         const v = uvAttribute.getY(vertexIndex);
 
-        // Find which cell has this UV coordinate
-        let cellIndex = -1;
-        let minDist = Infinity;
+        // Convert UV coordinates directly to cell index (O(1) lookup)
+        const cellIndex = uvToCellIndex(u, v, textureWidth, textureHeight);
 
-        for (let i = 0; i < simulation.getCellCount(); i++) {
-          const [cellU, cellV] = simulation.getCellUV(i);
-          const dist = Math.abs(cellU - u) + Math.abs(cellV - v);
-          if (dist < minDist) {
-            minDist = dist;
-            cellIndex = i;
-          }
-        }
-
-        if (cellIndex >= 0 && cellIndex !== hoveredCellRef.current) {
+        // Validate cell index is within bounds
+        if (cellIndex >= 0 && cellIndex < simulation.getCellCount() && cellIndex !== hoveredCellRef.current) {
           hoveredCellRef.current = cellIndex;
           onHoverCell?.(cellIndex);
         }
@@ -102,20 +99,11 @@ export function PlanetInteraction({
         const u = uvAttribute.getX(vertexIndex);
         const v = uvAttribute.getY(vertexIndex);
 
-        // Find which cell has this UV coordinate
-        let clickedCellIndex = -1;
-        let minDist = Infinity;
+        // Convert UV coordinates directly to cell index (O(1) lookup)
+        const clickedCellIndex = uvToCellIndex(u, v, textureWidth, textureHeight);
 
-        for (let i = 0; i < simulation.getCellCount(); i++) {
-          const [cellU, cellV] = simulation.getCellUV(i);
-          const dist = Math.abs(cellU - u) + Math.abs(cellV - v);
-          if (dist < minDist) {
-            minDist = dist;
-            clickedCellIndex = i;
-          }
-        }
-
-        if (clickedCellIndex >= 0) {
+        // Validate cell index is within bounds
+        if (clickedCellIndex >= 0 && clickedCellIndex < simulation.getCellCount()) {
           // Log to console for debugging
           console.log(`Cell index: ${clickedCellIndex}`);
 
@@ -132,7 +120,7 @@ export function PlanetInteraction({
       canvas.removeEventListener('pointermove', handlePointerMove);
       canvas.removeEventListener('click', handleClick);
     };
-  }, [camera, gl, meshRef, raycaster, simulation, onHoverCell, onCellClick]);
+  }, [camera, gl, meshRef, raycaster, simulation, onHoverCell, onCellClick, textureWidth, textureHeight]);
 
   return null;
 }

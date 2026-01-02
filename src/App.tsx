@@ -26,7 +26,7 @@ function ClimateApp() {
   // Get state from hooks
   const { pendingSimulationConfig } = useSimulationConfig();
   const { orbitalConfig } = useOrbitalConfig();
-  const { displayConfig, showLatLonGrid } = useDisplayConfig();
+  const { showLatLonGrid } = useDisplayConfig();
   const { stepsPerFrame, samplesPerOrbit } = useRuntimeControls();
   const {
     hoveredCell,
@@ -152,13 +152,7 @@ function ClimateApp() {
         {simulation ? (
           <>
             {/* Planet geometry */}
-            <ClimateScene
-              ref={meshRef}
-              simulation={simulation}
-              displayConfig={displayConfig}
-              subdivisions={activeSimulationConfig.resolution}
-              radius={1}
-            />
+            <ClimateScene ref={meshRef} />
 
             {/* Visual overlays */}
             <ClimateOverlays

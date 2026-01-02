@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import { Grid, GridCell } from '../../geometry/geodesic';
 import {
+  cellIndexToUV,
   indexTo2D,
   coordsToDataIndex,
   calculateTextureDimensions,
-  getCellUV,
 } from './CellAccessors';
 
 /**
@@ -216,7 +216,7 @@ export class GridTextureManager {
    * Get UV coordinates for a given cell index
    */
   getCellUV(cellIndex: number): [number, number] {
-    return getCellUV(cellIndex, this.textureWidth, this.textureHeight);
+    return cellIndexToUV(cellIndex, this.textureWidth, this.textureHeight);
   }
 
   /**
