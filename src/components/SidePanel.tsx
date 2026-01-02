@@ -1,7 +1,7 @@
 import type { VisualisationModeId } from '../types/visualisationModes';
 import { VISUALISATION_MODES } from '../rendering/visualisationModes';
-import { useSimulationConfig } from '../context/useSimulationConfig';
-import { useOrbitalConfig } from '../context/useOrbitalConfig';
+import { useDraftSimulationConfig } from '../context/useDraftSimulationConfig';
+import { useDraftOrbitalConfig } from '../context/useDraftOrbitalConfig';
 import { useDisplayConfig } from '../context/useDisplayConfig';
 import { useRuntimeControls } from '../context/useRuntimeControls';
 import { useSimulation } from '../context/useSimulation';
@@ -13,8 +13,8 @@ interface SidePanelProps {
 
 export function SidePanel({ onNewSimulation, simulationProgress }: SidePanelProps) {
   // Get state from hooks
-  const { pendingSimulationConfig, setPendingSimulationConfig } = useSimulationConfig();
-  const { orbitalConfig, setOrbitalConfig } = useOrbitalConfig();
+  const { draftSimulationConfig, setDraftSimulationConfig } = useDraftSimulationConfig();
+  const { draftOrbitalConfig, setDraftOrbitalConfig } = useDraftOrbitalConfig();
   const { displayConfig, setDisplayConfig, showLatLonGrid, setShowLatLonGrid } = useDisplayConfig();
   const { stepsPerFrame, setStepsPerFrame, samplesPerOrbit, setSamplesPerOrbit } =
     useRuntimeControls();
@@ -42,12 +42,12 @@ export function SidePanel({ onNewSimulation, simulationProgress }: SidePanelProp
           <span>Resolution</span>
           <input
             type="number"
-            value={pendingSimulationConfig.resolution}
+            value={draftSimulationConfig.resolution}
             onChange={(e) => {
               const val = parseInt(e.target.value);
-              setPendingSimulationConfig({
-                ...pendingSimulationConfig,
-                resolution: isNaN(val) ? pendingSimulationConfig.resolution : val,
+              setDraftSimulationConfig({
+                ...draftSimulationConfig,
+                resolution: isNaN(val) ? draftSimulationConfig.resolution : val,
               });
             }}
           />
@@ -56,12 +56,12 @@ export function SidePanel({ onNewSimulation, simulationProgress }: SidePanelProp
           <span>Physics steps per orbit</span>
           <input
             type="number"
-            value={pendingSimulationConfig.stepsPerOrbit}
+            value={draftSimulationConfig.stepsPerOrbit}
             onChange={(e) => {
               const val = parseInt(e.target.value);
-              setPendingSimulationConfig({
-                ...pendingSimulationConfig,
-                stepsPerOrbit: isNaN(val) ? pendingSimulationConfig.stepsPerOrbit : val,
+              setDraftSimulationConfig({
+                ...draftSimulationConfig,
+                stepsPerOrbit: isNaN(val) ? draftSimulationConfig.stepsPerOrbit : val,
               });
             }}
           />
@@ -86,12 +86,12 @@ export function SidePanel({ onNewSimulation, simulationProgress }: SidePanelProp
             type="number"
             step="1"
             min="0"
-            value={orbitalConfig.solarFlux}
+            value={draftOrbitalConfig.solarFlux}
             onChange={(e) => {
               const val = parseFloat(e.target.value);
-              setOrbitalConfig({
-                ...orbitalConfig,
-                solarFlux: isNaN(val) ? orbitalConfig.solarFlux : val,
+              setDraftOrbitalConfig({
+                ...draftOrbitalConfig,
+                solarFlux: isNaN(val) ? draftOrbitalConfig.solarFlux : val,
               });
             }}
           />
@@ -103,12 +103,12 @@ export function SidePanel({ onNewSimulation, simulationProgress }: SidePanelProp
             step="0.1"
             min="0"
             max="90"
-            value={orbitalConfig.axialTilt}
+            value={draftOrbitalConfig.axialTilt}
             onChange={(e) => {
               const val = parseFloat(e.target.value);
-              setOrbitalConfig({
-                ...orbitalConfig,
-                axialTilt: isNaN(val) ? orbitalConfig.axialTilt : val,
+              setDraftOrbitalConfig({
+                ...draftOrbitalConfig,
+                axialTilt: isNaN(val) ? draftOrbitalConfig.axialTilt : val,
               });
             }}
           />
@@ -119,12 +119,12 @@ export function SidePanel({ onNewSimulation, simulationProgress }: SidePanelProp
             type="number"
             step="1"
             min="0"
-            value={orbitalConfig.yearLength}
+            value={draftOrbitalConfig.yearLength}
             onChange={(e) => {
               const val = parseFloat(e.target.value);
-              setOrbitalConfig({
-                ...orbitalConfig,
-                yearLength: isNaN(val) ? orbitalConfig.yearLength : val,
+              setDraftOrbitalConfig({
+                ...draftOrbitalConfig,
+                yearLength: isNaN(val) ? draftOrbitalConfig.yearLength : val,
               });
             }}
           />
@@ -135,12 +135,12 @@ export function SidePanel({ onNewSimulation, simulationProgress }: SidePanelProp
             type="number"
             step="1"
             min="0"
-            value={orbitalConfig.rotationsPerYear}
+            value={draftOrbitalConfig.rotationsPerYear}
             onChange={(e) => {
               const val = parseFloat(e.target.value);
-              setOrbitalConfig({
-                ...orbitalConfig,
-                rotationsPerYear: isNaN(val) ? orbitalConfig.rotationsPerYear : val,
+              setDraftOrbitalConfig({
+                ...draftOrbitalConfig,
+                rotationsPerYear: isNaN(val) ? draftOrbitalConfig.rotationsPerYear : val,
               });
             }}
           />

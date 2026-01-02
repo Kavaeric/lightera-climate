@@ -11,20 +11,20 @@ import { ClimateDataChart } from './components/ClimateDataChart';
 import { PLANETARY_CONFIG_EARTH, type PlanetaryConfig } from './config/planetaryConfig';
 import { SimulationProvider } from './context/SimulationContext';
 import { DisplayConfigProvider } from './context/DisplayConfigProvider';
-import { SimulationConfigProvider } from './context/SimulationConfigProvider';
-import { OrbitalConfigProvider } from './context/OrbitalConfigProvider';
+import { DraftSimulationConfigProvider } from './context/DraftSimulationConfigProvider';
+import { DraftOrbitalConfigProvider } from './context/DraftOrbitalConfigProvider';
 import { RuntimeControlsProvider } from './context/RuntimeControlsProvider';
 import { UIStateProvider } from './context/UIStateProvider';
 import { useSimulation } from './context/useSimulation';
-import { useSimulationConfig } from './context/useSimulationConfig';
-import { useOrbitalConfig } from './context/useOrbitalConfig';
+import { useDraftSimulationConfig } from './context/useDraftSimulationConfig';
+import { useDraftOrbitalConfig } from './context/useDraftOrbitalConfig';
 import { useRuntimeControls } from './context/useRuntimeControls';
 import { useUIState } from './context/useUIState';
 
 function ClimateApp() {
   // Get state from hooks
-  const { pendingSimulationConfig } = useSimulationConfig();
-  const { orbitalConfig } = useOrbitalConfig();
+  const { draftSimulationConfig } = useDraftSimulationConfig();
+  const { draftOrbitalConfig } = useDraftOrbitalConfig();
   const { stepsPerFrame, samplesPerOrbit } = useRuntimeControls();
   const {
     hoveredCell,
@@ -181,7 +181,7 @@ function ClimateApp() {
       <SidePanel
         simulationProgress={simulationProgress}
         onNewSimulation={() => {
-          newSimulation(pendingSimulationConfig, orbitalConfig, planetaryConfig);
+          newSimulation(draftSimulationConfig, draftOrbitalConfig, planetaryConfig);
           setSelectedCell(null);
           setSelectedCellLatLon(null);
           setSelectedCellArea(null);
@@ -210,15 +210,15 @@ function App() {
   return (
     <SimulationProvider>
       <DisplayConfigProvider>
-        <SimulationConfigProvider>
-          <OrbitalConfigProvider>
+        <DraftSimulationConfigProvider>
+          <DraftOrbitalConfigProvider>
             <RuntimeControlsProvider>
               <UIStateProvider>
                 <ClimateApp />
               </UIStateProvider>
             </RuntimeControlsProvider>
-          </OrbitalConfigProvider>
-        </SimulationConfigProvider>
+          </DraftOrbitalConfigProvider>
+        </DraftSimulationConfigProvider>
       </DisplayConfigProvider>
     </SimulationProvider>
   );

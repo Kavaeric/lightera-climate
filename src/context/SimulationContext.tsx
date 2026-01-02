@@ -28,7 +28,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
   const orchestratorRef = useRef<SimulationOrchestrator | null>(null);
   const recorderRef = useRef<SimulationRecorder | null>(null);
 
-  // Helper to sync isRunning from orchestrator (single source of truth)
+  // Helper to sync isRunning from orchestrator
   const syncIsRunning = useCallback(() => {
     setIsRunning(orchestratorRef.current?.isRunning() ?? false);
   }, []);

@@ -4,7 +4,7 @@ import { CellHighlightOverlay } from './CellHighlightOverlay';
 import { CellOutlineOverlay } from './CellOutlineOverlay';
 import { LatLonGrid } from './LatLonGrid';
 import { useDisplayConfig } from '../context/useDisplayConfig';
-import { useOrbitalConfig } from '../context/useOrbitalConfig';
+import { useSimulation } from '../context/useSimulation';
 
 interface ClimateOverlaysProps {
   hoveredCellIndex?: number | null;
@@ -23,12 +23,12 @@ export const ClimateOverlays = forwardRef<THREE.Group, ClimateOverlaysProps>(
     ref
   ) {
     const { showLatLonGrid } = useDisplayConfig();
-    const { orbitalConfig } = useOrbitalConfig();
+    const { activeOrbitalConfig } = useSimulation();
 
     return (
       <>
         {/* Lat/Lon grid overlay */}
-        <LatLonGrid visible={showLatLonGrid} axialTilt={orbitalConfig.axialTilt} />
+        <LatLonGrid visible={showLatLonGrid} axialTilt={activeOrbitalConfig.axialTilt} />
 
         {/* Cell outline overlay - surface outline */}
         <CellOutlineOverlay
