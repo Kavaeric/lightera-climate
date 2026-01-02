@@ -37,17 +37,4 @@ export {
 } from './loader';
 
 // Pre-defined colourmap constants (loaded from JSON files)
-export {
-  COLOURMAP_GREYSCALE,
-  COLOURMAP_YELLOW_PEACHBR,
-  COLOURMAP_BLUE_B1,
-  COLOURMAP_TEAL_C16,
-  COLOURMAP_WATER_STATE,
-  COLOURMAP_VIOLET_SD,
-  COLOURMAP_EXTENDED_KINDLMANN,
-  COLOURMAP_PLASMA,
-  COLOURMAP_FAST,
-  COLOURMAP_TERRAIN_ELEVATION,
-  COLOURMAP_TERRAIN_WATER,
-  COLOURMAP_TERRAIN_ICE,
-} from './colourmaps';
+export * from './colourmaps';

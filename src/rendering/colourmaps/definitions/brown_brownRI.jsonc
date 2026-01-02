@@ -1,0 +1,20 @@
+// "Brown brownRI", via https://sciviscolor.org/.
+{
+  "name": "brown_brownRI",
+  "stops": [
+    { "position": 0.00000000000000000, "colour": [0.22, 0.12913011663488402, 0.023913255576743998] },
+    { "position": 0.16626728452996287, "colour": [0.41, 0.26130666666666663, 0.131199999999999980] },
+    { "position": 0.32818494368889260, "colour": [0.59, 0.42951999999999996, 0.306800000000000000] },
+    { "position": 0.50000000000000000, "colour": [0.68, 0.55284000000000000, 0.448800000000000000] },
+    { "position": 0.67589273739556850, "colour": [0.79, 0.68688830262147480, 0.600400000000000000] },
+    { "position": 0.85000000000000000, "colour": [0.89, 0.82667857751989830, 0.765400000000000000] },
+    { "position": 1.00000000000000000, "colour": [1.00, 0.97466666666666670, 0.920000000000000000] }
+  ],
+  "underflowColour": [0, 0, 0],
+  "overflowColour": [0, 1, 1],
+  "metadata": {
+    "name": "Brown brownRI",
+    "source": "SciVisColor by Texas Advanced Computing Center",
+    "url": "https://sciviscolor.org/"
+  }
+}

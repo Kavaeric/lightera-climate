@@ -1,11 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
-import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation';
 import { useSimulation } from '../context/useSimulation';
 import type { Milestone } from '../climate/engine/SimulationOrchestrator';
 
 interface ClimateDataFetcherProps {
-  simulation: TextureGridSimulation;
   cellIndex: number | null;
   onDataFetched: (
     data: Array<{
@@ -28,12 +26,12 @@ interface ClimateDataFetcherProps {
  * Automatically refreshes data when a new orbit completes
  */
 export function ClimateDataFetcher({
-  simulation,
   cellIndex,
   onDataFetched,
 }: ClimateDataFetcherProps) {
   const { gl } = useThree();
-  const { getRecorder, getOrchestrator, simulationKey } = useSimulation();
+  const { getSimulation, getRecorder, getOrchestrator, simulationKey } = useSimulation();
+  const simulation = getSimulation();
 
   // Use refs to avoid stale closures in milestone callback
   const cellIndexRef = useRef(cellIndex);
@@ -48,7 +46,7 @@ export function ClimateDataFetcher({
   useEffect(() => {
     fetchDataRef.current = async () => {
       const currentCellIndex = cellIndexRef.current;
-      if (currentCellIndex === null) {
+      if (currentCellIndex === null || !simulation) {
         onDataFetched([]);
         return;
       }

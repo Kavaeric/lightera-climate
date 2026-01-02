@@ -16,7 +16,6 @@ import { OrbitalConfigProvider } from './context/OrbitalConfigProvider';
 import { RuntimeControlsProvider } from './context/RuntimeControlsProvider';
 import { UIStateProvider } from './context/UIStateProvider';
 import { useSimulation } from './context/useSimulation';
-import { useDisplayConfig } from './context/useDisplayConfig';
 import { useSimulationConfig } from './context/SimulationConfigProvider';
 import { useOrbitalConfig } from './context/OrbitalConfigProvider';
 import { useRuntimeControls } from './context/RuntimeControlsProvider';
@@ -26,7 +25,6 @@ function ClimateApp() {
   // Get state from hooks
   const { pendingSimulationConfig } = useSimulationConfig();
   const { orbitalConfig } = useOrbitalConfig();
-  const { showLatLonGrid } = useDisplayConfig();
   const { stepsPerFrame, samplesPerOrbit } = useRuntimeControls();
   const {
     hoveredCell,
@@ -56,7 +54,6 @@ function ClimateApp() {
 
   // Refs for 3D components
   const meshRef = useRef<THREE.Mesh>(null);
-  const highlightRef = useRef<THREE.Mesh>(null);
 
   // Track simulation progress from orchestrator
   const [simulationProgress, setSimulationProgress] = useState<{
@@ -155,11 +152,8 @@ function ClimateApp() {
 
             {/* Visual overlays */}
             <ClimateOverlays
-              ref={highlightRef}
               hoveredCellIndex={hoveredCell}
               selectedCellIndex={selectedCell}
-              showLatLonGrid={showLatLonGrid}
-              axialTilt={orbitalConfig.axialTilt}
             />
 
             {/* User interaction controls */}
@@ -171,7 +165,6 @@ function ClimateApp() {
 
             {/* Climate data fetcher */}
             <ClimateDataFetcher
-              simulation={simulation}
               cellIndex={selectedCell}
               onDataFetched={handleDataFetched}
             />

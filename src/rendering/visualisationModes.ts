@@ -8,12 +8,12 @@ import { createAccessorShader } from './shaderLoader';
 import {
   COLOURMAP_GREYSCALE,
   COLOURMAP_BLUE_B1,
+  COLOURMAP_BROWN_BROWNRI,
   COLOURMAP_TEAL_C16,
   COLOURMAP_VIOLET_SD,
   COLOURMAP_PLASMA,
   COLOURMAP_YELLOW_PEACHBR,
   COLOURMAP_WATER_STATE,
-  COLOURMAP_EXTENDED_KINDLMANN,
   COLOURMAP_TERRAIN_ELEVATION,
   COLOURMAP_TERRAIN_WATER,
   COLOURMAP_TERRAIN_ICE,
@@ -61,11 +61,11 @@ export const VISUALISATION_TERRAIN: VisualisationMode = {
 export const VISUALISATION_ELEVATION: VisualisationMode = {
   id: 'elevation',
   name: 'Elevation',
-  colourmap: COLOURMAP_EXTENDED_KINDLMANN,
+  colourmap: COLOURMAP_BROWN_BROWNRI,
   getRange: (displayConfig) => displayConfig.elevationRange,
   customFragmentShader: createAccessorShader(
     'getElevation',
-    COLOURMAP_EXTENDED_KINDLMANN,
+    COLOURMAP_BROWN_BROWNRI,
     true,
     false
   ),
@@ -73,7 +73,7 @@ export const VISUALISATION_ELEVATION: VisualisationMode = {
     const range = displayConfig.elevationRange;
     return {
       terrainData: { value: simulation.terrainData },
-      colourmapTexture: { value: createColourmapTexture(COLOURMAP_EXTENDED_KINDLMANN) },
+      colourmapTexture: { value: createColourmapTexture(COLOURMAP_BROWN_BROWNRI) },
       valueMin: { value: range.min },
       valueMax: { value: range.max },
     };
@@ -104,7 +104,7 @@ export const VISUALISATION_SURFACE_ALTITUDE: VisualisationMode = {
       waterDepthMax: { value: waterDepthRange.max },
       iceThicknessMin: { value: iceThicknessRange.min },
       iceThicknessMax: { value: iceThicknessRange.max },
-      colourmapTexture: { value: createColourmapTexture(COLOURMAP_GREYSCALE) },
+      colourmapTexture: { value: createColourmapTexture(COLOURMAP_BROWN_BROWNRI) },
     };
   },
 };

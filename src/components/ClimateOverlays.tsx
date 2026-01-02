@@ -3,33 +3,32 @@ import * as THREE from 'three';
 import { CellHighlightOverlay } from './CellHighlightOverlay';
 import { CellOutlineOverlay } from './CellOutlineOverlay';
 import { LatLonGrid } from './LatLonGrid';
+import { useDisplayConfig } from '../context/useDisplayConfig';
+import { useOrbitalConfig } from '../context/OrbitalConfigProvider';
 
 interface ClimateOverlaysProps {
   hoveredCellIndex?: number | null;
   selectedCellIndex?: number | null;
-
-  // Lat/Lon grid
-  showLatLonGrid: boolean;
-  axialTilt: number;
 }
 
 /**
  * Visual overlays rendered on top of the planet geometry.
  */
-export const ClimateOverlays = forwardRef<THREE.Mesh, ClimateOverlaysProps>(
+export const ClimateOverlays = forwardRef<THREE.Group, ClimateOverlaysProps>(
   function ClimateOverlays(
     {
       hoveredCellIndex,
       selectedCellIndex,
-      showLatLonGrid,
-      axialTilt,
     },
     ref
   ) {
+    const { showLatLonGrid } = useDisplayConfig();
+    const { orbitalConfig } = useOrbitalConfig();
+
     return (
       <>
         {/* Lat/Lon grid overlay */}
-        <LatLonGrid visible={showLatLonGrid} axialTilt={axialTilt} />
+        <LatLonGrid visible={showLatLonGrid} axialTilt={orbitalConfig.axialTilt} />
 
         {/* Cell outline overlay - surface outline */}
         <CellOutlineOverlay
@@ -40,7 +39,6 @@ export const ClimateOverlays = forwardRef<THREE.Mesh, ClimateOverlaysProps>(
         {/* Cell highlighting overlay - raised solid highlight */}
         <CellHighlightOverlay
           ref={ref}
-          offset={0.015}
           hoveredCellIndex={hoveredCellIndex}
           selectedCellIndex={selectedCellIndex}
         />

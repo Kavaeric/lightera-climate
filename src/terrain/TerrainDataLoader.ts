@@ -42,32 +42,37 @@ export class TerrainDataLoader {
     cellCount: number,
     cellLatLons: Array<{ lat: number; lon: number }>,
     options: {
-      topologyScale?: number; // metres for max pixel value (default: 6400 for NASA BMNG)
-      bathymetryScale?: number; // metres for max depth (default: 8000 for NASA BMNG)
+      topologyMin?: number; // minimum elevation in metres (default: 0)
+      topologyMax?: number; // maximum elevation in metres (default: 6400 for NASA BMNG)
+      bathymetryMin?: number; // minimum depth in metres (default: -8000 for NASA BMNG)
+      bathymetryMax?: number; // maximum depth in metres (default: 0 - sea level)
     } = {}
   ): Promise<TerrainConfig> {
-    const topologyScale = options.topologyScale ?? 6400;
-    const bathymetryScale = options.bathymetryScale ?? 8000;
+    // Support legacy parameters while adding new min/max parameters
+    const topologyMin = options.topologyMin ?? 0;
+    const topologyMax = options.topologyMax ?? 6400;
+    const bathymetryMin = options.bathymetryMin ?? -8000;
+    const bathymetryMax = options.bathymetryMax ?? 0;
 
-    // Load topology (land elevation: 0 to topologyScale metres)
+    // Load topology (land elevation: topologyMin to topologyMax metres)
     const topologyData = await this.loadFromHeightmap(
       topologyUrl,
       cellCount,
       cellLatLons,
       {
-        elevationScale: topologyScale / 255, // Map 0-255 to 0-topologyScale
-        seaLevel: 0, // 0 in image = 0m elevation
+        elevationScale: (topologyMax - topologyMin) / 255, // Map 0-255 to topologyMin-topologyMax
+        seaLevel: 0,
       }
     );
 
-    // Load bathymetry (ocean depth: -bathymetryScale to 0 metres)
+    // Load bathymetry (ocean depth: bathymetryMin to bathymetryMax metres)
     const bathymetryData = await this.loadFromHeightmap(
       bathymetryUrl,
       cellCount,
       cellLatLons,
       {
-        elevationScale: bathymetryScale / 255, // Map pixel 0-255 to -bathymetryScale-0 metres
-        seaLevel: 255, // Pixel 255 in image = 0m (sea level), pixel 0 = -bathymetryScale
+        elevationScale: (bathymetryMax - bathymetryMin) / 255, // Map pixel 0-255 to bathymetryMin-bathymetryMax
+        seaLevel: -bathymetryMin / ((bathymetryMax - bathymetryMin) / 255), // Adjust so deepest point maps correctly
       }
     );
 
@@ -79,7 +84,7 @@ export class TerrainDataLoader {
       const bathy = bathymetryData.elevation[i];
 
       // Use bathymetry if it's below sea level, otherwise use topology
-      combinedElevation[i] = bathy < 0 ? bathy : topo;
+      combinedElevation[i] = bathy < bathymetryMax ? bathy : topo;
     }
 
     return {

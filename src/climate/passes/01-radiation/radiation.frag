@@ -91,7 +91,7 @@ void main() {
 	// Calculate subsolar point based on orbital position, axial tilt, and planet rotation
 	float subsolarLat = calculateSubsolarLatitude(axialTilt, yearProgress);
 
-	// Precompute subsolar radian conversions (optimization: compute once, reuse in calculation)
+	// Precompute subsolar radian conversions
 	float subsolar_lat_rad = deg2rad(subsolarLat);
 	float subsolar_lon_rad = deg2rad(subsolarLon);
 

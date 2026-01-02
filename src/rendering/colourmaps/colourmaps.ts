@@ -9,6 +9,7 @@ import type { ColourmapDefinition } from './ColourmapTexture';
 // Import JSON files directly (Vite/bundler will handle these)
 import greyscaleJSON from './definitions/greyscale.jsonc';
 import yellowPeachbrJSON from './definitions/yellow_peachbr.jsonc';
+import brownBrownRIJSON from './definitions/brown_brownRI.jsonc';
 import blueB1JSON from './definitions/blue_b1.jsonc';
 import tealC16JSON from './definitions/teal_c16.jsonc';
 import waterStateJSON from './definitions/water_state.jsonc';
@@ -30,6 +31,7 @@ function loadJSON(json: unknown): ColourmapDefinition {
 // Export colourmap constants
 export const COLOURMAP_GREYSCALE = loadJSON(greyscaleJSON);
 export const COLOURMAP_YELLOW_PEACHBR = loadJSON(yellowPeachbrJSON);
+export const COLOURMAP_BROWN_BROWNRI = loadJSON(brownBrownRIJSON);
 export const COLOURMAP_BLUE_B1 = loadJSON(blueB1JSON);
 export const COLOURMAP_TEAL_C16 = loadJSON(tealC16JSON);
 export const COLOURMAP_WATER_STATE = loadJSON(waterStateJSON);

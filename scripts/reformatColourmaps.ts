@@ -50,9 +50,9 @@ for (const filename of files) {
   output += `  "name": "${data.name}",\n`;
   output += '  "stops": [\n';
 
-  data.stops.forEach((stop: any, i: number) => {
+  data.stops.forEach((stop: { position: number; colour: number[] }, i: number) => {
     const comma = i < data.stops.length - 1 ? ',' : '';
-    output += `    { "position": ${stop.position}, "color": [${stop.color.join(', ')}] }${comma}\n`;
+    output += `    { "position": ${stop.position}, "colour": [${stop.colour.join(', ')}] }${comma}\n`;
   });
 
   output += '  ],\n';
