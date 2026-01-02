@@ -3,13 +3,8 @@ import * as THREE from 'three';
 import { CellHighlightOverlay } from './CellHighlightOverlay';
 import { CellOutlineOverlay } from './CellOutlineOverlay';
 import { LatLonGrid } from './LatLonGrid';
-import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation';
 
 interface ClimateOverlaysProps {
-  // Cell highlighting
-  simulation: TextureGridSimulation;
-  subdivisions: number;
-  radius: number;
   hoveredCellIndex?: number | null;
   selectedCellIndex?: number | null;
 
@@ -24,9 +19,6 @@ interface ClimateOverlaysProps {
 export const ClimateOverlays = forwardRef<THREE.Mesh, ClimateOverlaysProps>(
   function ClimateOverlays(
     {
-      simulation,
-      subdivisions,
-      radius,
       hoveredCellIndex,
       selectedCellIndex,
       showLatLonGrid,
@@ -41,8 +33,6 @@ export const ClimateOverlays = forwardRef<THREE.Mesh, ClimateOverlaysProps>(
 
         {/* Cell outline overlay - surface outline */}
         <CellOutlineOverlay
-          subdivisions={subdivisions}
-          radius={radius}
           hoveredCellIndex={hoveredCellIndex}
           selectedCellIndex={selectedCellIndex}
         />
@@ -50,10 +40,7 @@ export const ClimateOverlays = forwardRef<THREE.Mesh, ClimateOverlaysProps>(
         {/* Cell highlighting overlay - raised solid highlight */}
         <CellHighlightOverlay
           ref={ref}
-          subdivisions={subdivisions}
-          radius={radius}
           offset={0.015}
-          simulation={simulation}
           hoveredCellIndex={hoveredCellIndex}
           selectedCellIndex={selectedCellIndex}
         />

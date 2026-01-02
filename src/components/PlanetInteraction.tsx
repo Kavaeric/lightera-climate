@@ -1,11 +1,10 @@
 import { useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation';
 import { uvToCellIndex } from '../climate/engine/grid';
+import { useSimulation } from '../context/useSimulation';
 
 interface PlanetInteractionProps {
-  simulation: TextureGridSimulation;
   meshRef: React.RefObject<THREE.Mesh | null>;
   onHoverCell?: (cellIndex: number | null) => void;
   onCellClick?: (cellIndex: number) => void;
@@ -17,7 +16,6 @@ interface PlanetInteractionProps {
  * converts the UV coordinates to cell index.
  */
 export function PlanetInteraction({
-  simulation,
   meshRef,
   onHoverCell,
   onCellClick,
@@ -25,10 +23,12 @@ export function PlanetInteraction({
   const { camera, gl, raycaster } = useThree();
   const pointerRef = useRef(new THREE.Vector2());
   const hoveredCellRef = useRef<number | null>(null);
+  const { getSimulation } = useSimulation();
+  const simulation = getSimulation();
 
-  // Cache texture dimensions for O(1) UV-to-index conversion
-  const textureWidth = simulation.getTextureWidth();
-  const textureHeight = simulation.getTextureHeight();
+  // Cache texture dimensions for UV-to-index conversion
+  const textureWidth = simulation?.getTextureWidth() ?? 0;
+  const textureHeight = simulation?.getTextureHeight() ?? 0;
 
   useEffect(() => {
     const canvas = gl.domElement;
@@ -60,7 +60,10 @@ export function PlanetInteraction({
         const cellIndex = uvToCellIndex(u, v, textureWidth, textureHeight);
 
         // Validate cell index is within bounds
-        if (cellIndex >= 0 && cellIndex < simulation.getCellCount() && cellIndex !== hoveredCellRef.current) {
+        if (simulation &&
+            cellIndex >= 0 &&
+            cellIndex < simulation.getCellCount() &&
+            cellIndex !== hoveredCellRef.current) {
           hoveredCellRef.current = cellIndex;
           onHoverCell?.(cellIndex);
         }
@@ -103,7 +106,9 @@ export function PlanetInteraction({
         const clickedCellIndex = uvToCellIndex(u, v, textureWidth, textureHeight);
 
         // Validate cell index is within bounds
-        if (clickedCellIndex >= 0 && clickedCellIndex < simulation.getCellCount()) {
+        if (simulation &&
+            clickedCellIndex >= 0 &&
+            clickedCellIndex < simulation.getCellCount()) {
           // Log to console for debugging
           console.log(`Cell index: ${clickedCellIndex}`);
 

@@ -5,12 +5,11 @@ import { extend } from '@react-three/fiber';
 import { MeshLineGeometry, raycast } from 'meshline';
 import { Grid } from '../climate/geometry/geodesic';
 import { MeshLineMaterial } from 'meshline';
+import { useSimulation } from '../context/useSimulation';
 
 extend({ MeshLineGeometry, MeshLineMaterial });
 
 interface CellOutlineOverlayProps {
-  subdivisions: number;
-  radius: number;
   width?: number;
   hoveredCellIndex?: number | null;
   selectedCellIndex?: number | null;
@@ -21,13 +20,14 @@ interface CellOutlineOverlayProps {
  * Provides a subtle outline at the exact surface radius to mark selected/hovered cells
  */
 export function CellOutlineOverlay({
-  subdivisions,
-  radius,
   width = 8.0,
   hoveredCellIndex = null,
   selectedCellIndex = null,
 }: CellOutlineOverlayProps) {
   const { size } = useThree();
+  const { activeSimulationConfig, activePlanetaryConfig } = useSimulation();
+  const subdivisions = activeSimulationConfig.resolution;
+  const radius = activePlanetaryConfig.radius;
   const resolution = useMemo(
     () => new THREE.Vector2(size.width, size.height),
     [size.width, size.height]

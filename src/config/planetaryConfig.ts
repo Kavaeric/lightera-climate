@@ -16,6 +16,9 @@ export interface PlanetaryConfig {
   // Atmospheric properties (optional, for atmospheric radiative transfer)
   surfacePressure?: number; // Pa (Pascals)
 
+  // Scale height of the atmosphere
+  atmosphereScaleHeight: number; // m
+
   // Gas concentrations (molar fractions, dimensionless)
   // Note: Water vapour (H2O) is variable per-cell and read from humidity texture
   co2Concentration?: number; // e.g., 412e-6 for 412 ppm
@@ -39,6 +42,7 @@ export const PLANETARY_CONFIG_EARTH: PlanetaryConfig = {
   mass: 5.972e24, // kg
   surfaceGravity: 9.81, // m/s²
   surfacePressure: 101325, // Pa (1 atm)
+  atmosphereScaleHeight: 8500, // m
 
   co2Concentration: 420e-6, // 420 ppm
   ch4Concentration: 1.9e-6, // 1.9 ppm
@@ -59,6 +63,7 @@ export const PLANETARY_CONFIG_MARS: PlanetaryConfig = {
   mass: 6.4171e23, // kg
   surfaceGravity: 3.71, // m/s²
   surfacePressure: 636, // Pa (~0.6% of Earth, varies 400-870 Pa)
+  atmosphereScaleHeight: 11100, // m
 
   co2Concentration: 0.951, // 95.1%
   n2Concentration: 0.0275, // 2.75%
@@ -76,6 +81,7 @@ export const PLANETARY_CONFIG_VENUS: PlanetaryConfig = {
   mass: 4.8675e24, // kg
   surfaceGravity: 8.87, // m/s²
   surfacePressure: 9.2e6, // Pa (~92 atm)
+  atmosphereScaleHeight: 15900, // m
 
   co2Concentration: 0.965, // 96.5%
   n2Concentration: 0.035, // 3.5%

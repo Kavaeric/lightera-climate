@@ -2,15 +2,12 @@ import { useMemo, forwardRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Grid } from '../climate/geometry/geodesic';
-import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation';
 import highlightVertexShader from '../rendering/shaders/utility/highlight.vert';
 import highlightFragmentShader from '../rendering/shaders/utility/highlight.frag';
+import { useSimulation } from '../context/useSimulation';
 
 interface CellHighlightOverlayProps {
-  subdivisions: number;
-  radius: number;
   offset?: number;
-  simulation: TextureGridSimulation;
   hoveredCellIndex?: number | null;
   selectedCellIndex?: number | null;
 }
@@ -23,16 +20,17 @@ interface CellHighlightOverlayProps {
 export const CellHighlightOverlay = forwardRef<THREE.Mesh, CellHighlightOverlayProps>(
   function CellHighlightOverlay(
     {
-      subdivisions,
-      radius,
       offset = 0.0,
-      simulation,
       hoveredCellIndex = null,
       selectedCellIndex = null,
     },
     ref
   ) {
-    const offsetRadius = radius + offset;
+    const { activeSimulationConfig, activePlanetaryConfig } = useSimulation();
+    const { getSimulation } = useSimulation();
+    const simulation = getSimulation();
+    const subdivisions = activeSimulationConfig.resolution;
+    const radius = activePlanetaryConfig.radius + activePlanetaryConfig.atmosphereScaleHeight * 5 + offset;
 
     // Generate geometry - identical to planet geometry for perfect alignment
     const geometry = useMemo(() => {
@@ -45,23 +43,23 @@ export const CellHighlightOverlay = forwardRef<THREE.Mesh, CellHighlightOverlayP
       cells.forEach((cell, cellIndex) => {
         if (!cell.vertices || !cell.faceTriangles) return;
 
-        const [cellU, cellV] = simulation.getCellUV(cellIndex);
+        const [cellU, cellV] = simulation?.getCellUV(cellIndex) ?? [0, 0];
 
         for (const triangle of cell.faceTriangles) {
           // Vertex A
-          const scaledA = triangle.a.clone().multiplyScalar(offsetRadius);
+          const scaledA = triangle.a.clone().multiplyScalar(radius);
           vertices.push(scaledA.x, scaledA.y, scaledA.z);
           normals.push(triangle.a.x, triangle.a.y, triangle.a.z);
           uvs.push(cellU, cellV);
 
           // Vertex B
-          const scaledB = triangle.b.clone().multiplyScalar(offsetRadius);
+          const scaledB = triangle.b.clone().multiplyScalar(radius);
           vertices.push(scaledB.x, scaledB.y, scaledB.z);
           normals.push(triangle.b.x, triangle.b.y, triangle.b.z);
           uvs.push(cellU, cellV);
 
           // Vertex C
-          const scaledC = triangle.c.clone().multiplyScalar(offsetRadius);
+          const scaledC = triangle.c.clone().multiplyScalar(radius);
           vertices.push(scaledC.x, scaledC.y, scaledC.z);
           normals.push(triangle.c.x, triangle.c.y, triangle.c.z);
           uvs.push(cellU, cellV);
@@ -74,7 +72,7 @@ export const CellHighlightOverlay = forwardRef<THREE.Mesh, CellHighlightOverlayP
       bufferGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
 
       return bufferGeometry;
-    }, [subdivisions, offsetRadius, simulation]);
+    }, [radius, simulation, subdivisions]);
 
     // Create shader material for highlighting
     const material = useMemo(() => {
@@ -84,8 +82,8 @@ export const CellHighlightOverlay = forwardRef<THREE.Mesh, CellHighlightOverlayP
           highlightThreshold: { value: 0.0005 },
           hoveredCellIndex: { value: -1 },
           selectedCellIndex: { value: -1 },
-          textureWidth: { value: simulation.getTextureWidth() },
-          textureHeight: { value: simulation.getTextureHeight() },
+          textureWidth: { value: simulation?.getTextureWidth() ?? 0 },
+          textureHeight: { value: simulation?.getTextureHeight() ?? 0 },
         },
         vertexShader: highlightVertexShader,
         fragmentShader: highlightFragmentShader,

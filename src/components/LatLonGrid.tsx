@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { extend, useThree } from '@react-three/fiber';
 import { MeshLineGeometry, raycast } from 'meshline';
 import { XRayMeshLineMaterial } from '../rendering/materials/XRayMeshLineMaterial';
+import { useSimulation } from '../context/useSimulation';
 
 extend({ MeshLineGeometry, XRayMeshLineMaterial });
 
@@ -196,7 +197,6 @@ function generateLongitudeSubdivisions(
 
 export interface LatLonGridProps {
   visible?: boolean;
-  sphereRadius?: number;
 
   // Grid settings
   latitudeCount?: number;
@@ -213,7 +213,6 @@ export interface LatLonGridProps {
 
 export function LatLonGrid({
   visible = true,
-  sphereRadius = 1.0,
 
   // Grid settings
   latitudeCount = 5,
@@ -228,6 +227,8 @@ export function LatLonGrid({
   backOpacity = 0.1,
 }: LatLonGridProps): React.JSX.Element {
   const { size } = useThree();
+  const { activePlanetaryConfig } = useSimulation();
+  const radius = activePlanetaryConfig.radius;
 
   const LANDMARK_LINE_WIDTH_MULTIPLIER = 2;
   const LANDMARK_LINE_OPACITY_MULTIPLIER = 2;
@@ -248,9 +249,9 @@ export function LatLonGrid({
   const parallels = useMemo(() => {
     return latitudeSubdivisions.map((latitude) => ({
       latitude,
-      points: generateParallelPoints(latitude, sphereRadius, latitudeSegments),
+      points: generateParallelPoints(latitude, radius, latitudeSegments),
     }));
-  }, [latitudeSubdivisions, sphereRadius, latitudeSegments]);
+  }, [latitudeSubdivisions, radius, latitudeSegments]);
 
   // Generate the longitude subdivisions
   const longitudeSubdivisions = useMemo(() => {
@@ -263,44 +264,44 @@ export function LatLonGrid({
   const meridians = useMemo(() => {
     return longitudeSubdivisions.map((longitude) => ({
       longitude,
-      points: generateMeridianPoints(longitude, sphereRadius, longitudeSegments),
+      points: generateMeridianPoints(longitude, radius, longitudeSegments),
     }));
-  }, [longitudeSubdivisions, sphereRadius, longitudeSegments]);
+  }, [longitudeSubdivisions, radius, longitudeSegments]);
 
   // Generate the equator line
   const equatorPoints = useMemo(() => {
-    return generateParallelPoints(0, sphereRadius, latitudeSegments);
-  }, [sphereRadius, latitudeSegments]);
+    return generateParallelPoints(0, radius, latitudeSegments);
+  }, [radius, latitudeSegments]);
 
   // Generate the prime meridian points
   const primeMeridianPoints = useMemo(() => {
-    return generateMeridianPoints(0, sphereRadius, longitudeSegments);
-  }, [sphereRadius, longitudeSegments]);
+    return generateMeridianPoints(0, radius, longitudeSegments);
+  }, [radius, longitudeSegments]);
 
   // Generate the antimeridian points
   const antimeridianPoints = useMemo(() => {
-    return generateMeridianPoints(180, sphereRadius, longitudeSegments);
-  }, [sphereRadius, longitudeSegments]);
+    return generateMeridianPoints(180, radius, longitudeSegments);
+  }, [radius, longitudeSegments]);
 
   // Generate the northern and southern tropics lines
   // AKA the tropics of Cancer and Capricorn on Earth
   const tropicNorthPoints = useMemo(() => {
-    return generateParallelPoints(axialTilt, sphereRadius, latitudeSegments);
-  }, [sphereRadius, latitudeSegments, axialTilt]);
+    return generateParallelPoints(axialTilt, radius, latitudeSegments);
+  }, [radius, latitudeSegments, axialTilt]);
 
   const tropicSouthPoints = useMemo(() => {
-    return generateParallelPoints(-axialTilt, sphereRadius, latitudeSegments);
-  }, [sphereRadius, latitudeSegments, axialTilt]);
+    return generateParallelPoints(-axialTilt, radius, latitudeSegments);
+  }, [radius, latitudeSegments, axialTilt]);
 
   // Generate the northern and southern polar circles
   // AKA the Arctic and Antarctic circles on Earth
   const polarNorthPoints = useMemo(() => {
-    return generateParallelPoints(90 - axialTilt, sphereRadius, latitudeSegments);
-  }, [sphereRadius, latitudeSegments, axialTilt]);
+    return generateParallelPoints(90 - axialTilt, radius, latitudeSegments);
+  }, [radius, latitudeSegments, axialTilt]);
 
   const polarSouthPoints = useMemo(() => {
-    return generateParallelPoints(-90 + axialTilt, sphereRadius, latitudeSegments);
-  }, [sphereRadius, latitudeSegments, axialTilt]);
+    return generateParallelPoints(-90 + axialTilt, radius, latitudeSegments);
+  }, [radius, latitudeSegments, axialTilt]);
 
   // If the grid is not visible, don't render anything
   if (!visible) return <></>;

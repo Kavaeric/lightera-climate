@@ -43,7 +43,6 @@ function ClimateApp() {
   // Static config and simulation state
   const [planetaryConfig] = useState<PlanetaryConfig>(PLANETARY_CONFIG_EARTH);
   const {
-    activeSimulationConfig,
     activePlanetaryConfig,
     simulationKey,
     isRunning,
@@ -157,9 +156,6 @@ function ClimateApp() {
             {/* Visual overlays */}
             <ClimateOverlays
               ref={highlightRef}
-              simulation={simulation}
-              subdivisions={activeSimulationConfig.resolution}
-              radius={1}
               hoveredCellIndex={hoveredCell}
               selectedCellIndex={selectedCell}
               showLatLonGrid={showLatLonGrid}
@@ -168,7 +164,6 @@ function ClimateApp() {
 
             {/* User interaction controls */}
             <ClimateSceneControls
-              simulation={simulation}
               meshRef={meshRef}
               onHoverCell={setHoveredCell}
               onCellClick={handleCellClick}

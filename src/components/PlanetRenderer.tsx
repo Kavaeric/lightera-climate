@@ -12,24 +12,18 @@ import visualiseVertexShader from '../rendering/shaders/display/visualise.vert?r
 import atmosphereVertexShader from '../rendering/shaders/display/atmosphere.vert?raw';
 import atmosphereFragmentShader from '../rendering/shaders/display/atmosphere.frag?raw';
 
-interface PlanetRendererProps {
-  radius?: number;
-  atmosphereHeight?: number;
-}
-
 /**
  * Renders the 3D planet visualisation with surface temperature data from GPU texture.
  * Each vertex has a UV coordinate pointing to its cell's pixel in the state texture.
  */
-export const PlanetRenderer = forwardRef<THREE.Mesh, PlanetRendererProps>(function PlanetRenderer(
-  { radius = 1, atmosphereHeight = 0.005 },
-  ref
-) {
+export const PlanetRenderer = forwardRef<THREE.Mesh, void>(function PlanetRenderer(_props, ref) {
   // Get simulation and display config from contexts
-  const { getSimulation, activeSimulationConfig } = useSimulation();
+  const { getSimulation, activeSimulationConfig, activePlanetaryConfig } = useSimulation();
   const { displayConfig } = useDisplayConfig();
   const simulation = getSimulation();
   const subdivisions = activeSimulationConfig.resolution;
+  const radius = activePlanetaryConfig.radius;
+  const atmosphereHeight = activePlanetaryConfig.atmosphereScaleHeight * 5;
 
   // Generate geometry with UV coordinates mapped to texture
   const planetGeometry = useMemo(() => {
