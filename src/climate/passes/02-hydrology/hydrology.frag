@@ -194,16 +194,14 @@ void main() {
 	float deltaT_vaporisation = surfaceTemperature - boilingPoint;
 	float vaporisationAmount = 0.0;
 
-	if (deltaT_vaporisation > 0.0 && newWaterDepth > 0.0) {
-		// Above boiling point and water is present: water vaporises
-		// Rate is in m/s, independent of water depth (surface-limited process)
-		float vaporisationRate = calculateVaporisationRate(deltaT_vaporisation);
-		float potentialVaporisation = vaporisationRate * dt;
+	// Vaporisation only occurs if above boiling and water present
+	float vaporiseCond = step(0.0, deltaT_vaporisation) * step(0.0, newWaterDepth); // 1.0 if both true else 0.0
+	float vaporisationRate = calculateVaporisationRate(deltaT_vaporisation) * vaporiseCond;
+	float potentialVaporisation = vaporisationRate * dt;
 
-		// Limited by available water
-		vaporisationAmount = min(potentialVaporisation, newWaterDepth);
-		newWaterDepth = newWaterDepth - vaporisationAmount;
-	}
+	// Limit by available water, only if vaporisation is happening
+	vaporisationAmount = min(potentialVaporisation, newWaterDepth) * vaporiseCond;
+	newWaterDepth = newWaterDepth - vaporisationAmount;
 
 	// Ensure non-negative values after vaporisation
 	newWaterDepth = max(0.0, newWaterDepth);

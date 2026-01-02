@@ -18,8 +18,8 @@ export function CanvasView({ children }: CanvasViewProps) {
     const distance = radius * 2.5;
 
     return {
-      position: [distance, distance * 0.5, distance] as [number, number, number],
-      fov: 60,
+      position: [distance, distance * 0.5, -distance * 0.2] as [number, number, number],
+      fov: 50,
       near: radius * 0.01, // 1% of radius
       far: radius * 100,   // 100x radius for far clipping
     };

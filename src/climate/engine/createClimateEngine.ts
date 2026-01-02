@@ -109,10 +109,12 @@ export async function createClimateEngine(
   // Use Vite's BASE_URL to handle different deployment paths
   const baseUrl = import.meta.env.BASE_URL;
   const terrain = await terrainLoader.loadEarthTerrain(
-    `${baseUrl}blue-marble-ng/bmng_evel_8196.png`,
-    `${baseUrl}blue-marble-ng/bmng_bath_8196.png`,
+    `${baseUrl}earth/Earth_Height_8192.png`,
     cellCount,
-    cellLatLons
+    cellLatLons,
+    {
+      bitDepth: 16, // Use 16-bit precision for high-precision heightmaps
+    }
   );
   simulation.setTerrainData(terrain);
 
