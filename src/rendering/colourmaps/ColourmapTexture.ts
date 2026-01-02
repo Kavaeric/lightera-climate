@@ -10,12 +10,17 @@ import * as THREE from 'three';
  */
 export interface ColourmapDefinition {
   name: string;
-  // Control points: array of RGB colours (0-1 range)
-  colours: Array<{ r: number; g: number; b: number } | THREE.Vector3>;
+  // Color stops with positions and RGB colors (0-1 range)
+  stops: Array<{
+    position: number; // 0.0 to 1.0
+    color: [number, number, number] | { r: number; g: number; b: number } | THREE.Vector3;
+  }>;
+  // Optional: interpolation color space
+  interpolationSpace?: 'rgb' | 'lab';
   // Colour for values below the minimum range
-  underflowColour: { r: number; g: number; b: number } | THREE.Vector3;
+  underflowColour: [number, number, number] | { r: number; g: number; b: number } | THREE.Vector3;
   // Colour for values above the maximum range
-  overflowColour: { r: number; g: number; b: number } | THREE.Vector3;
+  overflowColour: [number, number, number] | { r: number; g: number; b: number } | THREE.Vector3;
 }
 
 /**
@@ -25,13 +30,16 @@ export interface ColourmapDefinition {
 const DEFAULT_RESOLUTION = 256;
 
 /**
- * Get RGB values from either Vector3 or {r,g,b} object
+ * Get RGB values from various color formats
  */
 function getRGB(
-  colour: { r: number; g: number; b: number } | THREE.Vector3
+  colour: [number, number, number] | { r: number; g: number; b: number } | THREE.Vector3
 ): [number, number, number] {
   if (colour instanceof THREE.Vector3) {
     return [colour.x, colour.y, colour.z];
+  }
+  if (Array.isArray(colour)) {
+    return colour;
   }
   return [colour.r, colour.g, colour.b];
 }
@@ -48,33 +56,60 @@ function lerpColour(
 }
 
 /**
- * Sample a colourmap at a normalised position t [0, 1]
+ * Sample a colourmap at a normalized position t [0, 1]
+ * Handles both position-based stops and legacy evenly-spaced colors
  */
 function sampleColourmap(
-  colours: Array<{ r: number; g: number; b: number } | THREE.Vector3>,
+  stops: Array<{
+    position: number;
+    color: [number, number, number] | { r: number; g: number; b: number } | THREE.Vector3;
+  }>,
   t: number
 ): [number, number, number] {
-  const n = colours.length;
+  const n = stops.length;
   if (n === 0) return [0, 0, 0];
-  if (n === 1) return getRGB(colours[0]);
+  if (n === 1) return getRGB(stops[0].color);
 
   // Clamp t to [0, 1]
   t = Math.max(0, Math.min(1, t));
 
-  // Map t to segment index
-  const segment = t * (n - 1);
-  const index = Math.floor(segment);
-  const localT = segment - index;
+  // Find the two stops that bracket t
+  // Stops should be sorted by position, but we'll handle unsorted gracefully
+  let lowerIndex = 0;
+  let upperIndex = n - 1;
 
-  // Handle edge case at t=1
-  if (index >= n - 1) {
-    return getRGB(colours[n - 1]);
+  // Handle edge cases
+  if (t <= stops[0].position) {
+    return getRGB(stops[0].color);
+  }
+  if (t >= stops[n - 1].position) {
+    return getRGB(stops[n - 1].color);
   }
 
-  // Interpolate between adjacent control points
-  const a = getRGB(colours[index]);
-  const b = getRGB(colours[index + 1]);
-  return lerpColour(a, b, localT);
+  // Binary search for the bracket
+  for (let i = 0; i < n - 1; i++) {
+    if (stops[i].position <= t && t <= stops[i + 1].position) {
+      lowerIndex = i;
+      upperIndex = i + 1;
+      break;
+    }
+  }
+
+  // Interpolate between the two stops
+  const lower = stops[lowerIndex];
+  const upper = stops[upperIndex];
+  const positionRange = upper.position - lower.position;
+
+  // Avoid division by zero if stops have the same position
+  if (positionRange === 0) {
+    return getRGB(lower.color);
+  }
+
+  const localT = (t - lower.position) / positionRange;
+  const colorA = getRGB(lower.color);
+  const colorB = getRGB(upper.color);
+
+  return lerpColour(colorA, colorB, localT);
 }
 
 /**
@@ -91,7 +126,7 @@ function sampleColourmap(
  *
  * Use with clamp-to-edge wrapping for correct underflow/overflow handling
  *
- * @param colourmap The colourmap definition
+ * @param colourmap The colourmap definition (new or legacy format)
  * @param resolution Number of texels in the texture (default: 256)
  * @returns THREE.DataTexture configured for colourmap sampling
  */
@@ -126,7 +161,7 @@ export function createColourmapTexture(
   // Inner pixels: sampled colourmap gradient
   for (let i = innerStart; i <= innerEnd; i++) {
     const t = (i - innerStart) / innerRange;
-    const [r, g, b] = sampleColourmap(colourmap.colours, t);
+    const [r, g, b] = sampleColourmap(colourmap.stops, t);
 
     const idx = i * 4;
     data[idx + 0] = Math.round(r * 255);

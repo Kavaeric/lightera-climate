@@ -239,7 +239,9 @@ export class TerrainDataLoader {
   /**
    * Bilinear interpolation for image sampling (legacy, replaced by bicubic).
    * Samples a grayscale value (uses red channel only).
+   * @deprecated Use bicubicSample instead
    */
+  // @ts-expect-error - Kept for reference but not currently used
   private bilinearSample(
     imageData: Uint8ClampedArray | Uint8Array,
     width: number,

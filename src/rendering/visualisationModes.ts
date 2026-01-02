@@ -17,8 +17,8 @@ import {
   COLOURMAP_TERRAIN_ELEVATION,
   COLOURMAP_TERRAIN_WATER,
   COLOURMAP_TERRAIN_ICE,
-  createColourmapTexture,
-} from './colourmaps';
+} from './colourmaps/colourmaps';
+import { createColourmapTexture } from './colourmaps';
 import terrainFragmentShader from './shaders/display/terrain.frag';
 import surfaceAltitudeFragmentShader from './shaders/display/surfaceAltitude.frag';
 import type { VisualisationModeId, VisualisationMode } from '../types/visualisationModes';

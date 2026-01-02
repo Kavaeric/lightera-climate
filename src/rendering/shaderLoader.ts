@@ -122,4 +122,4 @@ void main() {
 
 // Re-export colourmap types and utilities for convenience
 export type { ColourmapDefinition as Colourmap } from './colourmaps/ColourmapTexture';
-export { createColourmapTexture } from './colourmaps/ColourmapTexture';
+export { createColourmapTexture } from './colourmaps';
