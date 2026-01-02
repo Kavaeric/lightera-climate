@@ -11,6 +11,7 @@ interface ClimateDataFetcherProps {
       surfaceTemperature: number;
       atmosphericTemperature: number;
       precipitableWater: number;
+      surfacePressure: number;
       waterDepth: number;
       iceThickness: number;
       salinity: number;
@@ -73,6 +74,7 @@ export function ClimateDataFetcher({
             surfaceTemperature: surface.temperature,
             atmosphericTemperature: atmosphereData.atmosphericTemperature,
             precipitableWater: atmosphereData.precipitableWater,
+            surfacePressure: atmosphereData.pressure,
             waterDepth: hydrologyData.waterDepth,
             iceThickness: hydrologyData.iceThickness,
             salinity: hydrologyData.salinity,
@@ -91,6 +93,7 @@ export function ClimateDataFetcher({
           day: 0,
           ...climateData,
           ...atmosphereData,
+          surfacePressure: atmosphereData.pressure,
           ...hydrologyData,
           ...surfaceData,
           ...terrainData,

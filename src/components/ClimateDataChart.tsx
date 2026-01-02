@@ -12,6 +12,7 @@ interface ClimateDataPoint {
   salinity: number;
   albedo: number;
   elevation: number;
+  surfacePressure: number;
 }
 
 interface ClimateDataChartProps {
@@ -93,6 +94,13 @@ export function ClimateDataChart({
     if (data.length === 0) return 0;
     // Precipitable water is the same for all samples (current state), so just get the first one
     return data[0]?.precipitableWater ?? 0;
+  }, [data]);
+
+  // Get surface pressure (current value, not time-series)
+  const surfacePressure = useMemo(() => {
+    if (data.length === 0) return 0;
+    // Surface pressure is the same for all samples (current state), so just get the first one
+    return data[0]?.surfacePressure ?? 0;
   }, [data]);
 
   if (cellIndex === null) return null;
@@ -201,21 +209,22 @@ export function ClimateDataChart({
 
       <div style={{ display: 'flex', gap: 16, fontSize: 16 }}>
         <div>
-          Water depth: <strong>{hydrologyStats.waterDepthMax.toFixed(3)} m</strong>
+          Water depth: <strong>{hydrologyStats.waterDepthMax.toFixed(1)} m</strong>
         </div>
         <div>
-          Ice thickness: <strong>{hydrologyStats.iceThicknessMax.toFixed(3)} m</strong>
+          Ice thickness: <strong>{hydrologyStats.iceThicknessMax.toFixed(1)} m</strong>
         </div>
         <div>
-          Salinity: <strong>{hydrologyStats.salinity.toFixed(3)} PSU</strong>
+          Salinity: <strong>{hydrologyStats.salinity.toFixed(1)} PSU</strong>
         </div>
       </div>
 
       <div style={{ display: 'flex', gap: 16, fontSize: 16, marginTop: 8 }}>
         <div>
           Precipitable water: <strong>{precipitableWater.toFixed(1)} mm</strong>
-          <br />
-          <span style={{ fontSize: 14, opacity: 0.8 }}>(column water vapour)</span>
+        </div>
+        <div>
+          Surface pressure: <strong>{(surfacePressure / 1000).toFixed(2)} kPa</strong>
         </div>
       </div>
 

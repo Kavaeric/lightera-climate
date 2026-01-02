@@ -5,6 +5,7 @@
  * - Ice/water phase transitions (freezing and melting)
  * - Water vaporisation at temperatures above boiling point
  * - Latent heat effects on surface temperature
+ * - Atmospheric water vapor updates (vaporised water added to atmosphere)
  * - Precipitation from atmosphere (future)
  *
  * Phase change assumptions:
@@ -14,25 +15,30 @@
  * - Latent heat released during freezing warms the surface
  * - Latent heat absorbed during vaporisation cools the surface
  *
- * Currently, vaporised water is removed from the surface but not added
- * to the atmosphere.
+ * Water vapor physics:
+ * - Vaporised water is added to atmospheric precipitable water
+ * - Water vapor adds partial pressure to total atmospheric pressure (Dalton's Law)
+ * - P_H2O = precipitableWater_mm × surfaceGravity
  */
 
 precision highp float;
 
 #include "../../../rendering/shaders/utility/textureAccessors.glsl"
 #include "../../shaders/constants.glsl"
+#include "../../shaders/waterVapor.glsl"
 #include "../../shaders/surfaceThermal.glsl"
 
 in vec2 vUv;
 
 // Input uniforms
 uniform float dt;  // Timestep in seconds
+uniform float surfaceGravity;  // m/s² - for water vapor pressure calculations
 
-// Output: Updated hydrology state + auxiliary water state + surface state
+// Output: Updated hydrology state + auxiliary water state + surface state + atmosphere state
 layout(location = 0) out vec4 outHydrologyState;
 layout(location = 1) out vec4 outAuxiliary;
 layout(location = 2) out vec4 outSurfaceState;
+layout(location = 3) out vec4 outAtmosphereState;
 
 // Approximation of vaporisation temperature of water as a function of pressure
 // Calibrated to yield T = 375.15 K at P = 101325 Pa
@@ -126,7 +132,10 @@ void main() {
 	float salinity = hydrologyState.a;
 
 	vec4 atmosphereState = texture(atmosphereData, vUv);
+	float atmosphereTemperature = atmosphereState.r;
 	float atmospherePressure = atmosphereState.g;
+	float precipitableWater_mm = atmosphereState.b;
+	float atmosphereAlbedo = atmosphereState.a;
 
 	vec4 surfaceState = texture(surfaceData, vUv);
 	float surfaceTemperature = surfaceState.r;
@@ -157,22 +166,14 @@ void main() {
 	float newIceThickness = iceThickness;
 	float actualPhaseChange = 0.0; // Positive = melting, negative = freezing
 
-	if (deltaT > 0.0) {
-		// Above melting point: ice melts to water
-		// Limited by available ice
-		float meltAmount = min(phaseChangeAmount, iceThickness);
-		newIceThickness = iceThickness - meltAmount;
-		newWaterDepth = waterDepth + meltAmount;
-		actualPhaseChange = meltAmount;
-	} else {
-		// Below melting point: water freezes to ice
-		// phaseChangeAmount is negative, so negate it
-		// Limited by available water
-		float freezeAmount = min(-phaseChangeAmount, waterDepth);
-		newWaterDepth = waterDepth - freezeAmount;
-		newIceThickness = iceThickness + freezeAmount;
-		actualPhaseChange = -freezeAmount;
-	}
+	// Branchless phase change logic: 
+	// Use deltaT sign to control melt/freeze. When deltaT>0, only melt; when deltaT<=0, only freeze.
+	float meltAmount = min(max(phaseChangeAmount, 0.0), iceThickness); // Only positive if melting
+	float freezeAmount = min(max(-phaseChangeAmount, 0.0), waterDepth); // Only positive if freezing
+
+	newIceThickness = iceThickness - meltAmount + freezeAmount;
+	newWaterDepth = waterDepth + meltAmount - freezeAmount;
+	actualPhaseChange = meltAmount - freezeAmount; // Positive for melting, negative for freezing
 
 	// Ensure non-negative values
 	newWaterDepth = max(0.0, newWaterDepth);
@@ -181,12 +182,9 @@ void main() {
 	// === VAPORISATION DYNAMICS ===
 	//
 	// When temperature exceeds the boiling point, water vaporises.
-	//
-	// TODO: Future implementation should convert evaporated water depth
-	// to water vapour in the atmosphere state. This requires:
-	// - Tracking water vapour content in atmosphere data
-	// - Converting water depth (m) to atmospheric water vapour (precipitable water)
-	// - Accounting for atmospheric volume and pressure
+	// Vaporised water is added to the atmosphere as water vapor, which:
+	// - Increases precipitable water (mm)
+	// - Increases total atmospheric pressure (Dalton's Law)
 	//
 	// Vaporisation only occurs when:
 	// 1. Temperature is above boiling point
@@ -201,7 +199,7 @@ void main() {
 		// Rate is in m/s, independent of water depth (surface-limited process)
 		float vaporisationRate = calculateVaporisationRate(deltaT_vaporisation);
 		float potentialVaporisation = vaporisationRate * dt;
-		
+
 		// Limited by available water
 		vaporisationAmount = min(potentialVaporisation, newWaterDepth);
 		newWaterDepth = newWaterDepth - vaporisationAmount;
@@ -209,6 +207,22 @@ void main() {
 
 	// Ensure non-negative values after vaporisation
 	newWaterDepth = max(0.0, newWaterDepth);
+
+	// === ATMOSPHERIC WATER VAPOR UPDATE ===
+	//
+	// Add vaporised water to atmosphere using Dalton's Law:
+	// P_total = P_dry + P_H2O
+	//
+	// Water vapor partial pressure: P_H2O = precipitableWater_mm × g
+	// (1mm precipitable water = 1 kg/m², and P = m × g)
+
+	// Convert vaporised water depth to precipitable water increase
+	float precipitableWaterIncrease = waterDepthToPrecipitableWater(vaporisationAmount);
+	float newPrecipitableWater = precipitableWater_mm + precipitableWaterIncrease;
+
+	// Update total pressure: derive dry pressure, then add new water vapor pressure
+	float dryPressure = calculateDryPressure(atmospherePressure, precipitableWater_mm, surfaceGravity);
+	float newAtmospherePressure = dryPressure + calculateWaterVaporPressure(newPrecipitableWater, surfaceGravity);
 
 	// === LATENT HEAT CORRECTIONS ===
 	//
@@ -265,4 +279,9 @@ void main() {
 
 	// Output 2 (surface state): RGBA = [temperature, unused, unused, albedo]
 	outSurfaceState = packSurfaceData(newSurfaceTemperature, newSurfaceAlbedo);
+
+	// Output 3 (atmosphere state): RGBA = [temperature, pressure, precipitableWater, albedo]
+	// Atmosphere temperature unchanged by hydrology (radiation handles that)
+	// Pressure and precipitableWater updated by vaporisation
+	outAtmosphereState = packAtmosphereData(atmosphereTemperature, newAtmospherePressure, newPrecipitableWater, atmosphereAlbedo);
 }

@@ -17,6 +17,7 @@ precision highp float;
 #include "../../../rendering/shaders/utility/textureAccessors.glsl"
 #include "../../shaders/constants.glsl"
 #include "../../shaders/kDistribution.glsl"
+#include "../../shaders/waterVapor.glsl"
 #include "../../shaders/surfaceThermal.glsl"
 
 in vec2 vUv;
@@ -128,20 +129,25 @@ void main() {
 
 	// === LONGWAVE CALCULATION ===
 
-	// Calculate total atmospheric column density from pressure and gravity
-	float totalColumn_cm2 = calculateColumnDensity(
+	// Derive dry pressure from total pressure (Dalton's Law)
+	// Water vapor adds to atmospheric pressure, doesn't dilute other gases
+	float dryPressure_Pa = calculateDryPressure(
 		atmospherePressure,
+		precipitableWater_mm,
+		surfaceGravity
+	);
+
+	// Calculate dry gas column density from DRY pressure
+	// This ensures adding water vapor doesn't dilute the dry gases
+	float dryColumn_cm2 = calculateColumnDensity(
+		dryPressure_Pa,
 		surfaceGravity,
 		meanMolecularMass
 	);
 
-	// Convert precipitable water to H2O molar fraction
-	// Formula: x_h2o = pw × g × (M_air/M_h2o) / (P × 1000)
-	const float MOLAR_MASS_RATIO = 1.611; // M_air / M_h2o
-	float humidity = precipitableWater_mm * surfaceGravity * MOLAR_MASS_RATIO / (atmospherePressure * 1000.0);
-
-	// Calculate H2O column density for per-cell transmission calculation
-	float h2oColumnDensity = totalColumn_cm2 * humidity;
+	// Calculate H2O column density directly from precipitable water mass
+	// Avoids molar fraction approach which caused dilution
+	float h2oColumnDensity = calculateH2OColumnDensity(precipitableWater_mm);
 
 	// === RADIATIVE TRANSFER (HYBRID APPROACH) ===
 	//
@@ -229,8 +235,10 @@ void main() {
 		(surfaceNetPowerPerArea * dt) / surfaceHeatCapacity;
 
 	// Atmosphere temperature update
+	// Adjust heat capacity for water vapor content (H2O has higher specific heat than dry air)
+	float adjustedAtmosphereHeatCapacity = adjustHeatCapacityForWaterVapor(atmosphereHeatCapacity, precipitableWater_mm);
 	float newAtmosphereTemperature = atmosphereTemperature +
-		(atmosphereNetPowerPerArea * dt) / atmosphereHeatCapacity;
+		(atmosphereNetPowerPerArea * dt) / adjustedAtmosphereHeatCapacity;
 
 	// === OUTPUT ===
 

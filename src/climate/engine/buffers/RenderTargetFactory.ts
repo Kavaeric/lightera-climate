@@ -64,8 +64,8 @@ export class RenderTargetFactory {
   }
 
   /**
-   * Create a 3-attachment MRT for hydrology pass
-   * Outputs: [0] hydrology state, [1] auxiliary data, [2] surface state with latent heat correction
+   * Create a 4-attachment MRT for hydrology pass
+   * Outputs: [0] hydrology state, [1] auxiliary data, [2] surface state with latent heat correction, [3] atmosphere state
    */
   createHydrologyMRT(): THREE.WebGLRenderTarget<THREE.Texture[]> {
     const mrt = new THREE.WebGLRenderTarget(this.textureWidth, this.textureHeight, {
@@ -75,7 +75,7 @@ export class RenderTargetFactory {
       type: THREE.FloatType,
       wrapS: THREE.ClampToEdgeWrapping,
       wrapT: THREE.ClampToEdgeWrapping,
-      count: 3, // Number of draw buffers: hydrology + auxiliary + surface
+      count: 4, // Number of draw buffers: hydrology + auxiliary + surface + atmosphere
     });
 
     return mrt as unknown as THREE.WebGLRenderTarget<THREE.Texture[]>;

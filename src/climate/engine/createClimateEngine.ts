@@ -246,6 +246,7 @@ export async function createClimateEngine(
         terrainData: { value: simulation.terrainData },
         atmosphereData: { value: null }, // Will be set each frame
         auxiliaryData: { value: null }, // Will be set each frame (to preserve solar flux)
+        surfaceGravity: { value: planetaryConfig.surfaceGravity }, // m/s² - for water vapor pressure calculations
         dt: { value: dt },
       },
     });
@@ -277,7 +278,7 @@ export async function createClimateEngine(
     // Initialise all simulation state using unified initialisation shader
     // Uses MRT to output surface, atmosphere, and hydrology states in one pass
     const initAtmospherePressure = planetaryConfig.surfacePressure ?? 101325; // Pa
-    const initPrecipitableWater = 0.0; // mm (completely dry atmosphere initially)
+    const initPrecipitableWater = 25.0; // mm (completely dry atmosphere initially)
 
     const initialisationMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,

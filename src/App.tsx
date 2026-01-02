@@ -122,6 +122,7 @@ function ClimateApp() {
         surfaceTemperature: number;
         atmosphericTemperature: number;
         precipitableWater: number;
+        surfacePressure: number;
         waterDepth: number;
         iceThickness: number;
         salinity: number;

@@ -63,7 +63,7 @@ export const DISPLAY_CONFIG_DEFAULT: DisplayConfig = {
   iceThicknessRange: { min: 0, max: 5000 }, // metres (typical ice sheet thickness)
   albedoRange: { min: 0, max: 1 }, // 0-1 (fraction of light reflected)
   solarFluxRange: { min: 0, max: 1500 }, // W/m² (0 = night, ~1367 = Earth solar constant)
-  precipitableWaterRange: { min: 0, max: 70 }, // mm (Earth average ~25mm, range 0-70mm)
+  precipitableWaterRange: { min: 0, max: 100 }, // mm (Earth average ~25mm, range 0-70mm)
   surfacePressureRange: { min: 50000, max: 150000 }, // Pa (Earth ~101325 Pa, range for various altitudes)
   colourmap: 'fast',
   underflowColour: [0.0, 0.0, 0.2], // Navy blue for cold

@@ -215,6 +215,13 @@ export class SimulationExecutor {
       gl.render(scene, camera);
       gl.setRenderTarget(null);
 
+      // Copy MRT attachment 3 → next atmosphere state (updated pressure and precipitableWater from vaporisation)
+      this.copyMaterial.uniforms.sourceTexture.value = hydrologyMRT.textures[3];
+      gl.setRenderTarget(simulation.getAtmosphereDataNext());
+      gl.clear();
+      gl.render(scene, camera);
+      gl.setRenderTarget(null);
+
       // Pass 3: Thermal diffusion (conduction between cells)
       // - Applies Fourier's law for thermal conduction
       // - Smooths temperature gradients across the planet surface
