@@ -236,7 +236,7 @@ void main() {
 
 	// Atmosphere temperature update
 	// Adjust heat capacity for water vapor content (H2O has higher specific heat than dry air)
-	float adjustedAtmosphereHeatCapacity = adjustHeatCapacityForWaterVapor(atmosphereHeatCapacity, precipitableWater_mm);
+	float adjustedAtmosphereHeatCapacity = adjustHeatCapacityForWaterVapour(atmosphereHeatCapacity, precipitableWater_mm);
 	float newAtmosphereTemperature = atmosphereTemperature +
 		(atmosphereNetPowerPerArea * dt) / adjustedAtmosphereHeatCapacity;
 

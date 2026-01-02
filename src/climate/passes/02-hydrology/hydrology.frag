@@ -5,7 +5,7 @@
  * - Ice/water phase transitions (freezing and melting)
  * - Water vaporisation at temperatures above boiling point
  * - Latent heat effects on surface temperature
- * - Atmospheric water vapor updates (vaporised water added to atmosphere)
+ * - Atmospheric water vapour updates (vaporised water added to atmosphere)
  * - Precipitation from atmosphere (future)
  *
  * Phase change assumptions:
@@ -15,9 +15,9 @@
  * - Latent heat released during freezing warms the surface
  * - Latent heat absorbed during vaporisation cools the surface
  *
- * Water vapor physics:
+ * Water vapour physics:
  * - Vaporised water is added to atmospheric precipitable water
- * - Water vapor adds partial pressure to total atmospheric pressure (Dalton's Law)
+ * - Water vapour adds partial pressure to total atmospheric pressure (Dalton's Law)
  * - P_H2O = precipitableWater_mm × surfaceGravity
  */
 
@@ -32,7 +32,7 @@ in vec2 vUv;
 
 // Input uniforms
 uniform float dt;  // Timestep in seconds
-uniform float surfaceGravity;  // m/s² - for water vapor pressure calculations
+uniform float surfaceGravity;  // m/s² - for water vapour pressure calculations
 
 // Output: Updated hydrology state + auxiliary water state + surface state + atmosphere state
 layout(location = 0) out vec4 outHydrologyState;
@@ -182,7 +182,7 @@ void main() {
 	// === VAPORISATION DYNAMICS ===
 	//
 	// When temperature exceeds the boiling point, water vaporises.
-	// Vaporised water is added to the atmosphere as water vapor, which:
+	// Vaporised water is added to the atmosphere as water vapour, which:
 	// - Increases precipitable water (mm)
 	// - Increases total atmospheric pressure (Dalton's Law)
 	//
@@ -211,16 +211,16 @@ void main() {
 	// Add vaporised water to atmosphere using Dalton's Law:
 	// P_total = P_dry + P_H2O
 	//
-	// Water vapor partial pressure: P_H2O = precipitableWater_mm × g
+	// Water vapour partial pressure: P_H2O = precipitableWater_mm × g
 	// (1mm precipitable water = 1 kg/m², and P = m × g)
 
 	// Convert vaporised water depth to precipitable water increase
 	float precipitableWaterIncrease = waterDepthToPrecipitableWater(vaporisationAmount);
 	float newPrecipitableWater = precipitableWater_mm + precipitableWaterIncrease;
 
-	// Update total pressure: derive dry pressure, then add new water vapor pressure
+	// Update total pressure: derive dry pressure, then add new water vapour pressure
 	float dryPressure = calculateDryPressure(atmospherePressure, precipitableWater_mm, surfaceGravity);
-	float newAtmospherePressure = dryPressure + calculateWaterVaporPressure(newPrecipitableWater, surfaceGravity);
+	float newAtmospherePressure = dryPressure + calculateWaterVapourPressure(newPrecipitableWater, surfaceGravity);
 
 	// === LATENT HEAT CORRECTIONS ===
 	//
