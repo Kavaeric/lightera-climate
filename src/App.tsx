@@ -1,6 +1,5 @@
-import { useRef, useMemo, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import * as THREE from 'three';
-import { TextureGridSimulation } from './climate/engine/TextureGridSimulation';
 import { ClimateScene } from './components/ClimateScene';
 import { ClimateOverlays } from './components/ClimateOverlays';
 import { ClimateSceneControls } from './components/ClimateSceneControls';
@@ -22,7 +21,6 @@ import { useSimulationConfig } from './context/SimulationConfigProvider';
 import { useOrbitalConfig } from './context/OrbitalConfigProvider';
 import { useRuntimeControls } from './context/RuntimeControlsProvider';
 import { useUIState } from './context/UIStateProvider';
-import { TerrainDataLoader } from './terrain/TerrainDataLoader';
 
 function ClimateApp() {
   // Get state from hooks
@@ -51,7 +49,11 @@ function ClimateApp() {
     isRunning,
     newSimulation,
     getOrchestrator,
+    getSimulation,
   } = useSimulation();
+
+  // Get simulation from context
+  const simulation = getSimulation();
 
   // Refs for 3D components
   const meshRef = useRef<THREE.Mesh>(null);
@@ -93,72 +95,16 @@ function ClimateApp() {
     };
   }, [getOrchestrator, simulationKey, isRunning]);
 
-  // Create climate simulation - recreate only when activeSimulationConfig changes (i.e., on button click)
-  const simulation = useMemo(() => {
-    return new TextureGridSimulation(activeSimulationConfig);
-  }, [activeSimulationConfig]);
-
-  // Generate terrain when simulation is created
-  // useEffect(() => {
-  //   if (!simulation) return;
-
-  //   // Generate random terrain
-  //   const terrainLoader = new TerrainDataLoader();
-
-  //   // Use simulationKey as seed for reproducible randomness
-  //   const seed = simulationKey;
-  //   const cellCount = simulation.getCellCount();
-
-  //   // Get cell lat/lons
-  //   const cellLatLons: Array<{ lat: number; lon: number }> = [];
-  //   for (let i = 0; i < cellCount; i++) {
-  //     cellLatLons.push(simulation.getCellLatLon(i));
-  //   }
-
-  //   // Generate procedural terrain
-  //   const terrain = terrainLoader.generateProcedural(cellCount, cellLatLons, seed);
-  //   simulation.setTerrainData(terrain);
-
-  //   console.log(`Generated new terrain with seed ${seed}`);
-  // }, [simulation, simulationKey]);
-
-  // Load Earth terrain when simulation is created
-  useEffect(() => {
-    if (!simulation) return;
-
-    const loadTerrain = async () => {
-      const terrainLoader = new TerrainDataLoader();
-      const cellCount = simulation.getCellCount();
-
-      // Get cell lat/lons
-      const cellLatLons: Array<{ lat: number; lon: number }> = [];
-      for (let i = 0; i < cellCount; i++) {
-        cellLatLons.push(simulation.getCellLatLon(i));
-      }
-
-      // Load Earth terrain from Blue Marble Next Generation heightmaps
-      const terrain = await terrainLoader.loadEarthTerrain(
-        '/lightera-climate/blue-marble-ng/bmng_evel_8196.png',
-        '/lightera-climate/blue-marble-ng/bmng_bath_8196.png',
-        cellCount,
-        cellLatLons
-      );
-      simulation.setTerrainData(terrain);
-
-      console.log('Loaded Earth terrain from Blue Marble Next Generation heightmaps');
-    };
-
-    loadTerrain();
-  }, [simulation, simulationKey]);
+  // Simulation and terrain loading are now handled inside createClimateEngine
 
   const { setSelectedCell } = useUIState();
 
   const handleCellClick = useCallback(
     (cellIndex: number) => {
       setSelectedCell(cellIndex);
-      setSelectedCellLatLon(simulation.getCellLatLon(cellIndex));
+      setSelectedCellLatLon(simulation?.getCellLatLon(cellIndex) ?? null);
       // Area is calculated on unit sphere, scale by planet radius² to get actual area in m²
-      const unitSphereArea = simulation.getCellArea(cellIndex);
+      const unitSphereArea = simulation?.getCellArea(cellIndex) ?? 0;
       const actualArea =
         unitSphereArea * activePlanetaryConfig.radius * activePlanetaryConfig.radius;
       setSelectedCellArea(actualArea);
@@ -195,49 +141,58 @@ function ClimateApp() {
   return (
     <main style={{ width: '100vw', height: '100vh', background: 'black' }}>
       <CanvasView>
-        {/* Climate simulation engine */}
+        {/* Climate simulation engine - always render to initialize simulation */}
         <ClimateEngine
           key={simulationKey}
-          simulation={simulation}
           stepsPerFrame={stepsPerFrame}
           samplesPerOrbit={samplesPerOrbit}
         />
 
-        {/* Planet geometry */}
-        <ClimateScene
-          ref={meshRef}
-          simulation={simulation}
-          displayConfig={displayConfig}
-          subdivisions={activeSimulationConfig.resolution}
-          radius={1}
-        />
+        {/* Only render visual components once simulation is ready */}
+        {simulation ? (
+          <>
+            {/* Planet geometry */}
+            <ClimateScene
+              ref={meshRef}
+              simulation={simulation}
+              displayConfig={displayConfig}
+              subdivisions={activeSimulationConfig.resolution}
+              radius={1}
+            />
 
-        {/* Visual overlays */}
-        <ClimateOverlays
-          ref={highlightRef}
-          simulation={simulation}
-          subdivisions={activeSimulationConfig.resolution}
-          radius={1}
-          hoveredCellIndex={hoveredCell}
-          selectedCellIndex={selectedCell}
-          showLatLonGrid={showLatLonGrid}
-          axialTilt={orbitalConfig.axialTilt}
-        />
+            {/* Visual overlays */}
+            <ClimateOverlays
+              ref={highlightRef}
+              simulation={simulation}
+              subdivisions={activeSimulationConfig.resolution}
+              radius={1}
+              hoveredCellIndex={hoveredCell}
+              selectedCellIndex={selectedCell}
+              showLatLonGrid={showLatLonGrid}
+              axialTilt={orbitalConfig.axialTilt}
+            />
 
-        {/* User interaction controls */}
-        <ClimateSceneControls
-          simulation={simulation}
-          meshRef={meshRef}
-          onHoverCell={setHoveredCell}
-          onCellClick={handleCellClick}
-        />
+            {/* User interaction controls */}
+            <ClimateSceneControls
+              simulation={simulation}
+              meshRef={meshRef}
+              onHoverCell={setHoveredCell}
+              onCellClick={handleCellClick}
+            />
 
-        {/* Climate data fetcher */}
-        <ClimateDataFetcher
-          simulation={simulation}
-          cellIndex={selectedCell}
-          onDataFetched={handleDataFetched}
-        />
+            {/* Climate data fetcher */}
+            <ClimateDataFetcher
+              simulation={simulation}
+              cellIndex={selectedCell}
+              onDataFetched={handleDataFetched}
+            />
+          </>
+        ) : (
+          <mesh>
+            <sphereGeometry args={[1, 32, 16]} />
+            <meshBasicMaterial color="#222" />
+          </mesh>
+        )}
       </CanvasView>
 
       {/* Side panel with controls */}

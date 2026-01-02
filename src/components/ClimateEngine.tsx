@@ -1,11 +1,9 @@
 import { useRef, useEffect } from 'react';
 import { useThree } from '@react-three/fiber';
-import { TextureGridSimulation } from '../climate/engine/TextureGridSimulation';
 import { createClimateEngine } from '../climate/engine/createClimateEngine';
 import { useSimulation } from '../context/useSimulation';
 
 interface ClimateEngineProps {
-  simulation: TextureGridSimulation;
   stepsPerFrame: number;
   samplesPerOrbit: number;
 }
@@ -14,7 +12,7 @@ interface ClimateEngineProps {
  * Climate simulation engine component.
  * Handles engine initialisation, WebGL context management, and simulation lifecycle.
  */
-export function ClimateEngine({ simulation, stepsPerFrame, samplesPerOrbit }: ClimateEngineProps) {
+export function ClimateEngine({ stepsPerFrame, samplesPerOrbit }: ClimateEngineProps) {
   const { gl } = useThree();
   const {
     activeSimulationConfig,
@@ -23,6 +21,7 @@ export function ClimateEngine({ simulation, stepsPerFrame, samplesPerOrbit }: Cl
     simulationKey,
     registerOrchestrator,
     registerRecorder,
+    registerSimulation,
     pause,
   } = useSimulation();
 
@@ -34,21 +33,38 @@ export function ClimateEngine({ simulation, stepsPerFrame, samplesPerOrbit }: Cl
 
   // Initialise climate engine
   useEffect(() => {
-    return createClimateEngine({
-      gl,
-      simulation,
-      orbitalConfig: activeOrbitalConfig,
-      planetaryConfig: activePlanetaryConfig,
-      simulationConfig: activeSimulationConfig,
-      getStepsPerFrame: () => stepsPerFrameRef.current,
-      samplesPerOrbit,
-      registerOrchestrator,
-      registerRecorder,
-      onError: pause,
-    });
+    let cleanup: (() => void) | null = null;
+
+    const initEngine = async () => {
+      try {
+        console.log('[ClimateEngine Component] Starting engine initialization...');
+        const engine = await createClimateEngine({
+          gl,
+          orbitalConfig: activeOrbitalConfig,
+          planetaryConfig: activePlanetaryConfig,
+          simulationConfig: activeSimulationConfig,
+          getStepsPerFrame: () => stepsPerFrameRef.current,
+          samplesPerOrbit,
+          registerOrchestrator,
+          registerRecorder,
+          onError: pause,
+        });
+        cleanup = engine.cleanup;
+        registerSimulation(engine.simulation);
+        console.log('[ClimateEngine Component] Engine initialized successfully');
+      } catch (error) {
+        console.error('[ClimateEngine Component] Failed to initialize engine:', error);
+      }
+    };
+
+    initEngine();
+
+    return () => {
+      if (cleanup) cleanup();
+      registerSimulation(null);
+    };
   }, [
     gl,
-    simulation,
     simulationKey,
     activeSimulationConfig,
     activeOrbitalConfig,
@@ -56,6 +72,7 @@ export function ClimateEngine({ simulation, stepsPerFrame, samplesPerOrbit }: Cl
     samplesPerOrbit,
     registerOrchestrator,
     registerRecorder,
+    registerSimulation,
     pause,
   ]);
 

@@ -4,6 +4,7 @@ import type { PlanetaryConfig } from '../config/planetaryConfig';
 import type { SimulationConfig } from '../config/simulationConfig';
 import type { SimulationOrchestrator } from '../climate/engine/SimulationOrchestrator';
 import type { SimulationRecorder } from '../climate/engine/SimulationRecorder';
+import type { TextureGridSimulation } from '../climate/engine/TextureGridSimulation';
 
 export interface SimulationContextType {
   // Active configuration (only updated when simulation runs)
@@ -37,6 +38,10 @@ export interface SimulationContextType {
   // Recorder access
   registerRecorder: (recorder: SimulationRecorder | null) => void;
   getRecorder: () => SimulationRecorder | null;
+
+  // Simulation access
+  registerSimulation: (simulation: TextureGridSimulation | null) => void;
+  getSimulation: () => TextureGridSimulation | null;
 }
 
 export const SimulationContext = createContext<SimulationContextType | undefined>(undefined);

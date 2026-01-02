@@ -9,6 +9,7 @@ import { SIMULATION_CONFIG_DEFAULT } from '../config/simulationConfig';
 import { SimulationContext } from './useSimulation';
 import type { SimulationOrchestrator } from '../climate/engine/SimulationOrchestrator';
 import type { SimulationRecorder } from '../climate/engine/SimulationRecorder';
+import type { TextureGridSimulation } from '../climate/engine/TextureGridSimulation';
 
 interface SimulationProviderProps {
   children: ReactNode;
@@ -23,6 +24,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
     useState<PlanetaryConfig>(PLANETARY_CONFIG_EARTH);
   const [simulationKey, setSimulationKey] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
+  const simulationRef = useRef<TextureGridSimulation | null>(null);
   const orchestratorRef = useRef<SimulationOrchestrator | null>(null);
   const recorderRef = useRef<SimulationRecorder | null>(null);
 
@@ -73,6 +75,14 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
     return recorderRef.current;
   }, []);
 
+  const registerSimulation = useCallback((simulation: TextureGridSimulation | null) => {
+    simulationRef.current = simulation;
+  }, []);
+
+  const getSimulation = useCallback(() => {
+    return simulationRef.current;
+  }, []);
+
   return (
     <SimulationContext.Provider
       value={{
@@ -92,6 +102,8 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
         getOrchestrator,
         registerRecorder,
         getRecorder,
+        registerSimulation,
+        getSimulation,
       }}
     >
       {children}

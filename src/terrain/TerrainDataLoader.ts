@@ -55,7 +55,7 @@ export class TerrainDataLoader {
       cellCount,
       cellLatLons,
       {
-        elevationScale: topologyScale / 128, // Map 0-255 to 0-topologyScale
+        elevationScale: topologyScale / 255, // Map 0-255 to 0-topologyScale
         seaLevel: 0, // 0 in image = 0m elevation
       }
     );
@@ -73,12 +73,6 @@ export class TerrainDataLoader {
 
     // Combine: use bathymetry for negative elevations (ocean), topology for positive (land)
     const combinedElevation = new Float32Array(cellCount);
-
-    // Debug: sample some values to understand the data
-    console.log('Sample terrain values:');
-    for (let i = 0; i < Math.min(10, cellCount); i++) {
-      console.log(`Cell ${i}: topo=${topologyData.elevation[i].toFixed(1)}m, bathy=${bathymetryData.elevation[i].toFixed(1)}m`);
-    }
 
     for (let i = 0; i < cellCount; i++) {
       const topo = topologyData.elevation[i];
@@ -112,7 +106,7 @@ export class TerrainDataLoader {
     } = {}
   ): Promise<TerrainConfig> {
     const elevationScale = options.elevationScale ?? 1;
-    const seaLevel = options.seaLevel ?? 128;
+    const seaLevel = options.seaLevel ?? 0;
 
     // Get image data
     let imageData: ImageData;
@@ -140,8 +134,8 @@ export class TerrainDataLoader {
       const u = ((lon + 180) / 360) * (width - 1);
       const v = ((90 - lat) / 180) * (height - 1);
 
-      // Bilinear interpolation
-      const pixelValue = this.bilinearSample(data, width, height, u, v);
+      // Bicubic interpolation
+      const pixelValue = this.bicubicSample(data, width, height, u, v);
 
       // Convert pixel value to elevation
       // Formula: (pixelValue - seaLevel) * elevationScale
@@ -185,7 +179,65 @@ export class TerrainDataLoader {
   }
 
   /**
-   * Bilinear interpolation for image sampling.
+   * Catmull-Rom cubic interpolation (1D).
+   * Used as helper for bicubic interpolation.
+   */
+  private cubicInterpolate(p0: number, p1: number, p2: number, p3: number, t: number): number {
+    const a0 = -0.5 * p0 + 1.5 * p1 - 1.5 * p2 + 0.5 * p3;
+    const a1 = p0 - 2.5 * p1 + 2.0 * p2 - 0.5 * p3;
+    const a2 = -0.5 * p0 + 0.5 * p2;
+    const a3 = p1;
+
+    return a0 * t * t * t + a1 * t * t + a2 * t + a3;
+  }
+
+  /**
+   * Bicubic interpolation for image sampling using Catmull-Rom spline.
+   * Samples a grayscale value (uses red channel only).
+   * Provides smoother results than bilinear interpolation.
+   */
+  private bicubicSample(
+    imageData: Uint8ClampedArray | Uint8Array,
+    width: number,
+    height: number,
+    x: number,
+    y: number
+  ): number {
+    // Clamp to image bounds
+    x = Math.max(0, Math.min(x, width - 1));
+    y = Math.max(0, Math.min(y, height - 1));
+
+    // Get integer and fractional parts
+    const xi = Math.floor(x);
+    const yi = Math.floor(y);
+    const xf = x - xi;
+    const yf = y - yi;
+
+    // Sample 4x4 grid of pixels
+    const pixels: number[] = [];
+    for (let j = -1; j <= 2; j++) {
+      for (let i = -1; i <= 2; i++) {
+        const px = Math.max(0, Math.min(xi + i, width - 1));
+        const py = Math.max(0, Math.min(yi + j, height - 1));
+        // Sample red channel (assuming grayscale, all channels are similar)
+        pixels.push(imageData[(py * width + px) * 4 + 0]);
+      }
+    }
+
+    // Perform bicubic interpolation
+    const row0 = this.cubicInterpolate(pixels[0], pixels[1], pixels[2], pixels[3], xf);
+    const row1 = this.cubicInterpolate(pixels[4], pixels[5], pixels[6], pixels[7], xf);
+    const row2 = this.cubicInterpolate(pixels[8], pixels[9], pixels[10], pixels[11], xf);
+    const row3 = this.cubicInterpolate(pixels[12], pixels[13], pixels[14], pixels[15], xf);
+
+    const result = this.cubicInterpolate(row0, row1, row2, row3, yf);
+
+    // Clamp result to valid pixel range [0, 255]
+    return Math.max(0, Math.min(255, result));
+  }
+
+  /**
+   * Bilinear interpolation for image sampling (legacy, replaced by bicubic).
    * Samples a grayscale value (uses red channel only).
    */
   private bilinearSample(

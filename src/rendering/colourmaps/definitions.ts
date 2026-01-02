@@ -337,8 +337,8 @@ export const COLOURMAP_TERRAIN_ELEVATION: ColourmapDefinition = {
 export const COLOURMAP_TERRAIN_WATER: ColourmapDefinition = {
   name: 'water_depth_terrain',
   colours: [
-    new THREE.Vector3(0.329412, 0.639216, 0.756863), // Shallowest water, 0m
-    new THREE.Vector3(0.120824, 0.35549, 0.46098), // 250m
+    new THREE.Vector3(0.169412, 0.359216, 0.456863), // Shallowest water, 0m
+    new THREE.Vector3(0.021824, 0.165409, 0.280980), // 250m
     new THREE.Vector3(0.020157, 0.169608, 0.271176), // 500m
     new THREE.Vector3(0.019216, 0.152549, 0.262353),
     new THREE.Vector3(0.017615, 0.146676, 0.258724),

@@ -14,6 +14,7 @@ import {
   getDryTransmissionConfig,
 } from '../../data/textures/createDryTransmissionTexture';
 import type { GPUResources } from '../../types/gpu';
+import { TerrainDataLoader } from '../../terrain/TerrainDataLoader';
 
 // Import shaders (includes are processed automatically by vite-plugin-glsl)
 // Importing without ?raw allows Vite to process #include directives.
@@ -25,7 +26,6 @@ import diffusionFragmentShader from '../passes/03-diffusion/diffusion.frag';
 
 export interface ClimateEngineConfig {
   gl: THREE.WebGLRenderer;
-  simulation: TextureGridSimulation;
   orbitalConfig: OrbitalConfig;
   planetaryConfig: PlanetaryConfig;
   simulationConfig: SimulationConfig;
@@ -71,12 +71,14 @@ function validateGPUResources(gl: THREE.WebGLRenderer, resources: GPUResources):
 
 /**
  * Creates and initialises the climate simulation engine.
- * Returns a cleanup function to dispose of resources
+ * Handles simulation creation, terrain loading, and engine initialization.
+ * Returns the simulation instance and a cleanup function to dispose of resources.
  */
-export function createClimateEngine(config: ClimateEngineConfig): () => void {
+export async function createClimateEngine(
+  config: ClimateEngineConfig
+): Promise<{ simulation: TextureGridSimulation; cleanup: () => void }> {
   const {
     gl,
-    simulation,
     orbitalConfig,
     planetaryConfig,
     simulationConfig,
@@ -86,6 +88,35 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
     registerRecorder,
     onError,
   } = config;
+
+  console.log('[ClimateEngine] Creating simulation...');
+
+  // Create simulation
+  const simulation = new TextureGridSimulation(simulationConfig);
+
+  // Load terrain data
+  console.log('[ClimateEngine] Loading terrain...');
+  const terrainLoader = new TerrainDataLoader();
+  const cellCount = simulation.getCellCount();
+
+  // Get cell lat/lons
+  const cellLatLons: Array<{ lat: number; lon: number }> = [];
+  for (let i = 0; i < cellCount; i++) {
+    cellLatLons.push(simulation.getCellLatLon(i));
+  }
+
+  // Load Earth terrain from Blue Marble Next Generation heightmaps
+  // Use Vite's BASE_URL to handle different deployment paths
+  const baseUrl = import.meta.env.BASE_URL;
+  const terrain = await terrainLoader.loadEarthTerrain(
+    `${baseUrl}blue-marble-ng/bmng_evel_8196.png`,
+    `${baseUrl}blue-marble-ng/bmng_bath_8196.png`,
+    cellCount,
+    cellLatLons
+  );
+  simulation.setTerrainData(terrain);
+
+  console.log('[ClimateEngine] Terrain loaded successfully');
 
   const { yearLength, rotationsPerYear, solarFlux, axialTilt } = orbitalConfig;
   const { stepsPerOrbit } = simulationConfig;
@@ -400,31 +431,34 @@ export function createClimateEngine(config: ClimateEngineConfig): () => void {
     handleGPUError(error instanceof Error ? error : new Error(String(error)));
   }
 
-  // Return cleanup function
-  return () => {
-    if (animationFrameId !== null) {
-      cancelAnimationFrame(animationFrameId);
-    }
+  // Return simulation and cleanup function
+  return {
+    simulation,
+    cleanup: () => {
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+      }
 
-    registerOrchestrator(null);
-    registerRecorder(null);
+      registerOrchestrator(null);
+      registerRecorder(null);
 
-    if (gpuResources) {
-      gpuResources.geometry.dispose();
-      gpuResources.radiationMaterial.dispose();
-      gpuResources.hydrologyMaterial.dispose();
-      gpuResources.diffusionMaterial.dispose();
-      gpuResources.blankRenderTarget.dispose();
-      gpuResources.scene.clear();
-    }
+      if (gpuResources) {
+        gpuResources.geometry.dispose();
+        gpuResources.radiationMaterial.dispose();
+        gpuResources.hydrologyMaterial.dispose();
+        gpuResources.diffusionMaterial.dispose();
+        gpuResources.blankRenderTarget.dispose();
+        gpuResources.scene.clear();
+      }
 
-    if (recorder) {
-      recorder.dispose();
-    }
+      if (recorder) {
+        recorder.dispose();
+      }
 
-    gpuResources = null;
-    orchestrator = null;
-    recorder = null;
-    animationFrameId = null;
+      gpuResources = null;
+      orchestrator = null;
+      recorder = null;
+      animationFrameId = null;
+    },
   };
 }

@@ -29,6 +29,6 @@ export interface SimulationConfig {
  * These values control the accuracy and speed of the simulation
  */
 export const SIMULATION_CONFIG_DEFAULT: SimulationConfig = {
-  resolution: 16, // Geodesic subdivisions (128 creates too many cells and crashes)
+  resolution: 32, // Geodesic subdivisions (128 creates too many cells and crashes)
   stepsPerOrbit: 1024, // Physics steps per orbit (controls timestep granularity)
 };
