@@ -220,8 +220,8 @@ export function LatLonGrid({
   axialTilt = 0,
 
   // Display settings
-  latitudeSegments = 64,
-  longitudeSegments = 64,
+  latitudeSegments = 128,
+  longitudeSegments = 128,
   lineWidth = 4,
   opacity = 0.4,
   backOpacity = 0.1,

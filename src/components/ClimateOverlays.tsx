@@ -4,7 +4,7 @@ import { CellHighlightOverlay } from './CellHighlightOverlay';
 import { CellOutlineOverlay } from './CellOutlineOverlay';
 import { LatLonGrid } from './LatLonGrid';
 import { useDisplayConfig } from '../context/useDisplayConfig';
-import { useOrbitalConfig } from '../context/OrbitalConfigProvider';
+import { useOrbitalConfig } from '../context/useOrbitalConfig';
 
 interface ClimateOverlaysProps {
   hoveredCellIndex?: number | null;

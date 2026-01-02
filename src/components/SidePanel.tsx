@@ -1,9 +1,9 @@
 import type { VisualisationModeId } from '../types/visualisationModes';
 import { VISUALISATION_MODES } from '../rendering/visualisationModes';
-import { useSimulationConfig } from '../context/SimulationConfigProvider';
-import { useOrbitalConfig } from '../context/OrbitalConfigProvider';
+import { useSimulationConfig } from '../context/useSimulationConfig';
+import { useOrbitalConfig } from '../context/useOrbitalConfig';
 import { useDisplayConfig } from '../context/useDisplayConfig';
-import { useRuntimeControls } from '../context/RuntimeControlsProvider';
+import { useRuntimeControls } from '../context/useRuntimeControls';
 import { useSimulation } from '../context/useSimulation';
 
 interface SidePanelProps {

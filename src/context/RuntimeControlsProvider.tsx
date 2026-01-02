@@ -1,13 +1,5 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
-
-interface RuntimeControlsContextType {
-  stepsPerFrame: number;
-  setStepsPerFrame: (steps: number) => void;
-  samplesPerOrbit: number;
-  setSamplesPerOrbit: (samples: number) => void;
-}
-
-const RuntimeControlsContext = createContext<RuntimeControlsContextType | null>(null);
+import { useState, type ReactNode } from 'react';
+import { RuntimeControlsContext } from './useRuntimeControls';
 
 interface RuntimeControlsProviderProps {
   children: ReactNode;
@@ -31,10 +23,3 @@ export function RuntimeControlsProvider({ children }: RuntimeControlsProviderPro
   );
 }
 
-export function useRuntimeControls() {
-  const context = useContext(RuntimeControlsContext);
-  if (!context) {
-    throw new Error('useRuntimeControls must be used within a RuntimeControlsProvider');
-  }
-  return context;
-}

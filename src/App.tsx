@@ -16,10 +16,10 @@ import { OrbitalConfigProvider } from './context/OrbitalConfigProvider';
 import { RuntimeControlsProvider } from './context/RuntimeControlsProvider';
 import { UIStateProvider } from './context/UIStateProvider';
 import { useSimulation } from './context/useSimulation';
-import { useSimulationConfig } from './context/SimulationConfigProvider';
-import { useOrbitalConfig } from './context/OrbitalConfigProvider';
-import { useRuntimeControls } from './context/RuntimeControlsProvider';
-import { useUIState } from './context/UIStateProvider';
+import { useSimulationConfig } from './context/useSimulationConfig';
+import { useOrbitalConfig } from './context/useOrbitalConfig';
+import { useRuntimeControls } from './context/useRuntimeControls';
+import { useUIState } from './context/useUIState';
 
 function ClimateApp() {
   // Get state from hooks
