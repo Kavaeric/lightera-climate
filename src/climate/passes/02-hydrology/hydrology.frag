@@ -25,7 +25,7 @@ precision highp float;
 
 #include "../../../rendering/shaders/utility/textureAccessors.glsl"
 #include "../../shaders/constants.glsl"
-#include "../../shaders/waterVapor.glsl"
+#include "../../shaders/waterVapour.glsl"
 #include "../../shaders/surfaceThermal.glsl"
 
 in vec2 vUv;
