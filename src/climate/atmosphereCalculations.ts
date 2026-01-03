@@ -148,3 +148,23 @@ export function calculateAtmosphereHeatCapacity(config: PlanetaryConfig): number
   // Heat capacity per unit area = mass × specific heat
   return massPerArea * cp;
 }
+
+/**
+ * Calculates dry adiabatic lapse rate from planetary config.
+ * Γ = g / cp
+ *
+ * Where:
+ *   g = surface gravity (m/s²)
+ *   cp = specific heat at constant pressure (J/(kg·K))
+ *
+ * Returns lapse rate in K/m
+ *
+ * Example values:
+ *   Earth: 9.81 / 1004 ≈ 0.00978 K/m (9.8 K/km)
+ *   Mars: 3.71 / 744 ≈ 0.00499 K/m (5.0 K/km)
+ *   Venus: 8.87 / 844 ≈ 0.0105 K/m (10.5 K/km)
+ */
+export function calculateDryAdiabaticLapseRate(config: PlanetaryConfig): number {
+  const cp = calculateAtmosphereSpecificHeat(config);
+  return config.surfaceGravity / cp;
+}

@@ -8,7 +8,9 @@
  * LONGWAVE:
  * - Surface emits IR radiation (Stefan-Boltzmann).
  * - Atmosphere absorbs part of surface emission.
- * - Atmosphere re-emits based on Kirchhoff's law (emissivity = absorptivity).
+ * - Atmosphere re-emits using TWO-TEMPERATURE model:
+ *   - Downward (to surface): T_lower = atmosphere temperature
+ *   - Upward (to space): T_upper = T_lower - Γ × z_eff
  * - Back-radiation creates the greenhouse effect.
  */
 
@@ -36,6 +38,8 @@ uniform float surfacePressure;  // Pa
 uniform float surfaceGravity;   // m/s²
 uniform float meanMolecularMass;  // kg/molecule
 uniform float atmosphereHeatCapacity;  // J/(m²·K)
+uniform float atmosphereScaleHeight;   // m
+uniform float dryAdiabaticLapseRate;   // K/m
 
 // Note: dryTransmissionTexture, dryTransmissionTempMin, and dryTransmissionTempMax
 // are declared in kDistribution.glsl (included above)
@@ -161,18 +165,37 @@ void main() {
 		h2oColumnDensity
 	);
 
-	// Calculate transmission at atmosphere temperature (for atmosphere emission)
-	float transmissionAtmosphere = calculateAtmosphericTransmission(
-		atmosphereTemperature,
-		h2oColumnDensity
-	);
+	// Calculate transmission components at atmosphere temperature
+	// Separate dry and H2O for optical depth calculation in two-temperature model
+	float dryTransmissionAtmo = getDryTransmission(atmosphereTemperature);
+	float h2oTransmissionAtmo = calculateH2OTransmission(atmosphereTemperature, h2oColumnDensity);
+	float transmissionAtmosphere = dryTransmissionAtmo * h2oTransmissionAtmo;
+
 	float atmosphereEmissivity = 1.0 - transmissionAtmosphere;
 
-	// === LONGWAVE RADIATION FLUXES ===
+	// === TWO-TEMPERATURE ATMOSPHERIC EMISSION ===
 	//
-	// Both surface and atmosphere emit as grey bodies (emissivity < 1.0).
-	// Surface emissivity depends on surface type (rock ≈ 0.90, water ≈ 0.96).
-	// Atmosphere emissivity equals absorptivity by Kirchhoff's law.
+	// The atmosphere emits at different temperatures in different directions:
+	// - T_lower (downward to surface): Uses current atmosphere temperature
+	// - T_upper (upward to space): Colder temperature at effective radiating height
+	//
+	// This fixes the weak coupling problem while maintaining energy conservation.
+
+	// Calculate optical depths for effective height estimation
+	// τ = -ln(transmission), careful to avoid log(0)
+	float tau_dry = -log(max(dryTransmissionAtmo, 1e-6));
+	float tau_h2o = -log(max(h2oTransmissionAtmo, 1e-6));
+	float tau_total = tau_dry + tau_h2o;
+
+	// Estimate effective emission height using scale height
+	// For well-mixed atmosphere: z ≈ H × τ (simplified approximation)
+	// Clamp to reasonable values (0 to 3 scale heights)
+	float effectiveHeight = clamp(atmosphereScaleHeight * tau_total, 0.0, 3.0 * atmosphereScaleHeight);
+
+	// Calculate upper atmosphere temperature using lapse rate
+	// T_upper = T_lower - Γ × z_eff
+	float T_lower = atmosphereTemperature;
+	float T_upper = max(T_lower - dryAdiabaticLapseRate * effectiveHeight, COSMIC_BACKGROUND_TEMP);
 
 	// Surface emission (Stefan-Boltzmann law)
 	// Power per unit area: P = ε * σ * T^4 (W/m²)
@@ -181,19 +204,16 @@ void main() {
 	float tempSurfaceSq = surfaceTemperatureAfterShortwave * surfaceTemperatureAfterShortwave;
 	float surfaceEmission = surfaceEmissivity * STEFAN_BOLTZMANN_CONST * (tempSurfaceSq * tempSurfaceSq);
 
-	// Atmosphere emission (Kirchhoff's law: emits according to absorptivity)
-	// In thin layer model: atmosphere emits εσT_a^4 per unit area in EACH direction
-	// Doing manual power calculation to avoid using pow() function for performance
-	float tempAtmosphereSq = atmosphereTemperature * atmosphereTemperature;
-	float atmosphereEmissionPerDirection = atmosphereEmissivity * STEFAN_BOLTZMANN_CONST * (tempAtmosphereSq * tempAtmosphereSq);
-
 	// === ENERGY FLOWS ===
-	// 
+	//
 	// Four radiative pathways connect surface, atmosphere, and space.
-	// 
-	// THIN ATMOSPHERE MODEL: The atmosphere is treated as a single layer with
-	// two sides (facing space and facing surface). The atmosphere emits
-	// εσT_a^4 per unit area in each direction (upward and downward).
+	//
+	// TWO-TEMPERATURE ATMOSPHERE MODEL: The atmosphere emits at different
+	// temperatures in each direction. Downward emission uses T_lower (current
+	// atmosphere temperature), while upward emission uses T_upper (temperature
+	// at effective radiating height). This approximates the difference in radiation
+	// emitted at the atmosphere at different altitudes while avoiding the complexity
+	// of a full multi-layer model.
 
 	// Surface → Space (transmitted through atmosphere)
 	float surfaceToSpace = surfaceEmission * transmissionSurface;
@@ -201,11 +221,13 @@ void main() {
 	// Surface → Atmosphere (absorbed by atmosphere)
 	float surfaceToAtmosphere = surfaceEmission * (1.0 - transmissionSurface);
 
-	// Atmosphere → Space (upward emission)
-	float atmosphereToSpace = atmosphereEmissionPerDirection;
+	// Atmosphere → Surface (downward emission at T_lower)
+	float tempLowerSq = T_lower * T_lower;
+	float atmosphereToSurface = atmosphereEmissivity * STEFAN_BOLTZMANN_CONST * (tempLowerSq * tempLowerSq);
 
-	// Atmosphere → Surface (downward emission - greenhouse effect)
-	float atmosphereToSurface = atmosphereEmissionPerDirection;
+	// Atmosphere → Space (upward emission at T_upper)
+	float tempUpperSq = T_upper * T_upper;
+	float atmosphereToSpace = atmosphereEmissivity * STEFAN_BOLTZMANN_CONST * (tempUpperSq * tempUpperSq);
 
 	// === NET ENERGY BUDGETS ===
 	// 

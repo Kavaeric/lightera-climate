@@ -7,6 +7,8 @@ import { type PlanetaryConfig } from '../../config/planetaryConfig';
 import {
   calculateMeanMolecularMass,
   calculateAtmosphereHeatCapacity,
+  calculateAtmosphereSpecificHeat,
+  calculateDryAdiabaticLapseRate,
 } from '../atmosphereCalculations';
 import type { SimulationConfig } from '../../config/simulationConfig';
 import {
@@ -173,8 +175,12 @@ export async function createClimateEngine(
     // Calculate atmospheric properties from gas composition
     const meanMolecularMass = calculateMeanMolecularMass(planetaryConfig);
     const atmosphereHeatCapacity = calculateAtmosphereHeatCapacity(planetaryConfig);
+    const atmosphereSpecificHeat = calculateAtmosphereSpecificHeat(planetaryConfig);
+    const lapseRate = calculateDryAdiabaticLapseRate(planetaryConfig);
     console.log(`  Atmospheric mean molecular mass: ${(meanMolecularMass * 6.022e23 * 1000).toFixed(2)} g/mol`);
     console.log(`  Atmosphere heat capacity: ${atmosphereHeatCapacity.toExponential(3)} J/(m²·K)`);
+    console.log(`  Atmosphere specific heat: ${atmosphereSpecificHeat.toFixed(1)} J/(kg·K)`);
+    console.log(`  Dry adiabatic lapse rate: ${(lapseRate * 1000).toFixed(2)} K/km`);
 
     // Create dry transmission lookup texture (pre-computed for CO2, CH4, N2O, O3, CO, SO2, HCl, HF)
     // This must be created after meanMolecularMass is calculated
@@ -231,6 +237,8 @@ export async function createClimateEngine(
         surfaceGravity: { value: planetaryConfig.surfaceGravity },
         meanMolecularMass: { value: meanMolecularMass },
         atmosphereHeatCapacity: { value: atmosphereHeatCapacity },
+        atmosphereScaleHeight: { value: planetaryConfig.atmosphereScaleHeight },
+        dryAdiabaticLapseRate: { value: lapseRate },
       },
     });
 
