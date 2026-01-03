@@ -81,18 +81,47 @@ float getMeltingPoint(float salinity) {
  *   At h = 100 W/(m²·K), ΔT = 1K:
  *   rate = 100 / (917 × 334000) ≈ 3.3×10⁻⁷ m/s ≈ 0.028 m/day ≈ 10.3 m/year
  *
- * This is independent of ice thickness - only the surface melts.
+ * ICE INSULATION EFFECT:
+ * As ice thickens, it increasingly insulates the water below, reducing the freezing
+ * rate. This prevents runaway freezing in the single-layer model.
  *
- * ASSUMPTION: Ice is always on top of water (floating). Phase change only
+ * The effective heat transfer coefficient accounts for thermal resistance:
+ *   h_eff = 1 / (1/h_air + d_ice/k_ice)
+ *
+ * Where d_ice is ice thickness and k_ice is ice thermal conductivity.
+ * As ice thickens, h_eff decreases, slowing further freezing.
+ *
+ * We model ice as always on top of water (floating). Phase change only
  * occurs at the ice-atmosphere interface (top surface), driven by air/surface
  * temperature. Basal melting from warm water underneath is not modelled.
  */
-const float PHASE_CHANGE_HEAT_TRANSFER_COEFF = 100.0; // W/(m²·K)
+const float PHASE_CHANGE_HEAT_TRANSFER_COEFF_AIR = 100.0; // W/(m²·K) - air-surface interface
 
-float calculatePhaseChangeRate(float deltaT) {
-	// Heat flux at interface: Q = h × ΔT (W/m²)
+/**
+ * Calculate effective heat transfer coefficient accounting for ice insulation.
+ *
+ * Ice acts as a thermal resistance layer between atmosphere and water.
+ * Thicker ice → higher resistance → lower heat transfer → slower freezing.
+ *
+ * @param iceThickness Ice thickness in metres
+ * @return Effective heat transfer coefficient in W/(m²·K)
+ */
+float getEffectiveHeatTransferCoeff(float iceThickness) {
+	// Thermal resistance in series: R_total = R_air + R_ice
+	// R_air = 1/h_air, R_ice = d/k_ice
+	// h_eff = 1 / R_total = 1 / (1/h_air + d/k_ice)
+	float thermalResistance = 1.0 / PHASE_CHANGE_HEAT_TRANSFER_COEFF_AIR +
+	                          iceThickness / MATERIAL_ICE_THERMAL_CONDUCTIVITY;
+	return 1.0 / thermalResistance;
+}
+
+float calculatePhaseChangeRate(float deltaT, float iceThickness) {
+	// Get effective heat transfer coefficient (reduced by ice insulation)
+	float h_eff = getEffectiveHeatTransferCoeff(iceThickness);
+
+	// Heat flux at interface: Q = h_eff × ΔT (W/m²)
 	// Melt rate: Q / (ρ_ice × L_f) (m/s)
-	float heatFlux = PHASE_CHANGE_HEAT_TRANSFER_COEFF * deltaT;
+	float heatFlux = h_eff * deltaT;
 	return heatFlux / (MATERIAL_ICE_DENSITY * MATERIAL_ICE_LATENT_HEAT_FUSION);
 }
 
@@ -120,7 +149,7 @@ float calculatePhaseChangeRate(float deltaT) {
 float calculateVaporisationRate(float deltaT) {
 	// Heat flux at interface: Q = h × ΔT (W/m²)
 	// Vaporisation rate: Q / (ρ_water × L_v) (m/s)
-	float heatFlux = PHASE_CHANGE_HEAT_TRANSFER_COEFF * deltaT;
+	float heatFlux = PHASE_CHANGE_HEAT_TRANSFER_COEFF_AIR * deltaT;
 	return heatFlux / (MATERIAL_WATER_DENSITY * MATERIAL_WATER_LATENT_HEAT_VAPORISATION);
 }
 
@@ -158,8 +187,10 @@ void main() {
 	float deltaT = surfaceTemperature - meltingPoint;
 
 	// Calculate phase change amount for this timestep
-	// Rate is in m/s, independent of ice/water depth (surface-limited process)
-	float phaseChangeAmount = calculatePhaseChangeRate(deltaT) * dt;
+	// Rate is in m/s, modulated by ice thickness (ice insulation effect)
+	// When freezing (deltaT < 0), existing ice thickness slows further freezing
+	// When melting (deltaT > 0), we use current ice thickness
+	float phaseChangeAmount = calculatePhaseChangeRate(deltaT, iceThickness) * dt;
 
 	// Apply phase change and track actual amount changed
 	float newWaterDepth = waterDepth;
@@ -187,7 +218,7 @@ void main() {
 	// - Increases total atmospheric pressure (Dalton's Law)
 	//
 	// Vaporisation only occurs when:
-	// 1. Temperature is above boiling point
+	// 1. Temperature is above boiling point 
 	// 2. There is liquid water present (not just ice)
 	// 3. Ice has melted (ice floats on water, so vaporisation occurs from water surface)
 
