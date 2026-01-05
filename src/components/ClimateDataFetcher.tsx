@@ -17,6 +17,9 @@ interface ClimateDataFetcherProps {
       salinity: number;
       albedo: number;
       elevation: number;
+      solarFlux: number;
+      surfaceNetPower: number;
+      atmosphereNetPower: number;
     }>
   ) => void;
 }
@@ -54,33 +57,57 @@ export function ClimateDataFetcher({
 
       const recorder = getRecorder();
 
-      // Always get current hydrology, surface, atmosphere, and terrain data (not time-series, just current state)
+      // Always get current hydrology, surface, atmosphere, auxiliary (flux), and terrain data (not time-series, just current state)
       const hydrologyData = await simulation.getHydrologyDataForCell(currentCellIndex, gl);
       const surfaceData = await simulation.getSurfaceDataForCell(currentCellIndex, gl);
       const atmosphereData = await simulation.getAtmosphereDataForCell(currentCellIndex, gl);
+      const auxiliaryData = await simulation.getAuxiliaryDataForCell(currentCellIndex, gl);
       const terrainData = simulation.getTerrainDataForCell(currentCellIndex);
 
-      // Try to get complete orbit surface data (temperature and albedo) from recorder
+      // Try to get complete orbit surface, atmosphere, and auxiliary data from recorder
       if (recorder && recorder.hasCompleteOrbit()) {
         const surfaceDataArray =
           await recorder.getCompleteOrbitSurfaceDataForCell(currentCellIndex);
+        const atmosphereDataArray =
+          await recorder.getCompleteOrbitAtmosphereDataForCell(currentCellIndex);
+        const auxiliaryDataArray =
+          await recorder.getCompleteOrbitAuxiliaryDataForCell(currentCellIndex);
 
-        if (surfaceDataArray && surfaceDataArray.length > 0) {
+        if (
+          surfaceDataArray &&
+          surfaceDataArray.length > 0 &&
+          atmosphereDataArray &&
+          atmosphereDataArray.length > 0 &&
+          auxiliaryDataArray &&
+          auxiliaryDataArray.length > 0
+        ) {
+          // Calculate orbital averages for flux data
+          const avgSolarFlux = auxiliaryDataArray.reduce((sum, d) => sum + d.solarFlux, 0) / auxiliaryDataArray.length;
+          const avgSurfaceNetPower = auxiliaryDataArray.reduce((sum, d) => sum + d.surfaceNetPower, 0) / auxiliaryDataArray.length;
+          const avgAtmosphereNetPower = auxiliaryDataArray.reduce((sum, d) => sum + d.atmosphereNetPower, 0) / auxiliaryDataArray.length;
+
           // Format as time series data (sample index as "day")
-          // Use current hydrology, atmosphere, and terrain data for all samples (since it's not time-series)
-          // Albedo is read from each recorded sample
-          const formattedData = surfaceDataArray.map((surface, index) => ({
-            day: index,
-            surfaceTemperature: surface.temperature,
-            atmosphericTemperature: atmosphereData.atmosphericTemperature,
-            precipitableWater: atmosphereData.precipitableWater,
-            surfacePressure: atmosphereData.pressure,
-            waterDepth: hydrologyData.waterDepth,
-            iceThickness: hydrologyData.iceThickness,
-            salinity: hydrologyData.salinity,
-            albedo: surface.albedo,
-            elevation: terrainData.elevation,
-          }));
+          // Use current hydrology and terrain data for all samples (since it's not time-series)
+          // Use orbital-averaged flux data for all samples (to avoid wild fluctuations)
+          // Surface temperature, albedo, and atmosphere data are read from recorded samples
+          const formattedData = surfaceDataArray.map((surface, index) => {
+            const atmosphere = atmosphereDataArray[index];
+            return {
+              day: index,
+              surfaceTemperature: surface.temperature,
+              atmosphericTemperature: atmosphere.atmosphericTemperature,
+              precipitableWater: atmosphere.precipitableWater,
+              surfacePressure: atmosphere.pressure,
+              waterDepth: hydrologyData.waterDepth,
+              iceThickness: hydrologyData.iceThickness,
+              salinity: hydrologyData.salinity,
+              albedo: surface.albedo,
+              elevation: terrainData.elevation,
+              solarFlux: avgSolarFlux,
+              surfaceNetPower: avgSurfaceNetPower,
+              atmosphereNetPower: avgAtmosphereNetPower,
+            };
+          });
           onDataFetched(formattedData);
           return;
         }
@@ -97,6 +124,7 @@ export function ClimateDataFetcher({
           ...hydrologyData,
           ...surfaceData,
           ...terrainData,
+          ...auxiliaryData,
         },
       ];
       onDataFetched(formattedData);

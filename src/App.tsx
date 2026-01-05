@@ -128,6 +128,9 @@ function ClimateApp() {
         salinity: number;
         albedo: number;
         elevation: number;
+        solarFlux: number;
+        surfaceNetPower: number;
+        atmosphereNetPower: number;
       }>
     ) => {
       setClimateData(data);

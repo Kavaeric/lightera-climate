@@ -19,6 +19,10 @@ export interface UIStateContextType {
     salinity: number;
     albedo: number;
     elevation: number;
+    surfacePressure: number;
+    solarFlux: number;
+    surfaceNetPower: number;
+    atmosphereNetPower: number;
   }>;
   setClimateData: (
     data: Array<{
@@ -31,6 +35,10 @@ export interface UIStateContextType {
       salinity: number;
       albedo: number;
       elevation: number;
+      surfacePressure: number;
+      solarFlux: number;
+      surfaceNetPower: number;
+      atmosphereNetPower: number;
     }>
   ) => void;
 }

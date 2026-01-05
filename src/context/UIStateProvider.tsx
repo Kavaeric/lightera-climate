@@ -23,6 +23,10 @@ export function UIStateProvider({ children }: UIStateProviderProps) {
       salinity: number;
       albedo: number;
       elevation: number;
+      surfacePressure: number;
+      solarFlux: number;
+      surfaceNetPower: number;
+      atmosphereNetPower: number;
     }>
   >([]);
 

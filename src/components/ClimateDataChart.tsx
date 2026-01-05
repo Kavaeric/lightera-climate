@@ -13,6 +13,9 @@ interface ClimateDataPoint {
   albedo: number;
   elevation: number;
   surfacePressure: number;
+  solarFlux: number;
+  surfaceNetPower: number;
+  atmosphereNetPower: number;
 }
 
 interface ClimateDataChartProps {
@@ -101,6 +104,16 @@ export function ClimateDataChart({
     if (data.length === 0) return 0;
     // Surface pressure is the same for all samples (current state), so just get the first one
     return data[0]?.surfacePressure ?? 0;
+  }, [data]);
+
+  // Get energy flux data (current value, not time-series)
+  const fluxData = useMemo(() => {
+    if (data.length === 0) return { solarFlux: 0, surfaceNetPower: 0, atmosphereNetPower: 0 };
+    return {
+      solarFlux: data[0]?.solarFlux ?? 0,
+      surfaceNetPower: data[0]?.surfaceNetPower ?? 0,
+      atmosphereNetPower: data[0]?.atmosphereNetPower ?? 0,
+    };
   }, [data]);
 
   if (cellIndex === null) return null;
@@ -225,6 +238,21 @@ export function ClimateDataChart({
         </div>
         <div>
           Surface pressure: <strong>{(surfacePressure / 1000).toFixed(2)} kPa</strong>
+        </div>
+      </div>
+
+      <br />
+      <div style={{ fontSize: 14, color: 'rgba(255, 255, 255, 0.7)' }}>Energy fluxes (W/m²)</div>
+
+      <div style={{ display: 'flex', gap: 16, fontSize: 16, marginTop: 4 }}>
+        <div>
+          Solar flux: <strong>{fluxData.solarFlux.toFixed(1)}</strong>
+        </div>
+        <div>
+          Surface net: <strong>{fluxData.surfaceNetPower.toFixed(1)}</strong>
+        </div>
+        <div>
+          Atmosphere net: <strong>{fluxData.atmosphereNetPower.toFixed(1)}</strong>
         </div>
       </div>
 

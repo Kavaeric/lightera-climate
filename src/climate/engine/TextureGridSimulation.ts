@@ -54,7 +54,7 @@ export class TextureGridSimulation {
 
   // Auxiliary data storage: Single render target (recalculated each step, no ping-pong needed)
   // Not used in physics pipeline - available for visualisation/diagnostics
-  // RGBA = [solarFlux (W/m²), waterState (0=solid, 1=liquid), reserved, reserved]
+  // RGBA = [solarFlux (W/m²), surfaceNetPower (W/m²), atmosphereNetPower (W/m²), reserved]
   public auxiliaryTarget: THREE.WebGLRenderTarget | null = null;
 
   // MRT for combined radiation pass (shortwave + longwave)
@@ -299,6 +299,17 @@ export class TextureGridSimulation {
       cellIndex,
       renderer,
       this.atmosphereBuffers.getCurrent()
+    );
+  }
+
+  async getAuxiliaryDataForCell(
+    cellIndex: number,
+    renderer: THREE.WebGLRenderer
+  ): Promise<{ solarFlux: number; surfaceNetPower: number; atmosphereNetPower: number }> {
+    return this.gpuReadback.getAuxiliaryDataForCell(
+      cellIndex,
+      renderer,
+      this.getAuxiliaryTarget()
     );
   }
 

@@ -303,8 +303,10 @@ void main() {
 	// Output 0: RGBA = [waterDepth, iceThickness, unused, salinity]
 	outHydrologyState = packHydrologyData(newWaterDepth, newIceThickness, newSalinity);
 
-	// Output 1 (auxiliary): RGBA = [solarFlux (preserved), waterState, unused, unused]
-	outAuxiliary = packAuxiliaryData(solarFlux, waterState);
+	// Output 1 (auxiliary): Preserve all radiation flux data from radiation pass
+	// RGBA = [solarFlux, surfaceNetPower, atmosphereNetPower, reserved] (all from radiation pass)
+	// Don't overwrite the flux diagnostics - just pass them through unchanged
+	outAuxiliary = currentAuxiliary;
 
 	// Output 2 (surface state): RGBA = [temperature, unused, unused, albedo]
 	outSurfaceState = packSurfaceData(newSurfaceTemperature, newSurfaceAlbedo);

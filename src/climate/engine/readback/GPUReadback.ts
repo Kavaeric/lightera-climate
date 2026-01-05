@@ -107,4 +107,26 @@ export class GPUReadback {
       precipitableWater: buffer[2], // B channel = precipitableWater (mm)
     };
   }
+
+  /**
+   * Read back current auxiliary data (energy fluxes) for a specific cell
+   * Format: RGBA = [solarFlux, surfaceNetPower, atmosphereNetPower, reserved]
+   */
+  async getAuxiliaryDataForCell(
+    cellIndex: number,
+    renderer: THREE.WebGLRenderer,
+    auxiliaryTarget: THREE.WebGLRenderTarget
+  ): Promise<{ solarFlux: number; surfaceNetPower: number; atmosphereNetPower: number }> {
+    const coords = indexTo2D(cellIndex, this.textureWidth);
+    const buffer = new Float32Array(4);
+
+    renderer.readRenderTargetPixels(auxiliaryTarget, coords.x, coords.y, 1, 1, buffer);
+
+    return {
+      solarFlux: buffer[0],           // R channel = solar flux at TOA (W/m²)
+      surfaceNetPower: buffer[1],     // G channel = surface net power (W/m²)
+      atmosphereNetPower: buffer[2],  // B channel = atmosphere net power (W/m²)
+      // A channel reserved for future use
+    };
+  }
 }
