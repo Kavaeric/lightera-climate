@@ -16,13 +16,15 @@ precision highp float;
 
 #include "../../../rendering/shaders/utility/textureAccessors.glsl"
 #include "../../shaders/constants.glsl"
+#include "../../shaders/waterVapour.glsl"
 
 in vec2 vUv;
 
 // Input uniforms
-uniform float initAtmospherePressure;   // Initial atmospheric pressure (Pa)
+uniform float initAtmospherePressure;   // Initial dry atmospheric pressure (Pa)
 uniform float initPrecipitableWater;    // Initial precipitable water in atmosphere (mm)
-uniform float solarFlux;                 // Initial solar flux at top of atmosphere (W/m²)
+uniform float surfaceGravity;           // Surface gravity (m/s²)
+uniform float solarFlux;                // Initial solar flux at top of atmosphere (W/m²)
 
 // Multiple render targets
 layout(location = 0) out vec4 outSurfaceState;     // RGBA = [temperature, -, -, albedo]
@@ -69,9 +71,12 @@ void main() {
   // Initialise atmosphere state
   // RGBA = [temperature, pressure, precipitableWater, albedo]
   // Atmosphere starts with no albedo (no cloud cover initially)
+  // Total pressure = dry pressure + water vapor partial pressure (Dalton's Law)
+  float waterVapourPressure = calculateWaterVapourPressure(initPrecipitableWater, surfaceGravity);
+  float totalPressure = initAtmospherePressure + waterVapourPressure;
   outAtmosphereState = vec4(
     estimatedTemperature,
-    initAtmospherePressure,
+    totalPressure,
     initPrecipitableWater,
     0.0  // No cloud albedo initially
   );
