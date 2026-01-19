@@ -116,9 +116,6 @@ export const PlanetRenderer = forwardRef<THREE.Mesh, void>(function PlanetRender
     if (uniforms.surfaceData) {
       uniforms.surfaceData.value = simulation.getClimateDataCurrent().texture;
     }
-    if (uniforms.atmosphereData) {
-      uniforms.atmosphereData.value = simulation.getAtmosphereDataCurrent().texture;
-    }
     if (uniforms.hydrologyData) {
       uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture;
     }

@@ -13,8 +13,8 @@ export type TextureGridSimulationLike = {
   terrainData: THREE.DataTexture;
   getHydrologyDataCurrent(): THREE.WebGLRenderTarget;
   getClimateDataCurrent(): THREE.WebGLRenderTarget;
-  getAtmosphereDataCurrent(): THREE.WebGLRenderTarget;
   getAuxiliaryTarget(): THREE.WebGLRenderTarget;
+  getLayerThermoCurrent(layerIndex: number): THREE.WebGLRenderTarget;
 };
 
 export type VisualisationModeId =
@@ -28,9 +28,15 @@ export type VisualisationModeId =
   | 'solarFlux'
   | 'waterState'
   | 'surfaceTemperature'
-  | 'atmosphericTemperature'
-  | 'precipitableWater'
-  | 'surfacePressure';
+  | 'layer0Temperature'
+  | 'layer1Temperature'
+  | 'layer2Temperature'
+  | 'layer0Humidity'
+  | 'layer1Humidity'
+  | 'layer2Humidity'
+  | 'layer0Pressure'
+  | 'layer1Pressure'
+  | 'layer2Pressure';
 
 /**
  * Configuration for a visualisation mode

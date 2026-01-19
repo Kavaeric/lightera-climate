@@ -11,10 +11,6 @@ import {
   calculateDryAdiabaticLapseRate,
 } from '../atmosphereCalculations';
 import type { SimulationConfig } from '../../config/simulationConfig';
-import {
-  createDryTransmissionTexture,
-  getDryTransmissionConfig,
-} from '../../data/textures/createDryTransmissionTexture';
 import type { GPUResources } from '../../types/gpu';
 import { TerrainDataLoader } from '../../terrain/TerrainDataLoader';
 
@@ -24,7 +20,33 @@ import fullscreenVertexShader from '../../rendering/shaders/utility/fullscreen.v
 import initialisationFragmentShader from '../passes/00-initialisation/initialisation.frag';
 import radiationFragmentShader from '../passes/01-radiation/radiation.frag';
 import hydrologyFragmentShader from '../passes/02-hydrology/hydrology.frag';
-import diffusionFragmentShader from '../passes/03-diffusion/diffusion.frag';
+import verticalMixingFragmentShader from '../passes/03-vertical-mixing/verticalMixing.frag';
+import diffusionFragmentShader from '../passes/04-diffusion/diffusion.frag';
+
+/**
+ * Calculate heat capacity for a specific atmospheric layer.
+ * Heat capacity = layer mass × specific heat
+ */
+function calculateLayerHeatCapacity(
+  layerIndex: number,
+  planetaryConfig: PlanetaryConfig,
+  specificHeat: number
+): number {
+  const surfacePressure = planetaryConfig.surfacePressure || 101325;
+  const gravity = planetaryConfig.surfaceGravity;
+
+  // Layer pressure boundaries (Pa)
+  const layerPressures = [
+    { pTop: 50000, pBot: surfacePressure }, // Layer 0: boundary layer (surface to ~500hPa)
+    { pTop: 10000, pBot: 50000 }, // Layer 1: troposphere (~500hPa to ~100hPa)
+    { pTop: 100, pBot: 10000 }, // Layer 2: stratosphere (~100hPa to ~1hPa)
+  ];
+
+  const layer = layerPressures[layerIndex];
+  const layerMass = (layer.pBot - layer.pTop) / gravity; // kg/m²
+
+  return layerMass * specificHeat; // J/(m²·K)
+}
 
 export interface ClimateEngineConfig {
   gl: THREE.WebGLRenderer;
@@ -45,9 +67,10 @@ export interface ClimateEngineConfig {
 function validateGPUResources(gl: THREE.WebGLRenderer, resources: GPUResources): void {
   // Check that materials were created
   if (
-    !resources.radiationMaterial ||
-    !resources.hydrologyMaterial ||
-    !resources.diffusionMaterial
+    !resources.diffusionMaterial ||
+    !resources.multiLayerRadiationMaterial ||
+    !resources.multiLayerHydrologyMaterial ||
+    !resources.verticalMixingMaterial
   ) {
     throw new Error('GPU materials were not created');
   }
@@ -73,7 +96,7 @@ function validateGPUResources(gl: THREE.WebGLRenderer, resources: GPUResources):
 
 /**
  * Creates and initialises the climate simulation engine.
- * Handles simulation creation, terrain loading, and engine initialization.
+ * Handles simulation creation, terrain loading, and engine initialisation.
  * Returns the simulation instance and a cleanup function to dispose of resources.
  */
 export async function createClimateEngine(
@@ -182,86 +205,7 @@ export async function createClimateEngine(
     console.log(`  Atmosphere specific heat: ${atmosphereSpecificHeat.toFixed(1)} J/(kg·K)`);
     console.log(`  Dry adiabatic lapse rate: ${(lapseRate * 1000).toFixed(2)} K/km`);
 
-    // Create dry transmission lookup texture (pre-computed for CO2, CH4, N2O, O3, CO, SO2, HCl, HF)
-    // This must be created after meanMolecularMass is calculated
-    // Gas concentrations default to 0 if not specified in config
-    if (planetaryConfig.surfacePressure === undefined) {
-      console.warn(
-        '[Climate Engine] surfacePressure not specified in planetary config, atmospheric transmission will be disabled'
-      );
-    }
-    const dryTransmissionTexture = createDryTransmissionTexture({
-      surfacePressure: planetaryConfig.surfacePressure ?? 0,
-      surfaceGravity: planetaryConfig.surfaceGravity,
-      meanMolecularMass: meanMolecularMass,
-      gasConcentrations: {
-        co2: planetaryConfig.co2Concentration ?? 0,
-        ch4: planetaryConfig.ch4Concentration ?? 0,
-        n2o: planetaryConfig.n2oConcentration ?? 0,
-        o3: planetaryConfig.o3Concentration ?? 0,
-        co: planetaryConfig.coConcentration ?? 0,
-        so2: planetaryConfig.so2Concentration ?? 0,
-        hcl: planetaryConfig.hclConcentration ?? 0,
-        hf: planetaryConfig.hfConcentration ?? 0,
-      },
-    });
-    const dryTransmissionConfig = getDryTransmissionConfig();
-
-    // Create merged radiation material (Pass 1 - combined shortwave + longwave)
-    // Handles both solar heating and greenhouse effect in a single pass
-    // Uses hybrid transmission approach: pre-computed dry gases + per-cell H2O
-    const radiationMaterial = new THREE.ShaderMaterial({
-      vertexShader: fullscreenVertexShader,
-      fragmentShader: radiationFragmentShader,
-      glslVersion: THREE.GLSL3,
-      uniforms: {
-        cellInformation: { value: simulation.cellInformation },
-        surfaceData: { value: null }, // Will be set each frame
-        atmosphereData: { value: null }, // Will be set each frame
-        hydrologyData: { value: null }, // Will be set each frame
-        terrainData: { value: simulation.terrainData },
-        // Orbital parameters (for shortwave)
-        axialTilt: { value: axialTilt },
-        yearProgress: { value: 0 },
-        subsolarLon: { value: 0 }, // Starts at prime meridian
-        solarFlux: { value: solarFlux },
-        // Physics parameters
-        dt: { value: dt },
-        // === ATMOSPHERIC TRANSMISSION UNIFORMS (for longwave) ===
-        // Dry gas transmission lookup (pre-computed for CO2, CH4, N2O, O3)
-        dryTransmissionTexture: { value: dryTransmissionTexture },
-        dryTransmissionTempMin: { value: dryTransmissionConfig.tempMin },
-        dryTransmissionTempMax: { value: dryTransmissionConfig.tempMax },
-        // === ATMOSPHERIC PROPERTIES (for longwave) ===
-        surfacePressure: { value: planetaryConfig.surfacePressure || 101325 },
-        surfaceGravity: { value: planetaryConfig.surfaceGravity },
-        meanMolecularMass: { value: meanMolecularMass },
-        atmosphereHeatCapacity: { value: atmosphereHeatCapacity },
-        atmosphereScaleHeight: { value: planetaryConfig.atmosphereScaleHeight },
-        dryAdiabaticLapseRate: { value: lapseRate },
-      },
-    });
-
-    // Create hydrology material (Pass 2)
-    // Handles water cycle dynamics: evaporation, precipitation, ice formation
-    // Uses MRT to output both hydrology state and auxiliary water state
-    const hydrologyMaterial = new THREE.ShaderMaterial({
-      vertexShader: fullscreenVertexShader,
-      fragmentShader: hydrologyFragmentShader,
-      glslVersion: THREE.GLSL3,
-      uniforms: {
-        cellInformation: { value: simulation.cellInformation },
-        surfaceData: { value: null }, // Will be set each frame
-        hydrologyData: { value: null }, // Will be set each frame
-        terrainData: { value: simulation.terrainData },
-        atmosphereData: { value: null }, // Will be set each frame
-        auxiliaryData: { value: null }, // Will be set each frame (to preserve solar flux)
-        surfaceGravity: { value: planetaryConfig.surfaceGravity }, // m/s² - for water vapour pressure calculations
-        dt: { value: dt },
-      },
-    });
-
-    // Create diffusion material (Pass 3)
+    // Create diffusion material (Pass 4 - surface thermal conduction)
     // Handles thermal conduction between cells using Fourier's law
     const diffusionMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
@@ -280,15 +224,103 @@ export async function createClimateEngine(
       },
     });
 
+    // =========================================================================
+    // MULTI-LAYER ATMOSPHERE MATERIALS
+    // =========================================================================
+
+    // Multi-layer radiation material (replaces simple radiation)
+    // Uses two-stream approximation with per-layer absorption/emission
+    const multiLayerRadiationMaterial = new THREE.ShaderMaterial({
+      vertexShader: fullscreenVertexShader,
+      fragmentShader: radiationFragmentShader,
+      glslVersion: THREE.GLSL3,
+      uniforms: {
+        cellInformation: { value: simulation.cellInformation },
+        surfaceData: { value: null },
+        terrainData: { value: simulation.terrainData },
+        hydrologyData: { value: null },
+        // Layer texture uniforms (will be set each frame)
+        layer0ThermoData: { value: null },
+        layer1ThermoData: { value: null },
+        layer2ThermoData: { value: null },
+        layer0DynamicsData: { value: null },
+        layer1DynamicsData: { value: null },
+        layer2DynamicsData: { value: null },
+        // Orbital parameters
+        axialTilt: { value: axialTilt },
+        yearProgress: { value: 0 },
+        subsolarLon: { value: 0 },
+        solarFlux: { value: solarFlux },
+        dt: { value: dt },
+        // Physics parameters
+        surfacePressure: { value: planetaryConfig.surfacePressure || 101325 },
+        surfaceGravity: { value: planetaryConfig.surfaceGravity },
+        atmosphereScaleHeight: { value: planetaryConfig.atmosphereScaleHeight },
+        troposphericLapseRate: { value: lapseRate },
+        // Layer heat capacities
+        layer0HeatCapacity: { value: calculateLayerHeatCapacity(0, planetaryConfig, atmosphereSpecificHeat) },
+        layer1HeatCapacity: { value: calculateLayerHeatCapacity(1, planetaryConfig, atmosphereSpecificHeat) },
+        layer2HeatCapacity: { value: calculateLayerHeatCapacity(2, planetaryConfig, atmosphereSpecificHeat) },
+      },
+    });
+
+    // Multi-layer hydrology material
+    // Handles evaporation to boundary layer (layer 0)
+    const multiLayerHydrologyMaterial = new THREE.ShaderMaterial({
+      vertexShader: fullscreenVertexShader,
+      fragmentShader: hydrologyFragmentShader,
+      glslVersion: THREE.GLSL3,
+      uniforms: {
+        cellInformation: { value: simulation.cellInformation },
+        surfaceData: { value: null },
+        hydrologyData: { value: null },
+        terrainData: { value: simulation.terrainData },
+        auxiliaryData: { value: null },
+        // Layer 0 thermo only (boundary layer for evaporation)
+        layer0ThermoData: { value: null },
+        dt: { value: dt },
+        surfaceGravity: { value: planetaryConfig.surfaceGravity },
+        surfacePressure: { value: planetaryConfig.surfacePressure || 101325 },
+      },
+    });
+
+    // Vertical mixing material
+    // Handles convective adjustment and cloud formation
+    const verticalMixingMaterial = new THREE.ShaderMaterial({
+      vertexShader: fullscreenVertexShader,
+      fragmentShader: verticalMixingFragmentShader,
+      glslVersion: THREE.GLSL3,
+      uniforms: {
+        cellInformation: { value: simulation.cellInformation },
+        // All layer thermo and dynamics
+        layer0ThermoData: { value: null },
+        layer1ThermoData: { value: null },
+        layer2ThermoData: { value: null },
+        layer0DynamicsData: { value: null },
+        layer1DynamicsData: { value: null },
+        layer2DynamicsData: { value: null },
+        dt: { value: dt },
+        surfaceGravity: { value: planetaryConfig.surfaceGravity },
+        surfacePressure: { value: planetaryConfig.surfacePressure || 101325 },
+        atmosphereScaleHeight: { value: planetaryConfig.atmosphereScaleHeight },
+        dryAdiabaticLapseRate: { value: lapseRate },
+      },
+    });
+
+    console.log('[ClimateEngine] Multi-layer atmosphere materials created');
+    console.log(`  Layer 0 heat capacity: ${calculateLayerHeatCapacity(0, planetaryConfig, atmosphereSpecificHeat).toExponential(3)} J/(m²·K)`);
+    console.log(`  Layer 1 heat capacity: ${calculateLayerHeatCapacity(1, planetaryConfig, atmosphereSpecificHeat).toExponential(3)} J/(m²·K)`);
+    console.log(`  Layer 2 heat capacity: ${calculateLayerHeatCapacity(2, planetaryConfig, atmosphereSpecificHeat).toExponential(3)} J/(m²·K)`);
+
     // Create mesh (material will be set below during initialisation)
     const mesh = new THREE.Mesh(geometry);
     mesh.frustumCulled = false;
     scene.add(mesh);
 
-    // Initialise all simulation state using unified initialisation shader
-    // Uses MRT to output surface, atmosphere, and hydrology states in one pass
-    const initAtmospherePressure = planetaryConfig.surfacePressure ?? 101325; // Pa
-    const initPrecipitableWater = 50.0; // mm (completely dry atmosphere initially)
+    // Initialise all simulation state using multi-layer initialisation shader
+    // Uses MRT to output surface, hydrology, and all layer states in one pass
+    const initSurfacePressure = planetaryConfig.surfacePressure ?? 101325; // Pa
+    const initPrecipitableWater = 25.0; // mm (completely dry atmosphere initially)
 
     const initialisationMaterial = new THREE.ShaderMaterial({
       vertexShader: fullscreenVertexShader,
@@ -296,7 +328,7 @@ export async function createClimateEngine(
       glslVersion: THREE.GLSL3,
       uniforms: {
         terrainData: { value: simulation.terrainData },
-        initAtmospherePressure: { value: initAtmospherePressure },
+        initSurfacePressure: { value: initSurfacePressure },
         initPrecipitableWater: { value: initPrecipitableWater },
         surfaceGravity: { value: planetaryConfig.surfaceGravity },
         solarFlux: { value: solarFlux },
@@ -305,21 +337,8 @@ export async function createClimateEngine(
 
     mesh.material = initialisationMaterial;
 
-    // Create MRT to render all three states at once
-    // Uses the same pattern as radiationMRT and hydrologyMRT
-    const initRenderTarget = new THREE.WebGLRenderTarget(
-      simulation.getTextureWidth(),
-      simulation.getTextureHeight(),
-      {
-        minFilter: THREE.NearestFilter,
-        magFilter: THREE.NearestFilter,
-        format: THREE.RGBAFormat,
-        type: THREE.FloatType,
-        wrapS: THREE.ClampToEdgeWrapping,
-        wrapT: THREE.ClampToEdgeWrapping,
-        count: 3, // 3 outputs: surface, atmosphere, hydrology
-      }
-    ) as unknown as THREE.WebGLRenderTarget<THREE.Texture[]>;
+    // Get multi-layer init MRT (8 outputs: surface + hydrology + 3 thermo + 3 dynamics)
+    const initRenderTarget = simulation.getMultiLayerInitMRT();
 
     // Render initialisation pass
     gl.setRenderTarget(initRenderTarget);
@@ -347,40 +366,66 @@ export async function createClimateEngine(
 
     mesh.material = copyMaterial;
 
-    // Copy surface state
+    // Copy surface state (attachment 0) to both current and next buffers
     copyMaterial.uniforms.sourceTexture.value = initRenderTarget.textures[0];
     gl.setRenderTarget(simulation.getClimateDataCurrent());
     gl.clear();
     gl.render(scene, camera);
     gl.setRenderTarget(null);
 
-    // Copy atmosphere state
-    copyMaterial.uniforms.sourceTexture.value = initRenderTarget.textures[1];
-    gl.setRenderTarget(simulation.getAtmosphereDataCurrent());
+    copyMaterial.uniforms.sourceTexture.value = initRenderTarget.textures[0];
+    gl.setRenderTarget(simulation.getClimateDataNext());
     gl.clear();
     gl.render(scene, camera);
     gl.setRenderTarget(null);
 
-    // Copy hydrology state
-    copyMaterial.uniforms.sourceTexture.value = initRenderTarget.textures[2];
+    // Copy hydrology state (attachment 1) to both current and next buffers
+    copyMaterial.uniforms.sourceTexture.value = initRenderTarget.textures[1];
     gl.setRenderTarget(simulation.getHydrologyDataCurrent());
     gl.clear();
     gl.render(scene, camera);
     gl.setRenderTarget(null);
 
+    copyMaterial.uniforms.sourceTexture.value = initRenderTarget.textures[1];
+    gl.setRenderTarget(simulation.getHydrologyDataNext());
+    gl.clear();
+    gl.render(scene, camera);
+    gl.setRenderTarget(null);
+
+    // Copy layer thermo states (attachments 2-4)
+    for (let i = 0; i < 3; i++) {
+      copyMaterial.uniforms.sourceTexture.value = initRenderTarget.textures[2 + i];
+      gl.setRenderTarget(simulation.getLayerThermoNext(i));
+      gl.clear();
+      gl.render(scene, camera);
+      gl.setRenderTarget(null);
+    }
+
+    // Copy layer dynamics states (attachments 5-7)
+    for (let i = 0; i < 3; i++) {
+      copyMaterial.uniforms.sourceTexture.value = initRenderTarget.textures[5 + i];
+      gl.setRenderTarget(simulation.getLayerDynamicsNext(i));
+      gl.clear();
+      gl.render(scene, camera);
+      gl.setRenderTarget(null);
+    }
+
+    // Swap multi-layer buffers to make the initialised state current
+    simulation.swapMultiLayerAtmosphereBuffers();
+
     // Cleanup initialisation resources
     initialisationMaterial.dispose();
     copyMaterial.dispose();
-    initRenderTarget.dispose();
 
     // Store GPU resources
     gpuResources = {
       scene,
       camera,
       geometry,
-      radiationMaterial,
-      hydrologyMaterial,
       diffusionMaterial,
+      multiLayerRadiationMaterial,
+      multiLayerHydrologyMaterial,
+      verticalMixingMaterial,
       blankRenderTarget,
       mesh,
     };
@@ -456,9 +501,10 @@ export async function createClimateEngine(
 
       if (gpuResources) {
         gpuResources.geometry.dispose();
-        gpuResources.radiationMaterial.dispose();
-        gpuResources.hydrologyMaterial.dispose();
         gpuResources.diffusionMaterial.dispose();
+        gpuResources.multiLayerRadiationMaterial.dispose();
+        gpuResources.multiLayerHydrologyMaterial.dispose();
+        gpuResources.verticalMixingMaterial.dispose();
         gpuResources.blankRenderTarget.dispose();
         gpuResources.scene.clear();
       }

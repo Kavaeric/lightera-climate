@@ -6,6 +6,7 @@
 import type { ColourmapDefinition } from './colourmaps/ColourmapTexture';
 import { getColourmapUVMapping } from './colourmaps/ColourmapTexture';
 import textureAccessors from './shaders/utility/textureAccessors.glsl?raw';
+import atmosphereLayerAccessors from '../climate/shaders/generated/atmosphereLayerAccessors.glsl?raw';
 
 /**
  * Prepend texture accessor functions to a shader
@@ -50,8 +51,14 @@ export function createAccessorShader(
 ): string {
   const { offset, scale } = getColourmapUVMapping(resolution);
 
+  // Include layer accessors if the function name references a layer
+  const needsLayerAccessors = accessorFunctionName.startsWith('getLayer');
+  const includes = needsLayerAccessors
+    ? `${textureAccessors}\n${atmosphereLayerAccessors}`
+    : textureAccessors;
+
   return `precision highp float;
-${textureAccessors}
+${includes}
 
 uniform sampler2D colourmapTexture;
 uniform float valueMin;

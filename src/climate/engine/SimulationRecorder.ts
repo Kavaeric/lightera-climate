@@ -27,7 +27,6 @@ export class SimulationRecorder {
   // Ring buffers: arrays of render targets, one per time sample
   // Buffer depth = 2 × samplesPerOrbit (1 full + 1 nearly complete orbit)
   private surfaceRingBuffer: THREE.WebGLRenderTarget[];
-  private atmosphereRingBuffer: THREE.WebGLRenderTarget[];
   private auxiliaryRingBuffer: THREE.WebGLRenderTarget[];
   private bufferDepth: number;
 
@@ -43,7 +42,6 @@ export class SimulationRecorder {
 
   // Previous state snapshots for interpolation
   private previousSurfaceSnapshot: THREE.WebGLRenderTarget | null = null;
-  private previousAtmosphereSnapshot: THREE.WebGLRenderTarget | null = null;
   private previousAuxiliarySnapshot: THREE.WebGLRenderTarget | null = null;
 
   // GPU resources for copying data
@@ -68,21 +66,12 @@ export class SimulationRecorder {
 
     // Create ring buffers (arrays of render targets)
     this.surfaceRingBuffer = this.createRingBuffer();
-    this.atmosphereRingBuffer = this.createRingBuffer();
     this.auxiliaryRingBuffer = this.createRingBuffer();
 
     // Create previous snapshot render targets for interpolation
     const width = this.simulation.getTextureWidth();
     const height = this.simulation.getTextureHeight();
     this.previousSurfaceSnapshot = new THREE.WebGLRenderTarget(width, height, {
-      minFilter: THREE.NearestFilter,
-      magFilter: THREE.NearestFilter,
-      format: THREE.RGBAFormat,
-      type: THREE.FloatType,
-      wrapS: THREE.ClampToEdgeWrapping,
-      wrapT: THREE.ClampToEdgeWrapping,
-    });
-    this.previousAtmosphereSnapshot = new THREE.WebGLRenderTarget(width, height, {
       minFilter: THREE.NearestFilter,
       magFilter: THREE.NearestFilter,
       format: THREE.RGBAFormat,
@@ -214,7 +203,7 @@ export class SimulationRecorder {
    * Called at the end of each step to prepare for next step's interpolation
    */
   private capturePreviousSnapshot(): void {
-    if (!this.previousSurfaceSnapshot || !this.previousAtmosphereSnapshot) return;
+    if (!this.previousSurfaceSnapshot || !this.previousAuxiliarySnapshot) return;
 
     const prevTarget = this.gl.getRenderTarget();
 
@@ -222,13 +211,6 @@ export class SimulationRecorder {
     const currentSurfaceTexture = this.simulation.getClimateDataCurrent().texture;
     this.copyMaterial.uniforms.sourceTex.value = currentSurfaceTexture;
     this.gl.setRenderTarget(this.previousSurfaceSnapshot);
-    this.gl.clear();
-    this.gl.render(this.copyScene, this.copyCamera);
-
-    // Capture atmosphere texture
-    const currentAtmosphereTexture = this.simulation.getAtmosphereDataCurrent().texture;
-    this.copyMaterial.uniforms.sourceTex.value = currentAtmosphereTexture;
-    this.gl.setRenderTarget(this.previousAtmosphereSnapshot);
     this.gl.clear();
     this.gl.render(this.copyScene, this.copyCamera);
 
@@ -244,15 +226,13 @@ export class SimulationRecorder {
 
   /**
    * Record a sample with linear interpolation between previous and current state.
-   * Records surface, atmosphere, and auxiliary data.
+   * Records surface and auxiliary data.
    * @param fraction Interpolation factor [0, 1] where 0 = previous, 1 = current
    */
   private recordSampleWithInterpolation(fraction: number): void {
     const surfaceTarget = this.surfaceRingBuffer[this.writeIndex];
-    const atmosphereTarget = this.atmosphereRingBuffer[this.writeIndex];
     const auxiliaryTarget = this.auxiliaryRingBuffer[this.writeIndex];
     const currentSurfaceTexture = this.simulation.getClimateDataCurrent().texture;
-    const currentAtmosphereTexture = this.simulation.getAtmosphereDataCurrent().texture;
     const currentAuxiliaryTexture = this.simulation.getAuxiliaryTarget().texture;
 
     const prevTarget = this.gl.getRenderTarget();
@@ -262,14 +242,6 @@ export class SimulationRecorder {
       surfaceTarget,
       currentSurfaceTexture,
       this.previousSurfaceSnapshot,
-      fraction
-    );
-
-    // Record atmosphere data
-    this.recordTextureWithInterpolation(
-      atmosphereTarget,
-      currentAtmosphereTexture,
-      this.previousAtmosphereSnapshot,
       fraction
     );
 
@@ -432,49 +404,6 @@ export class SimulationRecorder {
   }
 
   /**
-   * Read complete orbit atmosphere data for a specific cell.
-   * Returns an array of objects with atmospheric properties, one per sample in the complete orbit
-   *
-   * Returns null if no complete orbit is available.
-   */
-  public async getCompleteOrbitAtmosphereDataForCell(
-    cellIndex: number
-  ): Promise<
-    Array<{ atmosphericTemperature: number; pressure: number; precipitableWater: number }> | null
-  > {
-    if (!this.hasCompleteOrbit() || this.completeOrbitStartIndex === null) {
-      return null;
-    }
-
-    // Calculate 2D texture coordinates from cell index
-    const textureWidth = this.simulation.getTextureWidth();
-    const pixelX = cellIndex % textureWidth;
-    const pixelY = Math.floor(cellIndex / textureWidth);
-
-    const atmosphereData: Array<{
-      atmosphericTemperature: number;
-      pressure: number;
-      precipitableWater: number;
-    }> = [];
-    const buffer = new Float32Array(4);
-
-    // Read from each sample in the complete orbit
-    for (let i = 0; i < this.config.samplesPerOrbit; i++) {
-      const sampleIndex = (this.completeOrbitStartIndex + i) % this.bufferDepth;
-      const target = this.atmosphereRingBuffer[sampleIndex];
-
-      this.gl.readRenderTargetPixels(target, pixelX, pixelY, 1, 1, buffer);
-      atmosphereData.push({
-        atmosphericTemperature: buffer[0], // R channel = atmospheric temperature
-        pressure: buffer[1], // G channel = surface pressure
-        precipitableWater: buffer[2], // B channel = precipitable water
-      });
-    }
-
-    return atmosphereData;
-  }
-
-  /**
    * Read complete orbit auxiliary data (energy fluxes) for a specific cell.
    * Returns an array of objects with flux properties, one per sample in the complete orbit
    *
@@ -559,14 +488,14 @@ export class SimulationRecorder {
     for (const target of this.surfaceRingBuffer) {
       target.dispose();
     }
-    for (const target of this.atmosphereRingBuffer) {
+    for (const target of this.auxiliaryRingBuffer) {
       target.dispose();
     }
     if (this.previousSurfaceSnapshot) {
       this.previousSurfaceSnapshot.dispose();
     }
-    if (this.previousAtmosphereSnapshot) {
-      this.previousAtmosphereSnapshot.dispose();
+    if (this.previousAuxiliarySnapshot) {
+      this.previousAuxiliarySnapshot.dispose();
     }
     this.copyMaterial.dispose();
     this.interpolationMaterial.dispose();

@@ -12,9 +12,10 @@ export interface GPUResources {
   scene: THREE.Scene;
   camera: THREE.OrthographicCamera;
   geometry: THREE.BufferGeometry;
-  radiationMaterial: THREE.ShaderMaterial;
-  hydrologyMaterial: THREE.ShaderMaterial;
   diffusionMaterial: THREE.ShaderMaterial;
+  multiLayerRadiationMaterial: THREE.ShaderMaterial;
+  multiLayerHydrologyMaterial: THREE.ShaderMaterial;
+  verticalMixingMaterial: THREE.ShaderMaterial;
   blankRenderTarget: THREE.WebGLRenderTarget;
   mesh: THREE.Mesh;
 }

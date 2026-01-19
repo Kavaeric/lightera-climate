@@ -7,11 +7,12 @@ import { GridTextureManager } from './grid';
 import {
   RenderTargetFactory,
   ClimateBuffers,
-  AtmosphereBuffers,
   HydrologyBuffers,
 } from './buffers';
+import { MultiLayerAtmosphereBuffers } from './buffers/MultiLayerAtmosphereBuffers';
 import { TerrainTextureManager } from './terrain';
 import { GPUReadback } from './readback';
+import { NUM_ATMOSPHERE_LAYERS } from '../schema/atmosphereLayerSchema';
 
 /**
  * Climate simulation for a geodesic grid sphere.
@@ -20,8 +21,8 @@ import { GPUReadback } from './readback';
  * This class orchestrates sub-modules for different concerns:
  * - GridTextureManager: Static grid topology (neighbours, cell positions).
  * - ClimateBuffers: Surface/climate ping-pong buffers.
- * - AtmosphereBuffers: Atmosphere ping-pong buffers.
  * - HydrologyBuffers: Hydrology ping-pong buffers.
+ * - MultiLayerAtmosphereBuffers: Multi-layer atmosphere ping-pong buffers.
  * - TerrainTextureManager: Static terrain data.
  * - GPUReadback: Async GPU -> CPU data reading.
  */
@@ -30,10 +31,12 @@ export class TextureGridSimulation {
   private readonly gridManager: GridTextureManager;
   private readonly renderTargetFactory: RenderTargetFactory;
   private readonly climateBuffers: ClimateBuffers;
-  private readonly atmosphereBuffers: AtmosphereBuffers;
   private readonly hydrologyBuffers: HydrologyBuffers;
   private readonly terrainManager: TerrainTextureManager;
   private readonly gpuReadback: GPUReadback;
+
+  // Multi-layer atmosphere buffers
+  private readonly multiLayerAtmosphere: MultiLayerAtmosphereBuffers;
 
   // Expose grid textures for shader access
   public get neighbourIndices1(): THREE.DataTexture {
@@ -64,6 +67,11 @@ export class TextureGridSimulation {
   // MRT for hydrology pass (outputs hydrology state + auxiliary water state)
   public hydrologyMRT: THREE.WebGLRenderTarget<THREE.Texture[]> | null = null;
 
+  // Multi-layer MRTs
+  public multiLayerRadiationMRT: THREE.WebGLRenderTarget<THREE.Texture[]> | null = null;
+  public verticalMixingMRT: THREE.WebGLRenderTarget<THREE.Texture[]> | null = null;
+  public multiLayerInitMRT: THREE.WebGLRenderTarget<THREE.Texture[]> | null = null;
+
   constructor(config: SimulationConfig) {
     // Initialise grid manager (topology)
     this.gridManager = new GridTextureManager(config.resolution);
@@ -84,7 +92,6 @@ export class TextureGridSimulation {
 
     // Initialise buffer managers
     this.climateBuffers = new ClimateBuffers(this.renderTargetFactory);
-    this.atmosphereBuffers = new AtmosphereBuffers(this.renderTargetFactory);
     this.hydrologyBuffers = new HydrologyBuffers(this.renderTargetFactory, cellCount);
 
     // Initialise terrain manager
@@ -99,6 +106,21 @@ export class TextureGridSimulation {
     // Create MRTs
     this.radiationMRT = this.renderTargetFactory.createRadiationMRT();
     this.hydrologyMRT = this.renderTargetFactory.createHydrologyMRT();
+
+    // Create multi-layer atmosphere buffers
+    this.multiLayerAtmosphere = new MultiLayerAtmosphereBuffers(this.renderTargetFactory);
+
+    // Create multi-layer MRTs
+    this.multiLayerRadiationMRT = this.renderTargetFactory.createMultiLayerRadiationMRT();
+    this.verticalMixingMRT = this.renderTargetFactory.createVerticalMixingMRT();
+    this.multiLayerInitMRT = this.renderTargetFactory.createMultiLayerInitMRT();
+
+    // Log multi-layer memory usage
+    const multiLayerMemoryMB =
+      (NUM_ATMOSPHERE_LAYERS * 2 * 2 * textureWidth * textureHeight * 4 * 4) / (1024 * 1024);
+    console.log(
+      `Multi-layer atmosphere: ${NUM_ATMOSPHERE_LAYERS} layers, ${multiLayerMemoryMB.toFixed(1)}MB additional`
+    );
   }
 
   // =====================
@@ -174,23 +196,63 @@ export class TextureGridSimulation {
   }
 
   // =====================
-  // Atmosphere methods
+  // Multi-layer Atmosphere methods
   // =====================
 
-  public getAtmosphereDataCurrent(): THREE.WebGLRenderTarget {
-    return this.atmosphereBuffers.getCurrent();
+  /**
+   * Get the current thermo texture for a specific layer.
+   */
+  public getLayerThermoCurrent(layerIndex: number): THREE.WebGLRenderTarget {
+    return this.multiLayerAtmosphere.getLayerThermoCurrent(layerIndex);
   }
 
-  public getAtmosphereDataNext(): THREE.WebGLRenderTarget {
-    return this.atmosphereBuffers.getNext();
+  /**
+   * Get the next thermo texture for a specific layer.
+   */
+  public getLayerThermoNext(layerIndex: number): THREE.WebGLRenderTarget {
+    return this.multiLayerAtmosphere.getLayerThermoNext(layerIndex);
   }
 
-  public swapAtmosphereBuffers(): void {
-    this.atmosphereBuffers.swap();
+  /**
+   * Get the current dynamics texture for a specific layer.
+   */
+  public getLayerDynamicsCurrent(layerIndex: number): THREE.WebGLRenderTarget {
+    return this.multiLayerAtmosphere.getLayerDynamicsCurrent(layerIndex);
   }
 
-  public getAtmosphereWorkingBuffer(index: 0 | 1): THREE.WebGLRenderTarget {
-    return this.atmosphereBuffers.getWorkingBuffer(index);
+  /**
+   * Get the next dynamics texture for a specific layer.
+   */
+  public getLayerDynamicsNext(layerIndex: number): THREE.WebGLRenderTarget {
+    return this.multiLayerAtmosphere.getLayerDynamicsNext(layerIndex);
+  }
+
+  /**
+   * Get all current thermo textures as an array (for binding uniforms).
+   */
+  public getAllLayerThermoCurrentTextures(): THREE.Texture[] {
+    return this.multiLayerAtmosphere.getAllThermoCurrentTextures();
+  }
+
+  /**
+   * Get all current dynamics textures as an array (for binding uniforms).
+   */
+  public getAllLayerDynamicsCurrentTextures(): THREE.Texture[] {
+    return this.multiLayerAtmosphere.getAllDynamicsCurrentTextures();
+  }
+
+  /**
+   * Swap all multi-layer atmosphere buffers.
+   */
+  public swapMultiLayerAtmosphereBuffers(): void {
+    this.multiLayerAtmosphere.swapAll();
+  }
+
+  /**
+   * Get the number of atmosphere layers.
+   */
+  public getAtmosphereLayerCount(): number {
+    return this.multiLayerAtmosphere.getLayerCount();
   }
 
   // =====================
@@ -216,6 +278,27 @@ export class TextureGridSimulation {
       throw new Error('Hydrology MRT not initialised');
     }
     return this.hydrologyMRT;
+  }
+
+  public getMultiLayerRadiationMRT(): THREE.WebGLRenderTarget<THREE.Texture[]> {
+    if (!this.multiLayerRadiationMRT) {
+      throw new Error('Multi-layer radiation MRT not initialised');
+    }
+    return this.multiLayerRadiationMRT;
+  }
+
+  public getVerticalMixingMRT(): THREE.WebGLRenderTarget<THREE.Texture[]> {
+    if (!this.verticalMixingMRT) {
+      throw new Error('Vertical mixing MRT not initialised');
+    }
+    return this.verticalMixingMRT;
+  }
+
+  public getMultiLayerInitMRT(): THREE.WebGLRenderTarget<THREE.Texture[]> {
+    if (!this.multiLayerInitMRT) {
+      throw new Error('Multi-layer init MRT not initialised');
+    }
+    return this.multiLayerInitMRT;
   }
 
   // =====================
@@ -291,17 +374,6 @@ export class TextureGridSimulation {
     );
   }
 
-  async getAtmosphereDataForCell(
-    cellIndex: number,
-    renderer: THREE.WebGLRenderer
-  ): Promise<{ atmosphericTemperature: number; pressure: number; precipitableWater: number }> {
-    return this.gpuReadback.getAtmosphereDataForCell(
-      cellIndex,
-      renderer,
-      this.atmosphereBuffers.getCurrent()
-    );
-  }
-
   async getAuxiliaryDataForCell(
     cellIndex: number,
     renderer: THREE.WebGLRenderer
@@ -310,6 +382,18 @@ export class TextureGridSimulation {
       cellIndex,
       renderer,
       this.getAuxiliaryTarget()
+    );
+  }
+
+  async getLayerThermoDataForCell(
+    layerIndex: number,
+    cellIndex: number,
+    renderer: THREE.WebGLRenderer
+  ): Promise<{ temperature: number; pressure: number; humidity: number; cloudFraction: number }> {
+    return this.gpuReadback.getLayerThermoDataForCell(
+      cellIndex,
+      renderer,
+      this.getLayerThermoCurrent(layerIndex)
     );
   }
 
@@ -327,6 +411,7 @@ export class TextureGridSimulation {
     this.atmosphereBuffers.dispose();
     this.hydrologyBuffers.dispose();
     this.terrainManager.dispose();
+    this.multiLayerAtmosphere.dispose();
 
     if (this.auxiliaryTarget) {
       this.auxiliaryTarget.dispose();
@@ -336,6 +421,15 @@ export class TextureGridSimulation {
     }
     if (this.hydrologyMRT) {
       this.hydrologyMRT.dispose();
+    }
+    if (this.multiLayerRadiationMRT) {
+      this.multiLayerRadiationMRT.dispose();
+    }
+    if (this.verticalMixingMRT) {
+      this.verticalMixingMRT.dispose();
+    }
+    if (this.multiLayerInitMRT) {
+      this.multiLayerInitMRT.dispose();
     }
   }
 }

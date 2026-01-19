@@ -57,27 +57,43 @@ export function ClimateDataFetcher({
 
       const recorder = getRecorder();
 
-      // Always get current hydrology, surface, atmosphere, auxiliary (flux), and terrain data (not time-series, just current state)
+      // Always get current hydrology, surface, auxiliary (flux), terrain, and layer data (not time-series, just current state)
       const hydrologyData = await simulation.getHydrologyDataForCell(currentCellIndex, gl);
       const surfaceData = await simulation.getSurfaceDataForCell(currentCellIndex, gl);
-      const atmosphereData = await simulation.getAtmosphereDataForCell(currentCellIndex, gl);
       const auxiliaryData = await simulation.getAuxiliaryDataForCell(currentCellIndex, gl);
       const terrainData = simulation.getTerrainDataForCell(currentCellIndex);
 
-      // Try to get complete orbit surface, atmosphere, and auxiliary data from recorder
+      // Get multi-layer atmosphere data
+      const layer0ThermoData = await simulation.getLayerThermoDataForCell(0, currentCellIndex, gl);
+      const layer1ThermoData = await simulation.getLayerThermoDataForCell(1, currentCellIndex, gl);
+      const layer2ThermoData = await simulation.getLayerThermoDataForCell(2, currentCellIndex, gl);
+
+      // Calculate column-integrated precipitable water from all layers
+      // Precipitable water = sum of (humidity * layer_mass) for all layers
+      // Layer mass = (pBot - pTop) / g
+      const surfaceGravity = 9.81; // m/s²
+      const surfacePressureValue = 101325; // Pa (approximate, should come from config)
+
+      const layer0Mass = (surfacePressureValue - 50000) / surfaceGravity; // kg/m²
+      const layer1Mass = (50000 - 10000) / surfaceGravity; // kg/m²
+      const layer2Mass = (10000 - 100) / surfaceGravity; // kg/m²
+
+      const layer0Water = layer0ThermoData.humidity * layer0Mass; // kg/m²
+      const layer1Water = layer1ThermoData.humidity * layer1Mass; // kg/m²
+      const layer2Water = layer2ThermoData.humidity * layer2Mass; // kg/m²
+
+      const totalPrecipitableWater = layer0Water + layer1Water + layer2Water; // kg/m² = mm
+
+      // Try to get complete orbit surface and auxiliary data from recorder
       if (recorder && recorder.hasCompleteOrbit()) {
         const surfaceDataArray =
           await recorder.getCompleteOrbitSurfaceDataForCell(currentCellIndex);
-        const atmosphereDataArray =
-          await recorder.getCompleteOrbitAtmosphereDataForCell(currentCellIndex);
         const auxiliaryDataArray =
           await recorder.getCompleteOrbitAuxiliaryDataForCell(currentCellIndex);
 
         if (
           surfaceDataArray &&
           surfaceDataArray.length > 0 &&
-          atmosphereDataArray &&
-          atmosphereDataArray.length > 0 &&
           auxiliaryDataArray &&
           auxiliaryDataArray.length > 0
         ) {
@@ -87,17 +103,16 @@ export function ClimateDataFetcher({
           const avgAtmosphereNetPower = auxiliaryDataArray.reduce((sum, d) => sum + d.atmosphereNetPower, 0) / auxiliaryDataArray.length;
 
           // Format as time series data (sample index as "day")
-          // Use current hydrology and terrain data for all samples (since it's not time-series)
+          // Use current hydrology, terrain, and layer data for all samples (since it's not time-series)
           // Use orbital-averaged flux data for all samples (to avoid wild fluctuations)
-          // Surface temperature, albedo, and atmosphere data are read from recorded samples
+          // Surface temperature and albedo are read from recorded samples
           const formattedData = surfaceDataArray.map((surface, index) => {
-            const atmosphere = atmosphereDataArray[index];
             return {
               day: index,
               surfaceTemperature: surface.temperature,
-              atmosphericTemperature: atmosphere.atmosphericTemperature,
-              precipitableWater: atmosphere.precipitableWater,
-              surfacePressure: atmosphere.pressure,
+              atmosphericTemperature: layer0ThermoData.temperature, // Use layer 0 temperature
+              precipitableWater: totalPrecipitableWater, // Column-integrated from all layers
+              surfacePressure: surfacePressureValue, // Use actual surface pressure, not layer 0 pressure
               waterDepth: hydrologyData.waterDepth,
               iceThickness: hydrologyData.iceThickness,
               salinity: hydrologyData.salinity,
@@ -106,6 +121,10 @@ export function ClimateDataFetcher({
               solarFlux: avgSolarFlux,
               surfaceNetPower: avgSurfaceNetPower,
               atmosphereNetPower: avgAtmosphereNetPower,
+              // Multi-layer atmosphere data (current state, not time-series)
+              layer0: layer0ThermoData,
+              layer1: layer1ThermoData,
+              layer2: layer2ThermoData,
             };
           });
           onDataFetched(formattedData);
@@ -119,12 +138,17 @@ export function ClimateDataFetcher({
         {
           day: 0,
           ...climateData,
-          ...atmosphereData,
-          surfacePressure: atmosphereData.pressure,
+          atmosphericTemperature: layer0ThermoData.temperature, // Use layer 0 temperature
+          precipitableWater: totalPrecipitableWater, // Column-integrated from all layers
+          surfacePressure: surfacePressureValue, // Use actual surface pressure, not layer 0 pressure
           ...hydrologyData,
           ...surfaceData,
           ...terrainData,
           ...auxiliaryData,
+          // Multi-layer atmosphere data
+          layer0: layer0ThermoData,
+          layer1: layer1ThermoData,
+          layer2: layer2ThermoData,
         },
       ];
       onDataFetched(formattedData);

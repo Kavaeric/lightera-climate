@@ -38,6 +38,11 @@ export interface DisplayConfig {
   // Surface pressure display range for greyscale mapping
   surfacePressureRange: { min: number; max: number }; // Pa (surface atmospheric pressure)
 
+  // Multi-layer atmosphere display ranges
+  layerTemperatureRange: { min: number; max: number }; // Kelvin (for all layers)
+  layerHumidityRange: { min: number; max: number }; // kg/kg (specific humidity)
+  layerPressureRange: { min: number; max: number }; // Pa (layer pressure)
+
   // Colour mapping - architecture allows future expansion to other colourmaps
   colourmap: 'fast'; // Currently only 'fast' supported; will expand to 'viridis' | 'blackbody' later
 
@@ -65,6 +70,9 @@ export const DISPLAY_CONFIG_DEFAULT: DisplayConfig = {
   solarFluxRange: { min: 0, max: 1500 }, // W/m² (0 = night, ~1367 = Earth solar constant)
   precipitableWaterRange: { min: 0, max: 100 }, // mm (Earth average ~25mm, range 0-70mm)
   surfacePressureRange: { min: 50000, max: 150000 }, // Pa (Earth ~101325 Pa, range for various altitudes)
+  layerTemperatureRange: { min: 200, max: 350 }, // Kelvin (atmospheric layers)
+  layerHumidityRange: { min: 0, max: 0.04 }, // kg/kg (0-4% specific humidity)
+  layerPressureRange: { min: 100, max: 101325 }, // Pa (100 Pa at top to surface pressure)
   colourmap: 'fast',
   underflowColour: [0.0, 0.0, 0.2], // Navy blue for cold
   overflowColour: [1.0, 0.0, 1.0], // Magenta for hot

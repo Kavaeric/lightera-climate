@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { TextureGridSimulation } from './TextureGridSimulation';
+import type { GPUResources } from '../../types/gpu';
 
 /**
  * Configuration for the simulation executor
@@ -47,7 +48,7 @@ export class SimulationExecutor {
     // Create reusable copy material for working buffer management
     this.copyMaterial = new THREE.ShaderMaterial({
       vertexShader: `
-        varying vec2 vUv;
+        out vec2 vUv;
         void main() {
           vUv = uv;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
@@ -56,11 +57,13 @@ export class SimulationExecutor {
       fragmentShader: `
         precision highp float;
         uniform sampler2D sourceTexture;
-        varying vec2 vUv;
+        in vec2 vUv;
+        out vec4 fragColor;
         void main() {
-          gl_FragColor = texture2D(sourceTexture, vUv);
+          fragColor = texture(sourceTexture, vUv);
         }
       `,
+      glslVersion: THREE.GLSL3,
       uniforms: {
         sourceTexture: { value: null },
       },
@@ -114,144 +117,202 @@ export class SimulationExecutor {
   renderStep(
     gl: THREE.WebGLRenderer,
     simulation: TextureGridSimulation,
-    materials: {
-      radiationMaterial: THREE.ShaderMaterial;
-      hydrologyMaterial: THREE.ShaderMaterial;
-      diffusionMaterial: THREE.ShaderMaterial;
-    },
-    mesh: THREE.Mesh,
+    gpuResources: GPUResources,
     scene: THREE.Scene,
     camera: THREE.OrthographicCamera
   ): boolean {
     try {
-      const { radiationMaterial, hydrologyMaterial, diffusionMaterial } = materials;
+      const mesh = gpuResources.mesh;
 
-      // ===== 3-PASS PHYSICS ARCHITECTURE =====
-      // Pass 1: Combined radiation (shortwave heating + longwave greenhouse effect)
-      // Pass 2: Hydrology (water cycle dynamics)
-      // Pass 3: Thermal diffusion (conduction between cells)
+      // =========================================================================
+      // PASS 1: Radiation (shortwave + longwave)
+      // =========================================================================
+      // Two-stream radiative transfer through 3 atmospheric layers.
+      // - Downward sweep: Solar flux attenuated by each layer.
+      // - Upward sweep: Surface emission absorbed/re-emitted by layers.
 
-      // Pass 1: Combined radiation (shortwave + longwave)
-      // - Shortwave: Solar flux at TOA and surface heating
-      // - Longwave: Surface emission, atmospheric absorption & re-emission (greenhouse effect)
-      // Update orbital state uniforms
-      radiationMaterial.uniforms.yearProgress.value = this.state.yearProgress;
-      radiationMaterial.uniforms.subsolarLon.value = this.state.currentSubsolarLon;
-      // Set input textures
-      radiationMaterial.uniforms.surfaceData.value = simulation.getClimateDataCurrent().texture;
-      radiationMaterial.uniforms.atmosphereData.value =
-        simulation.getAtmosphereDataCurrent().texture;
-      radiationMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture;
+      const mlRadiationMat = gpuResources.multiLayerRadiationMaterial;
 
-      // Render to MRT (attachment 0 = surface state, attachment 1 = atmosphere state, attachment 2 = solar flux)
-      const radiationMRT = simulation.getRadiationMRT();
-      mesh.material = radiationMaterial;
-      gl.setRenderTarget(radiationMRT);
+      // Set orbital parameters
+      mlRadiationMat.uniforms.yearProgress.value = this.state.yearProgress;
+      mlRadiationMat.uniforms.subsolarLon.value = this.state.currentSubsolarLon;
+
+      // Set current state textures
+      mlRadiationMat.uniforms.surfaceData.value = simulation.getClimateDataCurrent().texture;
+      mlRadiationMat.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture;
+
+      // Set all layer textures
+      mlRadiationMat.uniforms.layer0ThermoData.value = simulation.getLayerThermoCurrent(0).texture;
+      mlRadiationMat.uniforms.layer1ThermoData.value = simulation.getLayerThermoCurrent(1).texture;
+      mlRadiationMat.uniforms.layer2ThermoData.value = simulation.getLayerThermoCurrent(2).texture;
+      mlRadiationMat.uniforms.layer0DynamicsData.value =
+        simulation.getLayerDynamicsCurrent(0).texture;
+      mlRadiationMat.uniforms.layer1DynamicsData.value =
+        simulation.getLayerDynamicsCurrent(1).texture;
+      mlRadiationMat.uniforms.layer2DynamicsData.value =
+        simulation.getLayerDynamicsCurrent(2).texture;
+
+      mesh.material = mlRadiationMat;
+
+      // Render to MRT (5 outputs: surface + 3 layer thermos + auxiliary)
+      const mlRadiationMRT = simulation.getMultiLayerRadiationMRT();
+      gl.setRenderTarget(mlRadiationMRT);
       gl.clear();
       gl.render(scene, camera);
       gl.setRenderTarget(null);
 
-      // Copy MRT outputs to next frame targets
-      // MRT attachment 0 → next surface state
-      this.copyMaterial.uniforms.sourceTexture.value = radiationMRT.textures[0];
+      // Copy outputs to next-frame buffers
       mesh.material = this.copyMaterial;
+
+      // Copy surface state (attachment 0)
+      this.copyMaterial.uniforms.sourceTexture.value = mlRadiationMRT.textures[0];
       gl.setRenderTarget(simulation.getClimateDataNext());
-      gl.clear();
       gl.render(scene, camera);
       gl.setRenderTarget(null);
 
-      // MRT attachment 1 → next atmosphere state
-      this.copyMaterial.uniforms.sourceTexture.value = radiationMRT.textures[1];
-      gl.setRenderTarget(simulation.getAtmosphereDataNext());
-      gl.clear();
-      gl.render(scene, camera);
-      gl.setRenderTarget(null);
+      // Copy layer 0-2 thermo (attachments 1-3)
+      for (let i = 0; i < 3; i++) {
+        this.copyMaterial.uniforms.sourceTexture.value = mlRadiationMRT.textures[1 + i];
+        gl.setRenderTarget(simulation.getLayerThermoNext(i));
+        gl.render(scene, camera);
+        gl.setRenderTarget(null);
+      }
 
-      // MRT attachment 2 → auxiliary target R channel (solar flux, for visualisation)
-      this.copyMaterial.uniforms.sourceTexture.value = radiationMRT.textures[2];
+      // Copy auxiliary (attachment 4)
+      this.copyMaterial.uniforms.sourceTexture.value = mlRadiationMRT.textures[4];
       gl.setRenderTarget(simulation.getAuxiliaryTarget());
-      gl.clear();
       gl.render(scene, camera);
       gl.setRenderTarget(null);
 
-      // Pass 2: Hydrology (water cycle dynamics)
-      // - Ice/water phase transitions (freezing and melting)
-      // - Latent heat effects on surface temperature
-      // - Evaporation from water surfaces (future)
-      // - Precipitation from atmosphere (future)
-      // Uses MRT to output hydrology state, auxiliary water state, and latent-heat-corrected surface state
-      hydrologyMaterial.uniforms.surfaceData.value = radiationMRT.textures[0];
-      hydrologyMaterial.uniforms.atmosphereData.value = radiationMRT.textures[1];
-      hydrologyMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture;
-      hydrologyMaterial.uniforms.auxiliaryData.value = simulation.getAuxiliaryTarget().texture;
+      // =========================================================================
+      // PASS 2: Hydrology
+      // =========================================================================
+      // Water cycle with boundary layer (layer 0) interaction.
+      // - Evaporation adds humidity to layer 0.
+      // - Phase transitions (ice/water) with latent heat.
 
-      // Render to hydrology MRT (attachment 0 = hydrology state, attachment 1 = auxiliary, attachment 2 = surface state)
+      const mlHydrologyMat = gpuResources.multiLayerHydrologyMaterial;
+
+      // Set state textures (read from "next" buffers written by radiation)
+      mlHydrologyMat.uniforms.surfaceData.value = simulation.getClimateDataNext().texture;
+      mlHydrologyMat.uniforms.hydrologyData.value = simulation.getHydrologyDataCurrent().texture;
+      mlHydrologyMat.uniforms.auxiliaryData.value = simulation.getAuxiliaryTarget().texture;
+      mlHydrologyMat.uniforms.layer0ThermoData.value = simulation.getLayerThermoNext(0).texture;
+
+      mesh.material = mlHydrologyMat;
+
+      // Render to MRT (4 outputs: hydrology + auxiliary + surface + layer0 thermo)
       const hydrologyMRT = simulation.getHydrologyMRT();
-      mesh.material = hydrologyMaterial;
       gl.setRenderTarget(hydrologyMRT);
       gl.clear();
       gl.render(scene, camera);
       gl.setRenderTarget(null);
 
-      // Copy MRT attachment 0 → next hydrology state
-      this.copyMaterial.uniforms.sourceTexture.value = hydrologyMRT.textures[0];
+      // Copy outputs
       mesh.material = this.copyMaterial;
+
+      // Copy hydrology (attachment 0)
+      this.copyMaterial.uniforms.sourceTexture.value = hydrologyMRT.textures[0];
       gl.setRenderTarget(simulation.getHydrologyDataNext());
-      gl.clear();
       gl.render(scene, camera);
       gl.setRenderTarget(null);
 
-      // Copy MRT attachment 1 → auxiliary target (contains solar flux + water state)
+      // Copy auxiliary (attachment 1)
       this.copyMaterial.uniforms.sourceTexture.value = hydrologyMRT.textures[1];
       gl.setRenderTarget(simulation.getAuxiliaryTarget());
-      gl.clear();
       gl.render(scene, camera);
       gl.setRenderTarget(null);
 
-      // Copy MRT attachment 2 → next surface state (overwrites longwave output with latent-heat-corrected temperature)
+      // Copy surface (attachment 2) - latent heat corrected
       this.copyMaterial.uniforms.sourceTexture.value = hydrologyMRT.textures[2];
       gl.setRenderTarget(simulation.getClimateDataNext());
-      gl.clear();
       gl.render(scene, camera);
       gl.setRenderTarget(null);
 
-      // Copy MRT attachment 3 → next atmosphere state (updated pressure and precipitableWater from vaporisation)
+      // Copy layer 0 thermo (attachment 3) - updated humidity
       this.copyMaterial.uniforms.sourceTexture.value = hydrologyMRT.textures[3];
-      gl.setRenderTarget(simulation.getAtmosphereDataNext());
+      gl.setRenderTarget(simulation.getLayerThermoNext(0));
+      gl.render(scene, camera);
+      gl.setRenderTarget(null);
+
+      // =========================================================================
+      // PASS 3: Vertical mixing (convection + clouds)
+      // =========================================================================
+      // Convective adjustment and cloud parameterization
+      // - Mix temperatures when lapse rate exceeds adiabatic limit.
+      // - Transport moisture upward during convection.
+      // - Update cloud fractions based on relative humidity.
+
+      const vmMat = gpuResources.verticalMixingMaterial;
+
+      // Set all layer textures (read from "next" buffers)
+      vmMat.uniforms.layer0ThermoData.value = simulation.getLayerThermoNext(0).texture;
+      vmMat.uniforms.layer1ThermoData.value = simulation.getLayerThermoNext(1).texture;
+      vmMat.uniforms.layer2ThermoData.value = simulation.getLayerThermoNext(2).texture;
+      vmMat.uniforms.layer0DynamicsData.value = simulation.getLayerDynamicsCurrent(0).texture;
+      vmMat.uniforms.layer1DynamicsData.value = simulation.getLayerDynamicsCurrent(1).texture;
+      vmMat.uniforms.layer2DynamicsData.value = simulation.getLayerDynamicsCurrent(2).texture;
+
+      mesh.material = vmMat;
+
+      // Render to MRT (6 outputs: 3 thermos + 3 dynamics)
+      const vmMRT = simulation.getVerticalMixingMRT();
+      gl.setRenderTarget(vmMRT);
       gl.clear();
       gl.render(scene, camera);
       gl.setRenderTarget(null);
 
-      // Pass 3: Thermal diffusion (conduction between cells)
-      // - Applies Fourier's law for thermal conduction
-      // - Smooths temperature gradients across the planet surface
-      // - Uses surface state after hydrology pass
-      //
-      // To avoid feedback loop, copy current state to working buffer first
-      // then read from working buffer and write to next buffer
+      // Copy outputs
+      mesh.material = this.copyMaterial;
+
+      // Copy layer 0-2 thermo (attachments 0-2)
+      for (let i = 0; i < 3; i++) {
+        this.copyMaterial.uniforms.sourceTexture.value = vmMRT.textures[i];
+        gl.setRenderTarget(simulation.getLayerThermoNext(i));
+        gl.render(scene, camera);
+        gl.setRenderTarget(null);
+      }
+
+      // Copy layer 0-2 dynamics (attachments 3-5)
+      for (let i = 0; i < 3; i++) {
+        this.copyMaterial.uniforms.sourceTexture.value = vmMRT.textures[3 + i];
+        gl.setRenderTarget(simulation.getLayerDynamicsNext(i));
+        gl.render(scene, camera);
+        gl.setRenderTarget(null);
+      }
+
+      // =========================================================================
+      // PASS 4: Thermal diffusion (surface only)
+      // =========================================================================
+      // Horizontal heat conduction between surface cells
+
+      const diffusionMat = gpuResources.diffusionMaterial;
+
+      // Copy surface state to working buffer to avoid feedback
       this.copyMaterial.uniforms.sourceTexture.value = simulation.getClimateDataNext().texture;
       mesh.material = this.copyMaterial;
       const workingBuffer = simulation.getSurfaceWorkingBuffer(0);
       gl.setRenderTarget(workingBuffer);
-      gl.clear();
       gl.render(scene, camera);
       gl.setRenderTarget(null);
 
-      // Now read from working buffer and write diffused result to next buffer
-      diffusionMaterial.uniforms.surfaceData.value = workingBuffer.texture;
-      diffusionMaterial.uniforms.hydrologyData.value = simulation.getHydrologyDataNext().texture;
+      // Read from working buffer and write diffused result
+      diffusionMat.uniforms.surfaceData.value = workingBuffer.texture;
+      diffusionMat.uniforms.hydrologyData.value = simulation.getHydrologyDataNext().texture;
 
-      // Render to next surface state (overwrites with diffused temperature)
-      mesh.material = diffusionMaterial;
+      mesh.material = diffusionMat;
       gl.setRenderTarget(simulation.getClimateDataNext());
       gl.clear();
       gl.render(scene, camera);
       gl.setRenderTarget(null);
 
-      // Swap climate, atmosphere, and hydrology pointers for next timestep
+      // =========================================================================
+      // BUFFER SWAPPING
+      // =========================================================================
+
       simulation.swapClimateBuffers();
-      simulation.swapAtmosphereBuffers();
       simulation.swapHydrologyBuffers();
+      simulation.swapMultiLayerAtmosphereBuffers();
 
       return true;
     } catch (error) {

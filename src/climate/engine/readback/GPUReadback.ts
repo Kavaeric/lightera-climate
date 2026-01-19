@@ -88,27 +88,6 @@ export class GPUReadback {
   }
 
   /**
-   * Read back current atmosphere data for a specific cell
-   * Format: RGBA = [atmosphereTemperature, pressure, precipitableWater, albedo]
-   */
-  async getAtmosphereDataForCell(
-    cellIndex: number,
-    renderer: THREE.WebGLRenderer,
-    atmosphereTarget: THREE.WebGLRenderTarget
-  ): Promise<{ atmosphericTemperature: number; pressure: number; precipitableWater: number }> {
-    const coords = indexTo2D(cellIndex, this.textureWidth);
-    const buffer = new Float32Array(4);
-
-    renderer.readRenderTargetPixels(atmosphereTarget, coords.x, coords.y, 1, 1, buffer);
-
-    return {
-      atmosphericTemperature: buffer[0], // R channel = atmosphericTemperature
-      pressure: buffer[1], // G channel = pressure (Pa)
-      precipitableWater: buffer[2], // B channel = precipitableWater (mm)
-    };
-  }
-
-  /**
    * Read back current auxiliary data (energy fluxes) for a specific cell
    * Format: RGBA = [solarFlux, surfaceNetPower, atmosphereNetPower, reserved]
    */
@@ -127,6 +106,28 @@ export class GPUReadback {
       surfaceNetPower: buffer[1],     // G channel = surface net power (W/m²)
       atmosphereNetPower: buffer[2],  // B channel = atmosphere net power (W/m²)
       // A channel reserved for future use
+    };
+  }
+
+  /**
+   * Read back current layer thermodynamic data for a specific cell
+   * Format: RGBA = [temperature, pressure, humidity, cloudFraction]
+   */
+  async getLayerThermoDataForCell(
+    cellIndex: number,
+    renderer: THREE.WebGLRenderer,
+    layerThermoTarget: THREE.WebGLRenderTarget
+  ): Promise<{ temperature: number; pressure: number; humidity: number; cloudFraction: number }> {
+    const coords = indexTo2D(cellIndex, this.textureWidth);
+    const buffer = new Float32Array(4);
+
+    renderer.readRenderTargetPixels(layerThermoTarget, coords.x, coords.y, 1, 1, buffer);
+
+    return {
+      temperature: buffer[0],    // R channel = temperature (K)
+      pressure: buffer[1],        // G channel = pressure (Pa)
+      humidity: buffer[2],        // B channel = specific humidity (kg/kg)
+      cloudFraction: buffer[3],   // A channel = cloud fraction (0-1)
     };
   }
 }

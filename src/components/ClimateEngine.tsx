@@ -37,7 +37,7 @@ export function ClimateEngine({ stepsPerFrame, samplesPerOrbit }: ClimateEngineP
 
     const initEngine = async () => {
       try {
-        console.log('[ClimateEngine Component] Starting engine initialization...');
+        console.log('[ClimateEngine Component] Starting engine initialisation...');
         const engine = await createClimateEngine({
           gl,
           orbitalConfig: activeOrbitalConfig,
@@ -51,9 +51,9 @@ export function ClimateEngine({ stepsPerFrame, samplesPerOrbit }: ClimateEngineP
         });
         cleanup = engine.cleanup;
         registerSimulation(engine.simulation);
-        console.log('[ClimateEngine Component] Engine initialized successfully');
+        console.log('[ClimateEngine Component] Engine initialised successfully');
       } catch (error) {
-        console.error('[ClimateEngine Component] Failed to initialize engine:', error);
+        console.error('[ClimateEngine Component] Failed to initialise engine:', error);
       }
     };
 

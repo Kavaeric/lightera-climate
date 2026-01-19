@@ -156,12 +156,7 @@ export class SimulationOrchestrator {
     const success = this.executor.renderStep(
       gl,
       simulation,
-      {
-        radiationMaterial: gpuResources.radiationMaterial,
-        hydrologyMaterial: gpuResources.hydrologyMaterial,
-        diffusionMaterial: gpuResources.diffusionMaterial,
-      },
-      gpuResources.mesh,
+      gpuResources,
       gpuResources.scene,
       gpuResources.camera
     );

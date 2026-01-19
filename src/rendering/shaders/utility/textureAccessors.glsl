@@ -14,7 +14,6 @@ uniform sampler2D cellInformation;
 uniform sampler2D terrainData;
 uniform sampler2D hydrologyData;
 uniform sampler2D auxiliaryData;
-uniform sampler2D atmosphereData;
 uniform sampler2D surfaceData;
 
 // ============================================================================
@@ -79,35 +78,6 @@ float getWaterState(vec2 uv) {
 
 vec4 packAuxiliaryData(float solarFlux, float waterState) {
   return vec4(solarFlux, waterState, 0.0, 0.0);
-}
-
-// ============================================================================
-// ATMOSPHERE TEXTURE
-// Layout: RGBA = [temperature, pressure, precipitableWater, albedo]
-//
-// pressure: Surface pressure in Pa (Earth ~101325 Pa)
-// precipitableWater: Total column water vapour in mm (equivalent depth if condensed)
-//                    Earth average ~25mm, range 0-70mm. 1mm = 1 kg/m²
-// ============================================================================
-
-float getAtmosphereTemperature(vec2 uv) {
-  return texture(atmosphereData, uv).r;
-}
-
-float getAtmospherePressure(vec2 uv) {
-  return texture(atmosphereData, uv).g;
-}
-
-float getPrecipitableWater(vec2 uv) {
-  return texture(atmosphereData, uv).b;
-}
-
-float getAtmosphereAlbedo(vec2 uv) {
-  return texture(atmosphereData, uv).a;
-}
-
-vec4 packAtmosphereData(float temperature, float pressure, float precipitableWater, float albedo) {
-  return vec4(temperature, pressure, precipitableWater, albedo);
 }
 
 // ============================================================================

@@ -141,7 +141,7 @@ function ClimateApp() {
   return (
     <main style={{ width: '100vw', height: '100vh', background: 'black' }}>
       <CanvasView>
-        {/* Climate simulation engine - always render to initialize simulation */}
+        {/* Climate simulation engine - always render to initialise simulation */}
         <ClimateEngine
           key={simulationKey}
           stepsPerFrame={stepsPerFrame}

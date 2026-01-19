@@ -163,93 +163,6 @@ export const VISUALISATION_ALBEDO: VisualisationMode = {
 };
 
 /**
- * Atmospheric temperature visualisation mode
- * Shows atmospheric temperature.
- *
- * Uses auto-generated accessor shader - getAtmosphereTemperature() is called automatically
- * Atmosphere texture: R = Atmospheric temperature
- */
-export const VISUALISATION_ATMOSPHERIC_TEMPERATURE: VisualisationMode = {
-  id: 'atmosphericTemperature',
-  name: 'Atmosphere: Temperature',
-  colourmap: COLOURMAP_PLASMA,
-  getRange: (displayConfig) => displayConfig.atmosphericTemperatureRange,
-  customFragmentShader: createAccessorShader(
-    'getAtmosphereTemperature',
-    COLOURMAP_PLASMA,
-    true,
-    true
-  ),
-  buildCustomUniforms: (simulation, displayConfig) => {
-    const range = displayConfig.atmosphericTemperatureRange;
-    return {
-      atmosphereData: { value: simulation.getAtmosphereDataCurrent().texture },
-      colourmapTexture: { value: createColourmapTexture(COLOURMAP_PLASMA) },
-      valueMin: { value: range.min },
-      valueMax: { value: range.max },
-    };
-  },
-};
-
-/**
- * Surface pressure visualisation mode
- * Shows surface atmospheric pressure (Pa).
- *
- * Uses auto-generated accessor shader - getAtmospherePressure() is called automatically
- * Atmosphere texture: G = Surface pressure
- */
-export const VISUALISATION_SURFACE_PRESSURE: VisualisationMode = {
-  id: 'surfacePressure',
-  name: 'Atmosphere: Surface pressure',
-  colourmap: COLOURMAP_GREYSCALE,
-  getRange: (displayConfig) => displayConfig.surfacePressureRange,
-  customFragmentShader: createAccessorShader(
-    'getAtmospherePressure',
-    COLOURMAP_GREYSCALE,
-    false,
-    false
-  ),
-  buildCustomUniforms: (simulation, displayConfig) => {
-    const range = displayConfig.surfacePressureRange;
-    return {
-      atmosphereData: { value: simulation.getAtmosphereDataCurrent().texture },
-      colourmapTexture: { value: createColourmapTexture(COLOURMAP_GREYSCALE) },
-      valueMin: { value: range.min },
-      valueMax: { value: range.max },
-    };
-  },
-};
-
-/**
- * Precipitable water visualisation mode
- * Shows total column water vapour (mm).
- *
- * Uses auto-generated accessor shader - getPrecipitableWater() is called automatically
- * Atmosphere texture: B = Precipitable water
- */
-export const VISUALISATION_PRECIPITABLE_WATER: VisualisationMode = {
-  id: 'precipitableWater',
-  name: 'Atmosphere: Precipitable water',
-  colourmap: COLOURMAP_GREYSCALE,
-  getRange: (displayConfig) => displayConfig.precipitableWaterRange,
-  customFragmentShader: createAccessorShader(
-    'getPrecipitableWater',
-    COLOURMAP_GREYSCALE,
-    false,
-    false
-  ),
-  buildCustomUniforms: (simulation, displayConfig) => {
-    const range = displayConfig.precipitableWaterRange;
-    return {
-      atmosphereData: { value: simulation.getAtmosphereDataCurrent().texture },
-      colourmapTexture: { value: createColourmapTexture(COLOURMAP_GREYSCALE) },
-      valueMin: { value: range.min },
-      valueMax: { value: range.max },
-    };
-  },
-};
-
-/**
  * Water depth visualisation mode
  * Shows water depth from hydrology simulation.
  *
@@ -368,6 +281,166 @@ export const VISUALISATION_WATER_STATE: VisualisationMode = {
   },
 };
 
+// ============================================================================
+// MULTI-LAYER ATMOSPHERE VISUALISATION MODES
+// ============================================================================
+
+/**
+ * Layer 0 (Boundary layer, 0-2km) temperature visualisation
+ */
+export const VISUALISATION_LAYER0_TEMPERATURE: VisualisationMode = {
+  id: 'layer0Temperature',
+  name: 'Layer 0: Temperature (0-2km)',
+  colourmap: COLOURMAP_PLASMA,
+  getRange: (displayConfig) => displayConfig.layerTemperatureRange,
+  customFragmentShader: createAccessorShader('getLayer0Temperature', COLOURMAP_PLASMA, true, true),
+  buildCustomUniforms: (simulation, displayConfig) => {
+    const range = displayConfig.layerTemperatureRange;
+    return {
+      layer0ThermoData: { value: simulation.getLayerThermoCurrent(0).texture },
+      colourmapTexture: { value: createColourmapTexture(COLOURMAP_PLASMA) },
+      valueMin: { value: range.min },
+      valueMax: { value: range.max },
+    };
+  },
+};
+
+export const VISUALISATION_LAYER1_TEMPERATURE: VisualisationMode = {
+  id: 'layer1Temperature',
+  name: 'Layer 1: Temperature (2-10km)',
+  colourmap: COLOURMAP_PLASMA,
+  getRange: (displayConfig) => displayConfig.layerTemperatureRange,
+  customFragmentShader: createAccessorShader('getLayer1Temperature', COLOURMAP_PLASMA, true, true),
+  buildCustomUniforms: (simulation, displayConfig) => {
+    const range = displayConfig.layerTemperatureRange;
+    return {
+      layer1ThermoData: { value: simulation.getLayerThermoCurrent(1).texture },
+      colourmapTexture: { value: createColourmapTexture(COLOURMAP_PLASMA) },
+      valueMin: { value: range.min },
+      valueMax: { value: range.max },
+    };
+  },
+};
+
+export const VISUALISATION_LAYER2_TEMPERATURE: VisualisationMode = {
+  id: 'layer2Temperature',
+  name: 'Layer 2: Temperature (10-50km)',
+  colourmap: COLOURMAP_PLASMA,
+  getRange: (displayConfig) => displayConfig.layerTemperatureRange,
+  customFragmentShader: createAccessorShader('getLayer2Temperature', COLOURMAP_PLASMA, true, true),
+  buildCustomUniforms: (simulation, displayConfig) => {
+    const range = displayConfig.layerTemperatureRange;
+    return {
+      layer2ThermoData: { value: simulation.getLayerThermoCurrent(2).texture },
+      colourmapTexture: { value: createColourmapTexture(COLOURMAP_PLASMA) },
+      valueMin: { value: range.min },
+      valueMax: { value: range.max },
+    };
+  },
+};
+
+export const VISUALISATION_LAYER0_HUMIDITY: VisualisationMode = {
+  id: 'layer0Humidity',
+  name: 'Layer 0: Humidity (0-2km)',
+  colourmap: COLOURMAP_TEAL_C16,
+  getRange: (displayConfig) => displayConfig.layerHumidityRange,
+  customFragmentShader: createAccessorShader('getLayer0Humidity', COLOURMAP_TEAL_C16, false, false),
+  buildCustomUniforms: (simulation, displayConfig) => {
+    const range = displayConfig.layerHumidityRange;
+    return {
+      layer0ThermoData: { value: simulation.getLayerThermoCurrent(0).texture },
+      colourmapTexture: { value: createColourmapTexture(COLOURMAP_TEAL_C16) },
+      valueMin: { value: range.min },
+      valueMax: { value: range.max },
+    };
+  },
+};
+
+export const VISUALISATION_LAYER1_HUMIDITY: VisualisationMode = {
+  id: 'layer1Humidity',
+  name: 'Layer 1: Humidity (2-10km)',
+  colourmap: COLOURMAP_TEAL_C16,
+  getRange: (displayConfig) => displayConfig.layerHumidityRange,
+  customFragmentShader: createAccessorShader('getLayer1Humidity', COLOURMAP_TEAL_C16, false, false),
+  buildCustomUniforms: (simulation, displayConfig) => {
+    const range = displayConfig.layerHumidityRange;
+    return {
+      layer1ThermoData: { value: simulation.getLayerThermoCurrent(1).texture },
+      colourmapTexture: { value: createColourmapTexture(COLOURMAP_TEAL_C16) },
+      valueMin: { value: range.min },
+      valueMax: { value: range.max },
+    };
+  },
+};
+
+export const VISUALISATION_LAYER2_HUMIDITY: VisualisationMode = {
+  id: 'layer2Humidity',
+  name: 'Layer 2: Humidity (10-50km)',
+  colourmap: COLOURMAP_TEAL_C16,
+  getRange: (displayConfig) => displayConfig.layerHumidityRange,
+  customFragmentShader: createAccessorShader('getLayer2Humidity', COLOURMAP_TEAL_C16, false, false),
+  buildCustomUniforms: (simulation, displayConfig) => {
+    const range = displayConfig.layerHumidityRange;
+    return {
+      layer2ThermoData: { value: simulation.getLayerThermoCurrent(2).texture },
+      colourmapTexture: { value: createColourmapTexture(COLOURMAP_TEAL_C16) },
+      valueMin: { value: range.min },
+      valueMax: { value: range.max },
+    };
+  },
+};
+
+export const VISUALISATION_LAYER0_PRESSURE: VisualisationMode = {
+  id: 'layer0Pressure',
+  name: 'Layer 0: Pressure (0-2km)',
+  colourmap: COLOURMAP_GREYSCALE,
+  getRange: (displayConfig) => displayConfig.layerPressureRange,
+  customFragmentShader: createAccessorShader('getLayer0Pressure', COLOURMAP_GREYSCALE, false, false),
+  buildCustomUniforms: (simulation, displayConfig) => {
+    const range = displayConfig.layerPressureRange;
+    return {
+      layer0ThermoData: { value: simulation.getLayerThermoCurrent(0).texture },
+      colourmapTexture: { value: createColourmapTexture(COLOURMAP_GREYSCALE) },
+      valueMin: { value: range.min },
+      valueMax: { value: range.max },
+    };
+  },
+};
+
+export const VISUALISATION_LAYER1_PRESSURE: VisualisationMode = {
+  id: 'layer1Pressure',
+  name: 'Layer 1: Pressure (2-10km)',
+  colourmap: COLOURMAP_GREYSCALE,
+  getRange: (displayConfig) => displayConfig.layerPressureRange,
+  customFragmentShader: createAccessorShader('getLayer1Pressure', COLOURMAP_GREYSCALE, false, false),
+  buildCustomUniforms: (simulation, displayConfig) => {
+    const range = displayConfig.layerPressureRange;
+    return {
+      layer1ThermoData: { value: simulation.getLayerThermoCurrent(1).texture },
+      colourmapTexture: { value: createColourmapTexture(COLOURMAP_GREYSCALE) },
+      valueMin: { value: range.min },
+      valueMax: { value: range.max },
+    };
+  },
+};
+
+export const VISUALISATION_LAYER2_PRESSURE: VisualisationMode = {
+  id: 'layer2Pressure',
+  name: 'Layer 2: Pressure (10-50km)',
+  colourmap: COLOURMAP_GREYSCALE,
+  getRange: (displayConfig) => displayConfig.layerPressureRange,
+  customFragmentShader: createAccessorShader('getLayer2Pressure', COLOURMAP_GREYSCALE, false, false),
+  buildCustomUniforms: (simulation, displayConfig) => {
+    const range = displayConfig.layerPressureRange;
+    return {
+      layer2ThermoData: { value: simulation.getLayerThermoCurrent(2).texture },
+      colourmapTexture: { value: createColourmapTexture(COLOURMAP_GREYSCALE) },
+      valueMin: { value: range.min },
+      valueMax: { value: range.max },
+    };
+  },
+};
+
 /**
  * Registry of all available visualisation modes
  * Maps mode ID to VisualisationMode configuration.
@@ -378,14 +451,20 @@ export const VISUALISATION_MODES: Record<VisualisationModeId, VisualisationMode>
   surfaceAltitude: VISUALISATION_SURFACE_ALTITUDE,
   surfaceTemperature: VISUALISATION_SURFACE_TEMPERATURE,
   albedo: VISUALISATION_ALBEDO,
-  atmosphericTemperature: VISUALISATION_ATMOSPHERIC_TEMPERATURE,
-  surfacePressure: VISUALISATION_SURFACE_PRESSURE,
-  precipitableWater: VISUALISATION_PRECIPITABLE_WATER,
   waterDepth: VISUALISATION_WATER_DEPTH,
   iceThickness: VISUALISATION_ICE_THICKNESS,
   salinity: VISUALISATION_SALINITY,
   solarFlux: VISUALISATION_SOLAR_FLUX,
   waterState: VISUALISATION_WATER_STATE,
+  layer0Temperature: VISUALISATION_LAYER0_TEMPERATURE,
+  layer1Temperature: VISUALISATION_LAYER1_TEMPERATURE,
+  layer2Temperature: VISUALISATION_LAYER2_TEMPERATURE,
+  layer0Humidity: VISUALISATION_LAYER0_HUMIDITY,
+  layer1Humidity: VISUALISATION_LAYER1_HUMIDITY,
+  layer2Humidity: VISUALISATION_LAYER2_HUMIDITY,
+  layer0Pressure: VISUALISATION_LAYER0_PRESSURE,
+  layer1Pressure: VISUALISATION_LAYER1_PRESSURE,
+  layer2Pressure: VISUALISATION_LAYER2_PRESSURE,
 };
 
 /**

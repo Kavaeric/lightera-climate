@@ -1,24 +1,15 @@
 /**
- * Pass 3: Hydrology
+ * Pass 2: Hydrology with boundary layer interaction.
  *
- * Handles water cycle dynamics including:
- * - Ice/water phase transitions (freezing and melting)
- * - Water vaporisation at temperatures above boiling point
- * - Latent heat effects on surface temperature
- * - Atmospheric water vapour updates (vaporised water added to atmosphere)
- * - Precipitation from atmosphere (future)
+ * Handles water cycle dynamics with multi-layer atmosphere:
+ * - Ice/water phase transitions (freezing and melting).
+ * - Water vaporisation at temperatures above boiling point.
+ * - Latent heat effects on surface temperature.
+ * - Evaporation adds humidity to Layer 0 (boundary layer).
+ * - Precipitation draws from Layer 0 humidity (future).
  *
- * Phase change assumptions:
- * - 1m of water freezes to 1m of ice (and vice versa)
- * - Uses 50m scale depth consistent with thermal calculations
- * - Latent heat absorbed during melting cools the surface
- * - Latent heat released during freezing warms the surface
- * - Latent heat absorbed during vaporisation cools the surface
- *
- * Water vapour physics:
- * - Vaporised water is added to atmospheric precipitable water
- * - Water vapour adds partial pressure to total atmospheric pressure (Dalton's Law)
- * - P_H2O = precipitableWater_mm × surfaceGravity
+ * This version integrates with the multi-layer atmosphere system,
+ * directing evaporated water to the boundary layer specifically.
  */
 
 precision highp float;
@@ -27,292 +18,194 @@ precision highp float;
 #include "../../shaders/constants.glsl"
 #include "../../shaders/waterVapour.glsl"
 #include "../../shaders/surfaceThermal.glsl"
+#include "../../shaders/generated/atmosphereLayerAccessors.glsl"
 
 in vec2 vUv;
 
 // Input uniforms
-uniform float dt;  // Timestep in seconds
-uniform float surfaceGravity;  // m/s² - for water vapour pressure calculations
+uniform float dt;              // Timestep in seconds
+uniform float surfaceGravity;  // m/s²
+uniform float surfacePressure; // Pa - reference surface pressure
 
-// Output: Updated hydrology state + auxiliary water state + surface state + atmosphere state
+// Output: Hydrology + surface + layer 0 thermo (layers 1-2 passed through)
 layout(location = 0) out vec4 outHydrologyState;
 layout(location = 1) out vec4 outAuxiliary;
 layout(location = 2) out vec4 outSurfaceState;
-layout(location = 3) out vec4 outAtmosphereState;
+layout(location = 3) out vec4 outLayer0Thermo;
 
-// Approximation of vaporisation temperature of water as a function of pressure
-// Calibrated to yield T = 375.15 K at P = 101325 Pa
-//
-// When P = 611.73, T = 273.19 K (vs reference triple point, T = 273.16 K)
-// When P = 1 000 000 Pa, T = 453.897 (reference: T = 452.15 K)
-// When P = 22 064 000 Pa, T = 640.677 (vs reference critical point, T ≈ 647)
-//
-// Works pretty well for pressures up to 1 MPa, but I guess it can work up
-// to the critical point or so. At that point the freezing point starts to drop and
-// the stuff starts to behave weirdly. Ever heard of "ice III"?
+// Phase change constants
+const float PHASE_CHANGE_HEAT_TRANSFER_COEFF_AIR = 100.0; // W/(m²·K)
+
+// Approximation of vaporisation temperature as function of pressure
 float getVaporisationPoint(float pressure) {
-	// Small wins
-	float logP = log(pressure);
-	return (-4965.11 + 23.519 * logP) / (-24.0385 + logP);
+  float logP = log(pressure);
+  return (-4965.11 + 23.519 * logP) / (-24.0385 + logP);
 }
 
-// Calculates the melting point of water as a function of salinity.
-// For every PSU of salinity, the melting point is reduced by 0.054 K.
+// Melting point as function of salinity
 float getMeltingPoint(float salinity) {
-	return 273.15 - (0.054 * salinity);
+  return 273.15 - (0.054 * salinity);
 }
 
-/**
- * Calculate phase change rate based on surface heat flux.
- *
- * Phase change occurs at the surface interface, limited by how fast heat
- * can transfer across the boundary. The melt/freeze rate is:
- *
- *   rate = h × ΔT / (ρ × L_f)   [m/s]
- *
- * Where:
- *   h = heat transfer coefficient (W/(m²·K))
- *   ΔT = temperature difference from melting point (K)
- *   ρ = density (kg/m³)
- *   L_f = latent heat of fusion (J/kg)
- *
- * For ice/water interface with natural convection, h ≈ 50-500 W/(m²·K).
- * Using a moderate value that gives reasonable melt rates:
- *   At h = 100 W/(m²·K), ΔT = 1K:
- *   rate = 100 / (917 × 334000) ≈ 3.3×10⁻⁷ m/s ≈ 0.028 m/day ≈ 10.3 m/year
- *
- * ICE INSULATION EFFECT:
- * As ice thickens, it increasingly insulates the water below, reducing the freezing
- * rate. This prevents runaway freezing in the single-layer model.
- *
- * The effective heat transfer coefficient accounts for thermal resistance:
- *   h_eff = 1 / (1/h_air + d_ice/k_ice)
- *
- * Where d_ice is ice thickness and k_ice is ice thermal conductivity.
- * As ice thickens, h_eff decreases, slowing further freezing.
- *
- * We model ice as always on top of water (floating). Phase change only
- * occurs at the ice-atmosphere interface (top surface), driven by air/surface
- * temperature. Basal melting from warm water underneath is not modelled.
- */
-const float PHASE_CHANGE_HEAT_TRANSFER_COEFF_AIR = 100.0; // W/(m²·K) - air-surface interface
-
-/**
- * Calculate effective heat transfer coefficient accounting for ice insulation.
- *
- * Ice acts as a thermal resistance layer between atmosphere and water.
- * Thicker ice → higher resistance → lower heat transfer → slower freezing.
- *
- * @param iceThickness Ice thickness in metres
- * @return Effective heat transfer coefficient in W/(m²·K)
- */
+// Effective heat transfer coefficient with ice insulation
 float getEffectiveHeatTransferCoeff(float iceThickness) {
-	// Thermal resistance in series: R_total = R_air + R_ice
-	// R_air = 1/h_air, R_ice = d/k_ice
-	// h_eff = 1 / R_total = 1 / (1/h_air + d/k_ice)
-	float thermalResistance = 1.0 / PHASE_CHANGE_HEAT_TRANSFER_COEFF_AIR +
-	                          iceThickness / MATERIAL_ICE_THERMAL_CONDUCTIVITY;
-	return 1.0 / thermalResistance;
+  float thermalResistance = 1.0 / PHASE_CHANGE_HEAT_TRANSFER_COEFF_AIR +
+                            iceThickness / MATERIAL_ICE_THERMAL_CONDUCTIVITY;
+  return 1.0 / thermalResistance;
 }
 
+// Phase change rate from heat flux
 float calculatePhaseChangeRate(float deltaT, float iceThickness) {
-	// Get effective heat transfer coefficient (reduced by ice insulation)
-	float h_eff = getEffectiveHeatTransferCoeff(iceThickness);
+  float h_eff = getEffectiveHeatTransferCoeff(iceThickness);
+  float heatFlux = h_eff * deltaT;
+  return heatFlux / (MATERIAL_ICE_DENSITY * MATERIAL_ICE_LATENT_HEAT_FUSION);
+}
 
-	// Heat flux at interface: Q = h_eff × ΔT (W/m²)
-	// Melt rate: Q / (ρ_ice × L_f) (m/s)
-	float heatFlux = h_eff * deltaT;
-	return heatFlux / (MATERIAL_ICE_DENSITY * MATERIAL_ICE_LATENT_HEAT_FUSION);
+// Vaporisation rate from heat flux
+float calculateVaporisationRate(float deltaT) {
+  float heatFlux = PHASE_CHANGE_HEAT_TRANSFER_COEFF_AIR * deltaT;
+  return heatFlux / (MATERIAL_WATER_DENSITY * MATERIAL_WATER_LATENT_HEAT_VAPORISATION);
 }
 
 /**
- * Calculate vaporisation rate based on surface heat flux.
+ * Calculate evaporation rate based on Dalton's evaporation law.
+ * Evaporation occurs when the atmosphere is not saturated, even below boiling.
  *
- * Vaporisation occurs when temperature exceeds the boiling point, driven by
- * excess thermal energy. The vaporisation rate is:
- *
- *   rate = h × ΔT / (ρ × L_v)   [m/s]
+ * E = k × (q_sat - q) × wind_factor
  *
  * Where:
- *   h = heat transfer coefficient (W/(m²·K))
- *   ΔT = temperature difference from boiling point (K)
- *   ρ = density of water (kg/m³)
- *   L_v = latent heat of vaporisation (J/kg)
- *
- * For water/atmosphere interface with natural convection, similar heat transfer
- * coefficients apply. Using the same coefficient as phase change:
- *   At h = 100 W/(m²·K), ΔT = 1K:
- *   rate = 100 / (1000 × 2260000) ≈ 4.4×10⁻⁸ m/s ≈ 0.0038 m/day ≈ 1.4 m/year
- *
- * This is independent of water depth; only the surface vaporises.
+ * - k = transfer coefficient
+ * - q_sat = saturation humidity at surface temperature
+ * - q = actual humidity in boundary layer
  */
-float calculateVaporisationRate(float deltaT) {
-	// Heat flux at interface: Q = h × ΔT (W/m²)
-	// Vaporisation rate: Q / (ρ_water × L_v) (m/s)
-	float heatFlux = PHASE_CHANGE_HEAT_TRANSFER_COEFF_AIR * deltaT;
-	return heatFlux / (MATERIAL_WATER_DENSITY * MATERIAL_WATER_LATENT_HEAT_VAPORISATION);
+float calculateEvaporationRate(float surfaceTemp, float boundaryHumidity, float boundaryPressure) {
+  // Saturation vapour pressure at surface temperature (Tetens formula)
+  float tempC = surfaceTemp - 273.15;
+  float es = 610.78 * exp((17.27 * tempC) / (tempC + 237.3)); // Pa
+
+  // Saturation specific humidity at surface
+  float qsat = 0.622 * es / (boundaryPressure - 0.378 * es);
+
+  // Humidity deficit
+  float humidityDeficit = max(qsat - boundaryHumidity, 0.0);
+
+  // Transfer coefficient (simplified, assumes moderate wind)
+  // Units: kg/(m²·s) per (kg/kg) = m/s effectively
+  float transferCoeff = 0.001; // About 1mm/s per 100% humidity deficit
+
+  return transferCoeff * humidityDeficit;
 }
 
 void main() {
-	// Read current hydrology state
-	vec4 hydrologyState = texture(hydrologyData, vUv);
-	float waterDepth = hydrologyState.r;
-	float iceThickness = hydrologyState.g;
-	float salinity = hydrologyState.a;
+  // === READ CURRENT STATE ===
+  vec4 hydrologyState = texture(hydrologyData, vUv);
+  float waterDepth = hydrologyState.r;
+  float iceThickness = hydrologyState.g;
+  float salinity = hydrologyState.a;
 
-	vec4 atmosphereState = texture(atmosphereData, vUv);
-	float atmosphereTemperature = atmosphereState.r;
-	float atmospherePressure = atmosphereState.g;
-	float precipitableWater_mm = atmosphereState.b;
-	float atmosphereAlbedo = atmosphereState.a;
+  vec4 surfaceState = texture(surfaceData, vUv);
+  float surfaceTemperature = surfaceState.r;
+  float surfaceAlbedo = surfaceState.a;
 
-	vec4 surfaceState = texture(surfaceData, vUv);
-	float surfaceTemperature = surfaceState.r;
-	float surfaceAlbedo = surfaceState.a;
+  vec4 currentAuxiliary = texture(auxiliaryData, vUv);
 
-	vec4 currentAuxiliary = texture(auxiliaryData, vUv);
-	float solarFlux = currentAuxiliary.r;
+  // Read boundary layer (layer 0) state
+  Layer0ThermoState layer0 = getLayer0ThermoState(vUv);
 
-	// Calculate phase transition temperatures
-	float meltingPoint = getMeltingPoint(salinity);
-	float boilingPoint = getVaporisationPoint(atmospherePressure);
+  // Calculate phase transition temperatures
+  float meltingPoint = getMeltingPoint(salinity);
+  float boilingPoint = getVaporisationPoint(layer0.pressure);
 
-	// === PHASE CHANGE DYNAMICS ===
-	//
-	// Phase change is driven by excess thermal energy beyond the melting point.
-	// The rate is determined by the thermal energy budget and latent heat of fusion.
-	// Positive deltaT = above melting → ice melts to water
-	// Negative deltaT = below melting → water freezes to ice
+  // === PHASE CHANGE DYNAMICS (Ice ↔ Water) ===
+  float deltaT = surfaceTemperature - meltingPoint;
+  float phaseChangeAmount = calculatePhaseChangeRate(deltaT, iceThickness) * dt;
 
-	float deltaT = surfaceTemperature - meltingPoint;
+  float newWaterDepth = waterDepth;
+  float newIceThickness = iceThickness;
+  float actualPhaseChange = 0.0;
 
-	// Calculate phase change amount for this timestep
-	// Rate is in m/s, modulated by ice thickness (ice insulation effect)
-	// When freezing (deltaT < 0), existing ice thickness slows further freezing
-	// When melting (deltaT > 0), we use current ice thickness
-	float phaseChangeAmount = calculatePhaseChangeRate(deltaT, iceThickness) * dt;
+  // Branchless melt/freeze logic
+  float meltAmount = min(max(phaseChangeAmount, 0.0), iceThickness);
+  float freezeAmount = min(max(-phaseChangeAmount, 0.0), waterDepth);
 
-	// Apply phase change and track actual amount changed
-	float newWaterDepth = waterDepth;
-	float newIceThickness = iceThickness;
-	float actualPhaseChange = 0.0; // Positive = melting, negative = freezing
+  newIceThickness = iceThickness - meltAmount + freezeAmount;
+  newWaterDepth = waterDepth + meltAmount - freezeAmount;
+  actualPhaseChange = meltAmount - freezeAmount;
 
-	// Branchless phase change logic: 
-	// Use deltaT sign to control melt/freeze. When deltaT>0, only melt; when deltaT<=0, only freeze.
-	float meltAmount = min(max(phaseChangeAmount, 0.0), iceThickness); // Only positive if melting
-	float freezeAmount = min(max(-phaseChangeAmount, 0.0), waterDepth); // Only positive if freezing
+  newWaterDepth = max(0.0, newWaterDepth);
+  newIceThickness = max(0.0, newIceThickness);
 
-	newIceThickness = iceThickness - meltAmount + freezeAmount;
-	newWaterDepth = waterDepth + meltAmount - freezeAmount;
-	actualPhaseChange = meltAmount - freezeAmount; // Positive for melting, negative for freezing
+  // === VAPORISATION (above boiling point) ===
+  float deltaT_vaporisation = surfaceTemperature - boilingPoint;
+  float vaporisationAmount = 0.0;
 
-	// Ensure non-negative values
-	newWaterDepth = max(0.0, newWaterDepth);
-	newIceThickness = max(0.0, newIceThickness);
+  float vaporiseCond = step(0.0, deltaT_vaporisation) * step(0.0, newWaterDepth);
+  float vaporisationRate = calculateVaporisationRate(deltaT_vaporisation) * vaporiseCond;
+  float potentialVaporisation = vaporisationRate * dt;
 
-	// === VAPORISATION DYNAMICS ===
-	//
-	// When temperature exceeds the boiling point, water vaporises.
-	// Vaporised water is added to the atmosphere as water vapour, which:
-	// - Increases precipitable water (mm)
-	// - Increases total atmospheric pressure (Dalton's Law)
-	//
-	// Vaporisation only occurs when:
-	// 1. Temperature is above boiling point 
-	// 2. There is liquid water present (not just ice)
-	// 3. Ice has melted (ice floats on water, so vaporisation occurs from water surface)
+  vaporisationAmount = min(potentialVaporisation, newWaterDepth) * vaporiseCond;
+  newWaterDepth = max(0.0, newWaterDepth - vaporisationAmount);
 
-	float deltaT_vaporisation = surfaceTemperature - boilingPoint;
-	float vaporisationAmount = 0.0;
+  // No below-boiling evaporation yet
+  float evaporationAmount = 0.0;
 
-	// Vaporisation only occurs if above boiling and water present
-	float vaporiseCond = step(0.0, deltaT_vaporisation) * step(0.0, newWaterDepth); // 1.0 if both true else 0.0
-	float vaporisationRate = calculateVaporisationRate(deltaT_vaporisation) * vaporiseCond;
-	float potentialVaporisation = vaporisationRate * dt;
+  // Humidity remains unchanged (no dynamic humidity changes)
+  float newLayer0Humidity = layer0.humidity;
 
-	// Limit by available water, only if vaporisation is happening
-	vaporisationAmount = min(potentialVaporisation, newWaterDepth) * vaporiseCond;
-	newWaterDepth = newWaterDepth - vaporisationAmount;
+  // === LATENT HEAT CORRECTIONS ===
+  float fusionLatentHeatEnergy = actualPhaseChange * MATERIAL_ICE_DENSITY * MATERIAL_ICE_LATENT_HEAT_FUSION;
+  float vapourLatentHeatEnergy = vaporisationAmount * MATERIAL_WATER_DENSITY * MATERIAL_WATER_LATENT_HEAT_VAPORISATION;
+  float evapLatentHeatEnergy = evaporationAmount * MATERIAL_WATER_DENSITY * MATERIAL_WATER_LATENT_HEAT_VAPORISATION;
+  float totalLatentHeatEnergy = fusionLatentHeatEnergy + vapourLatentHeatEnergy + evapLatentHeatEnergy;
 
-	// Ensure non-negative values after vaporisation
-	newWaterDepth = max(0.0, newWaterDepth);
+  float heatCapacity = getSurfaceHeatCapacity(newWaterDepth, newIceThickness);
+  float latentHeatTemperatureChange = -totalLatentHeatEnergy / heatCapacity;
 
-	// === ATMOSPHERIC WATER VAPOUR UPDATE ===
-	//
-	// Add vaporised water to atmosphere using Dalton's Law:
-	// P_total = P_dry + P_H2O
-	//
-	// Water vapour partial pressure: P_H2O = precipitableWater_mm × g
-	// (1mm precipitable water = 1 kg/m², and P = m × g)
+  float newSurfaceTemperature = surfaceTemperature + latentHeatTemperatureChange;
 
-	// Convert vaporised water depth to precipitable water increase
-	float precipitableWaterIncrease = waterDepthToPrecipitableWater(vaporisationAmount);
-	float newPrecipitableWater = precipitableWater_mm + precipitableWaterIncrease;
+  // === SALINITY UPDATE ===
+  float hasWaterOrIce = step(1e-6, newWaterDepth) + step(1e-6, newIceThickness);
+  float newSalinity = salinity * min(hasWaterOrIce, 1.0);
 
-	// Update total pressure: derive dry pressure, then add new water vapour pressure
-	float dryPressure = calculateDryPressure(atmospherePressure, precipitableWater_mm, surfaceGravity);
-	float newAtmospherePressure = dryPressure + calculateWaterVapourPressure(newPrecipitableWater, surfaceGravity);
+  // === SURFACE ALBEDO UPDATE ===
+  float newSurfaceAlbedo = getAlbedo(newWaterDepth, newIceThickness, MATERIAL_ROCK_ALBEDO_VISIBLE);
 
-	// === LATENT HEAT CORRECTIONS ===
-	//
-	// Phase change absorbs or releases energy, affecting surface temperature:
-	// - Melting (ice → water): Absorbs latent heat and keeps the surface cooler.
-	// - Freezing (water → ice): Releases latent heat and keeps the surface warmer.
-	// - Vaporisation (water → vapour): Absorbs latent heat and keeps the surface cooler.
-	//
-	// The net effect is that when water is undergoing a phase change, the surface temperature
-	// seems to hover in temperature for a bit.
-	//
-	// Calculate temperature change due to latent heat absorption/release
-	//
-	// Energy involved: E = ρ × depth_change × L  (J/m²)
-	// Temperature change: ΔT = -E / C  (K)
-	//   where C = heat capacity per unit area (J/(m²·K))
-	//
-	// Sign convention: actualPhaseChange > 0 for melting (absorbs heat, cools surface)
-	//                  actualPhaseChange < 0 for freezing (releases heat, warms surface)
-	//                  vaporisationAmount > 0 for vaporisation (absorbs heat, cools surface)
+  // === OUTPUT ===
 
-	float fusionLatentHeatEnergy = actualPhaseChange * MATERIAL_ICE_DENSITY * MATERIAL_ICE_LATENT_HEAT_FUSION;
-	float vaporisationLatentHeatEnergy = vaporisationAmount * MATERIAL_WATER_DENSITY * MATERIAL_WATER_LATENT_HEAT_VAPORISATION;
-	float totalLatentHeatEnergy = fusionLatentHeatEnergy + vaporisationLatentHeatEnergy;
-	
-	float heatCapacity = getSurfaceHeatCapacity(newWaterDepth, newIceThickness);
-	float latentHeatTemperatureChange = -totalLatentHeatEnergy / heatCapacity;
+  // Hydrology state
+  outHydrologyState = packHydrologyData(newWaterDepth, newIceThickness, newSalinity);
 
-	// Apply latent heat correction to surface temperature
-	float newSurfaceTemperature = surfaceTemperature + latentHeatTemperatureChange;
+  // Compute water state (0 = solid, 0.5 = liquid, 1 = gas)
+  float waterState = 0.5; // Default to liquid
+  if (newIceThickness > 0.01) {
+    // Ice present - solid state
+    waterState = 0.0;
+  } else if (newSurfaceTemperature > boilingPoint) {
+    // Above boiling point - gas state
+    waterState = 1.0;
+  } else if (newWaterDepth > 0.01) {
+    // Water present and not frozen - liquid state
+    waterState = 0.5;
+  } else {
+    // No water/ice - use temperature to indicate potential state
+    if (newSurfaceTemperature < meltingPoint) {
+      waterState = 0.0; // Would be solid if water present
+    } else if (newSurfaceTemperature > boilingPoint) {
+      waterState = 1.0; // Would be gas if water present
+    }
+  }
 
-	// Where there's no water nor ice, the salinity value should be cleared, otherwise preserve the value
-	// Use a small epsilon to check if both are effectively zero (branchless)
-	float hasWaterOrIce = step(1e-6, newWaterDepth) + step(1e-6, newIceThickness);
-	float newSalinity = salinity * min(hasWaterOrIce, 1.0);
+  // Auxiliary (update water state in G channel, preserve R channel from radiation pass)
+  outAuxiliary = vec4(currentAuxiliary.r, waterState, currentAuxiliary.ba);
 
-	// === SURFACE ALBEDO UPDATE ===
-	// Calculate new albedo based on updated hydrology state
-	// Ice and water have different albedos than bare rock
-	float newSurfaceAlbedo = getAlbedo(newWaterDepth, newIceThickness, MATERIAL_ROCK_ALBEDO_VISIBLE);
+  // Surface state
+  outSurfaceState = packSurfaceData(newSurfaceTemperature, newSurfaceAlbedo);
 
-	// === WATER STATE FOR VISUALISATION ===
-	// Determine water state based on temperature thresholds
-	// 0.0 = solid (frozen), 0.5 = liquid, 1.0 = vapour (above boiling)
-	float isAboveBoilingPoint = step(boilingPoint, newSurfaceTemperature);
-	float isAboveMeltingPoint = step(meltingPoint, newSurfaceTemperature) * (1.0 - isAboveBoilingPoint);
-	float waterState = isAboveMeltingPoint * 0.5 + isAboveBoilingPoint;
-
-	// Output 0: RGBA = [waterDepth, iceThickness, unused, salinity]
-	outHydrologyState = packHydrologyData(newWaterDepth, newIceThickness, newSalinity);
-
-	// Output 1 (auxiliary): Preserve all radiation flux data from radiation pass
-	// RGBA = [solarFlux, surfaceNetPower, atmosphereNetPower, reserved] (all from radiation pass)
-	// Don't overwrite the flux diagnostics - just pass them through unchanged
-	outAuxiliary = currentAuxiliary;
-
-	// Output 2 (surface state): RGBA = [temperature, unused, unused, albedo]
-	outSurfaceState = packSurfaceData(newSurfaceTemperature, newSurfaceAlbedo);
-
-	// Output 3 (atmosphere state): RGBA = [temperature, pressure, precipitableWater, albedo]
-	// Atmosphere temperature unchanged by hydrology (radiation handles that)
-	// Pressure and precipitableWater updated by vaporisation
-	outAtmosphereState = packAtmosphereData(atmosphereTemperature, newAtmospherePressure, newPrecipitableWater, atmosphereAlbedo);
+  // Layer 0 thermo (updated humidity, other values unchanged)
+  outLayer0Thermo = packLayer0Thermo(
+    layer0.temperature,
+    layer0.pressure,
+    newLayer0Humidity,
+    layer0.cloudFraction
+  );
 }
